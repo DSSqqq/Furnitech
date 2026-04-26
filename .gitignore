@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+node_modules/
+frontend/dist/
+.DS_Store
+*.log
+
+# Временные / секреты
+tmp_*.txt
+tmp_*.png
+
+# Загруженные файлы Django (текстуры, картинки профилей)
+backend/media/

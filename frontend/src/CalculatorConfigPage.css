@@ -1,0 +1,237 @@
+.calcconf {
+  width: 100%;
+  min-width: 0;
+}
+
+.calcconf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .calcconf-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calcconf-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-width: 0;
+  border: 1px solid #e6e8ed;
+}
+
+.calcconf-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calcconf-h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.calcconf-picker {
+  margin-bottom: 0.75rem;
+}
+
+.calcconf-picklist {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow-y: auto;
+  border: 1px solid #e2e5ea;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.calcconf-picklist li button {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 0.7fr) minmax(6rem, 1.6fr) minmax(5.5rem, 0.9fr);
+  gap: 0.35rem 0.6rem;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #ecf0f4;
+  background: none;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  cursor: pointer;
+  color: #1a1d23;
+}
+
+.calcconf-picklist li:last-child button {
+  border-bottom: none;
+}
+
+.calcconf-picklist li button:hover {
+  background: #eef4ff;
+}
+
+.calcconf-pick-article {
+  font-size: 0.8rem;
+  color: #5c6370;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calcconf-pick-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.calcconf-pick-price {
+  font-size: 0.8rem;
+  text-align: right;
+  color: #1a1d23;
+  font-variant-numeric: tabular-nums;
+}
+
+.calcconf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.calcconf-row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e2e5ea;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.calcconf-row:hover {
+  background: #fafbfd;
+  border-color: #b8c2d0;
+}
+
+.calcconf-row:focus-visible {
+  outline: 2px solid #2d6cdf;
+  outline-offset: 1px;
+}
+
+.calcconf-row--active {
+  border-color: #2d6cdf;
+  background: #eef4ff;
+}
+
+.calcconf-row-title {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calcconf-row-sub {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.82rem;
+  color: #5c6370;
+}
+
+.calcconf-summary {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 10px;
+  background: #fafbfd;
+  margin-bottom: 0.75rem;
+}
+
+.calcconf-summary-title {
+  font-weight: 700;
+}
+
+.calcconf-summary-sub {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: #5c6370;
+}
+
+.calcconf-colors-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.calcconf-colors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.calcconf-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #e2e5ea;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+}
+
+.calcconf-color-main {
+  min-width: 0;
+}
+
+.calcconf-color-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calcconf-color-sub {
+  margin-top: 0.1rem;
+  font-size: 0.82rem;
+  color: #5c6370;
+}
+
+.calcconf-rm {
+  border: 1px solid #d4a0a0;
+  background: #fdf5f5;
+  color: #7a2a2a;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  line-height: 1;
+  border-radius: 6px;
+  padding: 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.calcconf-rm:hover {
+  background: #f8e8e8;
+}
+

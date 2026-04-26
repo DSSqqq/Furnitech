@@ -1,0 +1,179 @@
+.calc {
+  width: 100%;
+  min-width: 0;
+}
+
+.calc-head {
+  margin-bottom: 0.75rem;
+}
+
+.calc-steps-tabs {
+  margin-top: 0.6rem;
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.calc-step-tab {
+  border: 0;
+  background: transparent;
+  color: rgba(240, 242, 245, 0.86);
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+a.calc-step-tab:visited {
+  color: rgba(240, 242, 245, 0.86);
+}
+
+a.calc-step-tab.calc-step-tab--active:visited {
+  color: #1a1d23;
+}
+
+.calc-step-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.calc-step-tab--active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1d23;
+}
+
+.calc-step-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calc-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .calc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calc-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-width: 0;
+  border: 1px solid #e6e8ed;
+}
+
+.calc-card-title-row {
+  margin-bottom: 0.65rem;
+}
+
+/* Одна и та же «левая» высота панели на шагах; при переполнении — прокрутка внутри */
+.calc-side-panel {
+  box-sizing: border-box;
+  --calc-side-h: min(520px, max(300px, calc(100dvh - 14rem)));
+  height: var(--calc-side-h);
+  max-height: var(--calc-side-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1024px) {
+  .calc-side-panel {
+    --calc-side-h: min(480px, max(260px, calc(100dvh - 12rem)));
+  }
+}
+
+/* Шаг 1: ширина карточки как первая колонка сетки шагов 2–3 (рамочный) */
+#calc-step-panel-1 .calc-card {
+  max-width: min(640px, 100%);
+}
+
+@media (min-width: 1280px) {
+  #calc-step-panel-1 .calc-card {
+    max-width: min(700px, 100%);
+  }
+}
+
+.calc-h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.calc-facade-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.calc-facade {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.6rem;
+  row-gap: 0.15rem;
+  align-items: start;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #e6e8ed;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.calc-facade:hover {
+  border-color: #cfd5df;
+  background: #fbfcfd;
+}
+
+.calc-facade--active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.calc-facade-radio {
+  margin-top: 0.2rem;
+}
+
+.calc-facade-title {
+  font-weight: 700;
+  color: #1a1d23;
+}
+
+.calc-facade-sub {
+  grid-column: 2;
+  color: #566074;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.calc-note {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  background: #f0f2f4;
+  border: 1px solid #e2e5ea;
+  border-radius: 8px;
+  color: #3d4450;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
