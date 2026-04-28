@@ -18,23 +18,9 @@
 }
 
 .login-title {
-  margin: 0;
+  margin: 0 0 1.25rem;
   font-size: 1.4rem;
   color: #1a1d23;
-}
-
-.login-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  margin: 0.35rem 0 1.25rem;
-}
-
-.login-sub {
-  margin: 0;
-  color: #5c6370;
-  font-size: 0.95rem;
 }
 
 .login-form {

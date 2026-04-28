@@ -186,9 +186,24 @@
   cursor: pointer;
 }
 
+.admin-secondary--sm {
+  padding: 0.32rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
 .admin-secondary:hover {
   background: #f4f5f7;
   border-color: #a8b0bc;
+}
+
+.admin-secondary:active {
+  transform: translateY(0.5px);
+}
+
+.admin-secondary:focus-visible {
+  outline: 2px solid rgba(45, 108, 223, 0.55);
+  outline-offset: 2px;
 }
 
 button.admin-primary.admin-modal-confirm {
@@ -630,6 +645,24 @@ button.admin-primary.admin-modal-confirm:hover {
 .mat-list-row:hover {
   border-color: #b8c2d0;
   background: #fafbfd;
+}
+
+.mat-list-row--active {
+  border-color: rgba(37, 99, 235, 0.65);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  position: relative;
+}
+
+.mat-list-row--active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 4px;
+  background: #2563eb;
+  border-radius: 6px 0 0 6px;
 }
 
 .mat-list-row:focus-visible {

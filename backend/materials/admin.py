@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 from .models import (
+    CalculatorFillingType,
+    CalculatorFillingTypeMaterial,
     Material,
     MaterialAlternativePrice,
     MaterialCategory,
@@ -53,11 +55,25 @@ admin.site.register(Material, MaterialAdmin)
 
 @admin.register(MaterialRelatedItem)
 class MaterialRelatedItemAdmin(admin.ModelAdmin):
-    list_display = ("parent", "related_material", "quantity", "sort_order")
+    list_display = ("parent", "related_material", "quantity", "quantity_scale", "sort_order")
     raw_id_fields = ("parent", "related_material")
 
 
 @admin.register(MaterialOperationLine)
 class MaterialOperationLineAdmin(admin.ModelAdmin):
-    list_display = ("material", "name", "quantity", "price", "sort_order")
+    list_display = ("material", "name", "quantity", "price", "price_per_facade", "sort_order")
     raw_id_fields = ("material", "uom")
+
+
+class CalculatorFillingTypeMaterialInline(admin.TabularInline):
+    model = CalculatorFillingTypeMaterial
+    extra = 0
+    raw_id_fields = ("material",)
+
+
+@admin.register(CalculatorFillingType)
+class CalculatorFillingTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_active", "sort_order")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    inlines = (CalculatorFillingTypeMaterialInline,)

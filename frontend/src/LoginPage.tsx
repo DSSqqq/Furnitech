@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react'
-import { HintButton } from './HintButton'
 import { login } from './auth'
 import './LoginPage.css'
 
@@ -27,10 +26,6 @@ export function LoginPage({ onSuccess }: Props) {
     <div className="login-wrap">
       <div className="login-card">
         <h1 className="login-title">Фурнитех</h1>
-        <div className="login-title-row">
-          <p className="login-sub">Админка: база материалов</p>
-          <HintButton text="Работа только со справочником материалов. Техническая панель администратора — отдельно, для сотрудника разработки." />
-        </div>
         <form onSubmit={submit} className="login-form">
           {err && <div className="login-error">{err}</div>}
           <label className="login-field">

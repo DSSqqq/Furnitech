@@ -24,6 +24,9 @@ export type MaterialCategory = {
   children?: MaterialCategory[]
 }
 
+/** Как строка сопутствующего масштабируется в калькуляторе (см. docs/ARCHITECTURE). */
+export type RelatedQuantityScale = 'follow_parent' | 'per_facade' | 'use_related_uom'
+
 export type MaterialRelatedItemDto = {
   id: number
   related_material_id: number
@@ -36,6 +39,8 @@ export type MaterialRelatedItemDto = {
     base_currency: string
   }
   quantity: string
+  /** Режим расчёта; по умолчанию как раньше — follow_parent. */
+  quantity_scale?: RelatedQuantityScale
   line_total: string
 }
 
@@ -47,6 +52,8 @@ export type MaterialOperationLineDto = {
   uom_id: number | null
   uom: UnitOfMeasure | null
   price: string
+  /** Если true — сумма строки умножается на количество фасадов в калькуляторе. */
+  price_per_facade?: boolean
 }
 
 export type Material = {
@@ -160,6 +167,34 @@ export type CalculatorProfileType = {
   is_active: boolean
   sort_order: number
   colors: CalculatorProfileTypeColorDto[]
+  created_at: string
+  updated_at: string
+}
+
+export type CalculatorFillingTypeMaterialDto = {
+  id: number
+  material_id: number
+  material: {
+    id: number
+    name: string
+    article?: string
+    uom: UnitOfMeasure
+    base_price: string
+    base_currency: string
+    texture_mode?: 'color' | 'texture' | string
+    texture_color?: string
+    texture_image?: string | null
+  }
+}
+
+export type CalculatorFillingType = {
+  id: number
+  name: string
+  image_url: string
+  card_image?: string | null
+  is_active: boolean
+  sort_order: number
+  materials: CalculatorFillingTypeMaterialDto[]
   created_at: string
   updated_at: string
 }

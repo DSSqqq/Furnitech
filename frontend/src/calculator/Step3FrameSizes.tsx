@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
-import { isFrameStep2Ready } from './frameCalcSession'
+import { useCalcPaths } from './calcPathsContext'
+import { isFrameStep2Ready, notifyFrameCalcSession } from './frameCalcSession'
 import { sketchFrameInlineStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -13,8 +14,45 @@ function asNum(s: string) {
   return Number.isFinite(n) ? n : null
 }
 
+function digitsOnly(s: string): string {
+  // Разрешаем только 0-9 (и пустое значение), чтобы в поля нельзя было ввести ничего, кроме цифр.
+  return String(s ?? '').replace(/[^\d]/g, '')
+}
+
+function asIntOrNull(s: string): number | null {
+  const t = digitsOnly(s).trim()
+  if (!t) return null
+  const n = Number(t)
+  if (!Number.isFinite(n)) return null
+  return Math.trunc(n)
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n))
+}
+
+function blendAspect(defaultAspect: number, targetAspect: number, strength: number) {
+  // strength: 0..1 (0 = no change, 1 = full target)
+  const k = clamp(strength, 0, 1)
+  return defaultAspect + (targetAspect - defaultAspect) * k
+}
+
+function blendScale(defaultScale: number, targetScale: number, strength: number) {
+  const k = clamp(strength, 0, 1)
+  return defaultScale + (targetScale - defaultScale) * k
+}
+
+function lsGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
 export function Step3FrameSizes() {
   const nav = useNavigate()
+  const { step } = useCalcPaths()
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
@@ -23,9 +61,18 @@ export function Step3FrameSizes() {
   const [colorId, setColorId] = useState<number | null>(null)
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
 
-  const [heightMm, setHeightMm] = useState('2000')
-  const [widthMm, setWidthMm] = useState('500')
-  const [qty, setQty] = useState('1')
+  const [heightMm, setHeightMm] = useState(() => {
+    const h = lsGet('calc_frame_height_mm')
+    return h != null && h !== '' ? h : '2000'
+  })
+  const [widthMm, setWidthMm] = useState(() => {
+    const w = lsGet('calc_frame_width_mm')
+    return w != null && w !== '' ? w : '500'
+  })
+  const [qty, setQty] = useState(() => {
+    const q = lsGet('calc_frame_qty')
+    return q != null && q !== '' ? q : '1'
+  })
 
   useEffect(() => {
     try {
@@ -40,8 +87,19 @@ export function Step3FrameSizes() {
   }, [])
 
   useEffect(() => {
-    if (!isFrameStep2Ready()) nav('/calculator/frame', { replace: true })
-  }, [nav])
+    if (!isFrameStep2Ready()) nav(step('frame'), { replace: true })
+  }, [nav, step])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('calc_frame_height_mm', heightMm)
+      localStorage.setItem('calc_frame_width_mm', widthMm)
+      localStorage.setItem('calc_frame_qty', qty)
+    } catch {
+      /* ignore */
+    }
+    notifyFrameCalcSession()
+  }, [heightMm, widthMm, qty])
 
   useEffect(() => {
     setErr(null)
@@ -78,6 +136,24 @@ export function Step3FrameSizes() {
   const heightN = asNum(heightMm)
   const widthN = asNum(widthMm)
 
+  const sketchAspect = useMemo(() => {
+    if (heightN == null || widthN == null || heightN <= 0 || widthN <= 0) return undefined
+    // Соотношение сторон эскиза = W/H. Ограничиваем, чтобы вёрстка не "ломалась" на крайних значениях.
+    const target = widthN / heightN
+    // Дефолт у .sketch: aspect-ratio 3/4.2 (≈ 0.714). Делаем изменение "незначительным":
+    // смешиваем с дефолтом и ограничиваем диапазон.
+    const softened = blendAspect(3 / 4.2, target, 0.28)
+    return clamp(softened, 0.56, 0.92)
+  }, [heightN, widthN])
+
+  const sketchScaleY = useMemo(() => {
+    if (heightN == null || heightN <= 0) return undefined
+    // База: 2000 мм. Увеличиваем/уменьшаем высоту эскиза слегка, чтобы не ломать подписи.
+    const target = heightN / 2000
+    const softened = blendScale(1, target, 0.22)
+    return clamp(softened, 0.9, 1.1)
+  }, [heightN])
+
   const heightOk =
     heightN != null &&
     (limits.minH <= 0 || heightN >= limits.minH) &&
@@ -92,7 +168,6 @@ export function Step3FrameSizes() {
   return (
     <div className="frame3">
       <section className="frame3-left calc-side-panel">
-        <div className="frame3-step">Шаг 3</div>
         <div className="frame3-title">Задать габаритные размеры</div>
         <div className="frame3-sub">Укажите габаритные размеры фасада</div>
 
@@ -106,7 +181,15 @@ export function Step3FrameSizes() {
               className={heightOk ? 'admin-input' : 'admin-input frame3-input--bad'}
               value={heightMm}
               inputMode="numeric"
-              onChange={(e) => setHeightMm(e.target.value)}
+              onChange={(e) => setHeightMm(digitsOnly(e.target.value))}
+              onBlur={() => {
+                const n = asIntOrNull(heightMm)
+                if (n == null) return
+                const min = limits.minH > 0 ? Math.ceil(limits.minH) : 0
+                const max = limits.maxH > 0 ? Math.floor(limits.maxH) : Number.POSITIVE_INFINITY
+                const next = clamp(n, min, max === Number.POSITIVE_INFINITY ? n : max)
+                if (String(next) !== heightMm) setHeightMm(String(next))
+              }}
             />
           </label>
           <label className="frame3-field">
@@ -115,14 +198,33 @@ export function Step3FrameSizes() {
               className={widthOk ? 'admin-input' : 'admin-input frame3-input--bad'}
               value={widthMm}
               inputMode="numeric"
-              onChange={(e) => setWidthMm(e.target.value)}
+              onChange={(e) => setWidthMm(digitsOnly(e.target.value))}
+              onBlur={() => {
+                const n = asIntOrNull(widthMm)
+                if (n == null) return
+                const min = limits.minW > 0 ? Math.ceil(limits.minW) : 0
+                const max = limits.maxW > 0 ? Math.floor(limits.maxW) : Number.POSITIVE_INFINITY
+                const next = clamp(n, min, max === Number.POSITIVE_INFINITY ? n : max)
+                if (String(next) !== widthMm) setWidthMm(String(next))
+              }}
             />
           </label>
         </div>
 
         <label className="frame3-field frame3-field--wide">
           <div className="frame3-label">Количество фасадов (шт)</div>
-          <input className="admin-input" value={qty} inputMode="numeric" onChange={(e) => setQty(e.target.value)} />
+          <input
+            className="admin-input"
+            value={qty}
+            inputMode="numeric"
+            onChange={(e) => setQty(digitsOnly(e.target.value))}
+            onBlur={() => {
+              const n = asIntOrNull(qty)
+              if (n == null) return
+              const next = Math.max(1, n)
+              if (String(next) !== qty) setQty(String(next))
+            }}
+          />
         </label>
 
         <div className="frame3-limits">
@@ -137,11 +239,17 @@ export function Step3FrameSizes() {
           </div>
         </div>
 
-        <div className="frame3-nav">
-          <button type="button" className="admin-secondary" onClick={() => nav('/calculator/frame')}>
-            ← Назад
+        <div className="frame2-card-nav">
+          <button type="button" className="admin-secondary" onClick={() => nav(step('frame'))}>
+            ← Предыдущий шаг
           </button>
-          <button type="button" className="admin-primary" disabled title="Следующий шаг пока не реализован">
+          <button
+            type="button"
+            className="admin-primary"
+            disabled={!heightOk || !widthOk}
+            title={!heightOk || !widthOk ? 'Укажите габариты в допустимых пределах' : undefined}
+            onClick={() => nav(step('frame/filling'))}
+          >
             Следующий шаг →
           </button>
         </div>
@@ -154,7 +262,17 @@ export function Step3FrameSizes() {
             aria-label={`Чертёж фасада: высота ${heightN ?? '—'} мм, ширина ${widthN ?? '—'} мм`}
           >
             {/* Тот же эскиз, что в шаге 2; цвет/текстура рамки из выбранного материала (localStorage + API). */}
-            <div className="sketch">
+            <div
+              className="sketch"
+              style={
+                sketchAspect || sketchScaleY
+                  ? ({
+                      aspectRatio: sketchAspect,
+                      ['--sketch-scale-y' as any]: sketchScaleY,
+                    } as any)
+                  : undefined
+              }
+            >
               <div className="sketch-frame" style={sketchFrameStyle} />
               <div className="sketch-paper" />
               <div className="sketch-sheet">
@@ -182,13 +300,15 @@ export function Step3FrameSizes() {
             {/* Размеры в стиле чертежа: выносные линии + размерная линия со стрелками */}
             <div className="frame3-dim-drawing frame3-dim-drawing--top">
               <div className="frame3-dim-drawing__value">{widthN ?? '—'} мм</div>
-              <div className="frame3-dim-drawing__h">
-                <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--w" />
-                <span className="frame3-dim-drawing__h-line" />
-                <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--e" />
+              <div className="frame3-dim-drawing__top-row">
+                <span className="frame3-dim-drawing__ext-v frame3-dim-drawing__ext-v--l" aria-hidden />
+                <div className="frame3-dim-drawing__h">
+                  <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--w" />
+                  <span className="frame3-dim-drawing__h-line" />
+                  <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--e" />
+                </div>
+                <span className="frame3-dim-drawing__ext-v frame3-dim-drawing__ext-v--r" aria-hidden />
               </div>
-              <span className="frame3-dim-drawing__ext-v frame3-dim-drawing__ext-v--l" />
-              <span className="frame3-dim-drawing__ext-v frame3-dim-drawing__ext-v--r" />
             </div>
 
             <div className="frame3-dim-drawing frame3-dim-drawing--left">

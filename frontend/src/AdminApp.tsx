@@ -556,10 +556,15 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 onChange={(e) => setNewFolderName(e.target.value)}
               />
               <div className="admin-row">
-                <button type="button" onClick={() => addFolder(null)}>
+                <button type="button" className="admin-secondary admin-secondary--sm" onClick={() => addFolder(null)}>
                   + В корень
                 </button>
-                <button type="button" disabled={selected == null} onClick={() => addFolder(selected!)}>
+                <button
+                  type="button"
+                  className="admin-secondary admin-secondary--sm"
+                  disabled={selected == null}
+                  onClick={() => addFolder(selected!)}
+                >
                   + В текущую
                 </button>
               </div>
@@ -598,9 +603,14 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         <li key={m.id} className="mat-list-item">
                           <button
                             type="button"
-                            className="mat-list-row"
+                            className={
+                              editing && editing !== 'new' && (editing as Material).id === m.id
+                                ? 'mat-list-row mat-list-row--active'
+                                : 'mat-list-row'
+                            }
                             onClick={() => setEditing(m)}
                             title="Открыть карточку материала"
+                            aria-current={editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined}
                           >
                             <span className="mat-list-cell mat-list-cell-article">
                               {dashIfEmpty(m.article)}
@@ -674,7 +684,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           aria-labelledby="admin-tab-calculator"
         >
           <div className="admin-orders-placeholder">
-            <CalculatorPage />
+            <CalculatorPage variant="admin" />
           </div>
         </div>
       ) : (
@@ -766,6 +776,7 @@ function MaterialForm({
   extraHost: HTMLDivElement | null
 }) {
   const [activeTab, setActiveTab] = useState<'general' | 'extra' | 'texture'>('general')
+  const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
   const [textureFile, setTextureFile] = useState<File | null>(null)
   const [texturePreviewUrl, setTexturePreviewUrl] = useState<string | null>(null)
   const [textureClearRequested, setTextureClearRequested] = useState(false)
@@ -825,6 +836,18 @@ function MaterialForm({
       if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
     }
   }, [texturePreviewUrl])
+
+  useEffect(() => {
+    if (!materialDeleteOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setMaterialDeleteOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [materialDeleteOpen])
 
   const syncMatClassBtnSize = useCallback(() => {
     const inp = matClassInputRef.current
@@ -994,6 +1017,7 @@ function MaterialForm({
       related_items: relatedItems.map((r) => ({
         related_material_id: r.related_material_id,
         quantity: commitDecimalForApi(r.quantity),
+        quantity_scale: r.quantity_scale,
       })),
       operation_lines: opLines
         .filter((o) => o.name.trim())
@@ -1003,6 +1027,7 @@ function MaterialForm({
           quantity: commitDecimalForApi(o.quantity),
           uom_id: o.uom_id > 0 ? o.uom_id : null,
           price: commitDecimalForApi(o.price),
+          price_per_facade: o.price_per_facade,
         })),
     }
     if (textureClearRequested) {
@@ -1045,9 +1070,11 @@ function MaterialForm({
       .finally(() => setSaving(false))
   }
 
-  const remove = () => {
+  const cancelMaterialDelete = () => setMaterialDeleteOpen(false)
+
+  const confirmRemoveMaterial = () => {
     if (material == null) return
-    if (!window.confirm('Удалить материал?')) return
+    setMaterialDeleteOpen(false)
     setSaving(true)
     deleteMaterial(material.id)
       .then(() => onDeleted(material.id))
@@ -1371,7 +1398,11 @@ function MaterialForm({
           {saving ? 'Сохранение…' : 'Сохранить'}
         </button>
         {material && (
-          <button type="button" disabled={saving || classSyncPending} onClick={remove}>
+          <button
+            type="button"
+            disabled={saving || classSyncPending}
+            onClick={() => setMaterialDeleteOpen(true)}
+          >
             Удалить
           </button>
         )}
@@ -1530,7 +1561,11 @@ function MaterialForm({
               {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
             {material && (
-              <button type="button" disabled={saving || classSyncPending} onClick={remove}>
+              <button
+                type="button"
+                disabled={saving || classSyncPending}
+                onClick={() => setMaterialDeleteOpen(true)}
+              >
                 Удалить
               </button>
             )}
@@ -1788,7 +1823,11 @@ function MaterialForm({
                   {saving ? 'Сохранение…' : 'Сохранить'}
                 </button>
                 {material && (
-                  <button type="button" disabled={saving || classSyncPending} onClick={remove}>
+                  <button
+                    type="button"
+                    disabled={saving || classSyncPending}
+                    onClick={() => setMaterialDeleteOpen(true)}
+                  >
                     Удалить
                   </button>
                 )}
@@ -1798,6 +1837,46 @@ function MaterialForm({
         </div>
       )}
     </div>
+    {materialDeleteOpen &&
+      material &&
+      createPortal(
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="material-delete-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancelMaterialDelete()
+          }}
+        >
+          <div
+            className="admin-modal"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 id="material-delete-title" className="admin-modal-title">
+              Удалить материал?
+            </h4>
+            <p className="admin-modal-text">
+              Материал «{material.name}» будет удалён безвозвратно везде, где используется: в
+              справочнике, в калькуляторе (цвета, наполнение и др.), в связанных записях. Продолжить?
+            </p>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-secondary" onClick={cancelMaterialDelete}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="admin-primary admin-modal-confirm"
+                onClick={confirmRemoveMaterial}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     {extraHost &&
       createPortal(
         <MaterialExtrasPanel

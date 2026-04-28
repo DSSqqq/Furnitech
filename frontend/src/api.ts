@@ -1,4 +1,5 @@
 import type {
+  CalculatorFillingType,
   CalculatorProfile,
   CalculatorProfileType,
   Material,
@@ -52,8 +53,12 @@ async function parseJsonError(r: Response): Promise<never> {
     if (r.status === 404) {
       throw new Error(`Запрос не найден (404): ${u}. Перезапустите backend с актуальным кодом репозитория.`)
     }
+    const migrateHint =
+      r.status === 500
+        ? ' Сначала выполните из корня проекта: py backend\\manage.py migrate (нужна миграция materials.0021_*), затем снова py backend\\manage.py runserver.'
+        : ''
     throw new Error(
-      `Сервер вернул HTML вместо JSON (${r.status}). Обычно это значит, что на :8000 не тот процесс или не обновлён код — перезапустите Django.`
+      `Сервер вернул HTML вместо JSON (${r.status}). Остановите все старые runserver на :8000, поднимите backend из актуального кода репозитория и перезапустите сервер.${migrateHint}`
     )
   }
 
@@ -261,6 +266,49 @@ export function updateCalculatorProfileType(
 
 export function deleteCalculatorProfileType(id: number) {
   return apiFetch(`/api/calculator-profile-types/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+export function fetchCalculatorFillingTypes() {
+  return apiFetch('/api/calculator-filling-types/').then((r) => json<{ results: CalculatorFillingType[] }>(r))
+}
+
+export function createCalculatorFillingType(
+  data:
+    | FormData
+    | {
+        name: string
+        image_url?: string
+        is_active?: boolean
+        sort_order?: number
+        materials?: { material_id: number }[]
+      }
+) {
+  return apiFetch('/api/calculator-filling-types/', {
+    method: 'POST',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<CalculatorFillingType>(r))
+}
+
+export function updateCalculatorFillingType(
+  id: number,
+  data: Partial<{
+    name: string
+    image_url: string
+    is_active: boolean
+    sort_order: number
+    materials: { material_id: number }[]
+  }> | FormData
+) {
+  return apiFetch(`/api/calculator-filling-types/${id}/`, {
+    method: 'PATCH',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<CalculatorFillingType>(r))
+}
+
+export function deleteCalculatorFillingType(id: number) {
+  return apiFetch(`/api/calculator-filling-types/${id}/`, { method: 'DELETE' }).then(async (r) => {
     if (!r.ok) await parseJsonError(r)
   })
 }

@@ -58,7 +58,7 @@
 
 .sketch {
   /* Вписываем «лист» в высоту окна, чтобы не вылезал за экран. */
-  height: min(68dvh, 520px);
+  height: calc(min(68dvh, 520px) * var(--sketch-scale-y, 1));
   width: auto;
   max-width: 100%;
   aspect-ratio: 3 / 4.2;
@@ -350,6 +350,59 @@
   font-size: 0.85rem;
 }
 
+/* Плитка + шестерёнка (шаги 2 и 4): правка типа без открытия модалки выбора */
+.tile-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.tile-cell > .tile {
+  width: 100%;
+}
+
+.tile-gear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  box-sizing: border-box;
+  border: 1px solid #c8ccd4;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 4px;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  color: #3d4450;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.tile-cell:hover .tile-gear,
+.tile-cell:focus-within .tile-gear {
+  opacity: 1;
+}
+
+.tile-gear:hover,
+.tile-gear:focus-visible {
+  background: #eef0f4;
+  border-color: #a8b0bc;
+  outline: none;
+}
+
+.tile-gear-ico {
+  font-size: 0.95rem;
+  line-height: 1;
+  display: block;
+  transform: translateY(-0.5px);
+}
+
 .frame2-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -387,6 +440,73 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.frame2-modal--wide {
+  width: min(1100px, 100%);
+  max-height: min(90dvh, 900px);
+}
+
+.frame2-modal-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+}
+
+.frame2-modal-add {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e6e8ed;
+}
+
+.frame2-modal-add-actions {
+  margin-top: 0.65rem;
+}
+
+.frame2-lead {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.tile--with-action {
+  position: relative;
+  min-width: 0;
+}
+
+.tile--fill {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.tile-action-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 1.65rem;
+  height: 1.65rem;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #991b1b;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.tile-action-remove:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.tile-action-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.frame2-checkrow--disabled {
+  opacity: 0.55;
 }
 
 .frame2-drop {

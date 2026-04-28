@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { searchMaterials } from './api'
+import { searchMaterials, updateMaterial } from './api'
 import { BASE_CURRENCY } from './currencies'
 import {
   capDecimalString,
@@ -7,13 +7,20 @@ import {
   filterDecimalInput,
   normalizeDecimalOnBlur,
 } from './floatInput'
-import type { Material, MaterialOperationLineDto, MaterialRelatedItemDto, UnitOfMeasure } from './types'
+import type {
+  Material,
+  MaterialOperationLineDto,
+  MaterialRelatedItemDto,
+  RelatedQuantityScale,
+  UnitOfMeasure,
+} from './types'
 import './MaterialExtrasPanel.css'
 
 export type RelatedItemState = {
   id?: number
   related_material_id: number
   quantity: string
+  quantity_scale: RelatedQuantityScale
   related_material: MaterialRelatedItemDto['related_material']
 }
 
@@ -24,6 +31,7 @@ export type OpLineState = {
   quantity: string
   uom_id: number
   price: string
+  price_per_facade: boolean
 }
 
 function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedItemState[] {
@@ -32,6 +40,7 @@ function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedIte
     id: x.id,
     related_material_id: x.related_material_id,
     quantity: capDecimalString(String(x.quantity), DECIMAL_FRACTION_DIGITS),
+    quantity_scale: x.quantity_scale ?? 'follow_parent',
     related_material: { ...x.related_material, id: x.related_material.id },
   }))
 }
@@ -45,6 +54,7 @@ function toOpState(items: MaterialOperationLineDto[] | undefined): OpLineState[]
     quantity: capDecimalString(String(x.quantity), DECIMAL_FRACTION_DIGITS),
     uom_id: x.uom_id ?? 0,
     price: capDecimalString(String(x.price), DECIMAL_FRACTION_DIGITS),
+    price_per_facade: Boolean(x.price_per_facade),
   }))
 }
 
@@ -85,6 +95,30 @@ export function MaterialExtrasPanel({
   const [searchQ, setSearchQ] = useState('')
   const [searchHit, setSearchHit] = useState<Material[]>([])
   const [searching, setSearching] = useState(false)
+  const [savingUomByMaterialId, setSavingUomByMaterialId] = useState<Record<number, true>>({})
+  const [uomSaveErr, setUomSaveErr] = useState<string | null>(null)
+
+  const uomById = useMemo(() => {
+    const m = new Map<number, UnitOfMeasure>()
+    for (const u of uomList) m.set(u.id, u)
+    return m
+  }, [uomList])
+
+  const preferredUom = useMemo(() => {
+    const codeOf = (u: UnitOfMeasure) => (u.code ?? '').trim().toLowerCase()
+    const byCode: Record<string, UnitOfMeasure | undefined> = {}
+    for (const u of uomList) {
+      const c = codeOf(u)
+      if (c) byCode[c] = u
+    }
+    return {
+      m2: byCode.m2,
+      m: byCode.m,
+      pc: byCode.pc,
+      l: byCode.l,
+      kg: byCode.kg,
+    }
+  }, [uomList])
 
   const excludedIds = useMemo(() => {
     const s = new Set<number>(relatedItems.map((r) => r.related_material_id))
@@ -119,6 +153,7 @@ export function MaterialExtrasPanel({
       {
         related_material_id: m.id,
         quantity: capDecimalString('1', DECIMAL_FRACTION_DIGITS),
+        quantity_scale: 'follow_parent',
         related_material: {
           id: m.id,
           name: m.name,
@@ -153,6 +188,7 @@ export function MaterialExtrasPanel({
         quantity: capDecimalString('1', DECIMAL_FRACTION_DIGITS),
         uom_id: uomList[0]?.id ?? 0,
         price: capDecimalString('0', DECIMAL_FRACTION_DIGITS),
+        price_per_facade: false,
       },
     ])
   }
@@ -181,10 +217,12 @@ export function MaterialExtrasPanel({
 
   return (
     <div className="mat-extras">
-      <div className="mat-extras-cols">
-        <section className="mat-extras-block">
+      <div className="mat-extras-stack">
+        <section className="mat-extras-block mat-extras-block-related" aria-labelledby="mat-extras-related-heading">
           <div className="mat-extras-head">
-            <h3 className="mat-extras-title">Сопутствующие материалы</h3>
+            <h3 id="mat-extras-related-heading" className="mat-extras-title">
+              Сопутствующие материалы
+            </h3>
             <button
               type="button"
               className="mat-extras-plus"
@@ -226,18 +264,19 @@ export function MaterialExtrasPanel({
           <div
             className="mat-extras-legend"
             role="row"
-            aria-label="Колонки: артикул, материал, кол-во, ед., цена"
+            aria-label="Колонки: артикул, материал, кол-во, ед., масштаб, сумма строки"
           >
             <span>Артикул</span>
             <span>Сопутствующий материал</span>
             <span>Кол-во</span>
             <span>Ед. изм.</span>
-            <span>Цена</span>
+            <span>Масштаб</span>
+            <span>Кол×цена</span>
             <span />
           </div>
           <ul className="mat-extras-list">
             {relatedItems.length === 0 && (
-              <li className="admin-muted">Нет строк — нажмите + и выберите из базы.</li>
+              <li className="admin-muted mat-extras-empty">Нет строк — нажмите + и выберите из базы.</li>
             )}
             {relatedItems.map((r, i) => (
               <li key={r.id ?? `r-${r.related_material_id}-${i}`} className="mat-extras-row">
@@ -261,7 +300,75 @@ export function MaterialExtrasPanel({
                     )
                   }
                 />
-                <span>{r.related_material.uom?.short_name || r.related_material.uom?.name || '—'}</span>
+                <select
+                  className="admin-input mat-extras-uom-select"
+                  value={r.related_material.uom?.id ?? ''}
+                  disabled={savingUomByMaterialId[r.related_material_id] === true}
+                  title="Ед. изм. сопутствующего материала (сохраняется в базе материалов)"
+                  onChange={async (e) => {
+                    const nextUomId = Number(e.target.value)
+                    if (!nextUomId) return
+                    const u = uomById.get(nextUomId)
+                    if (!u) return
+                    const matId = r.related_material_id
+                    setUomSaveErr(null)
+                    setSavingUomByMaterialId((prev) => ({ ...prev, [matId]: true }))
+                    try {
+                      const updated = await updateMaterial(matId, { uom_id: nextUomId })
+                      const nextUom = updated.uom ?? u
+                      onRelatedChange(
+                        relatedItems.map((row, j) =>
+                          j === i ? { ...row, related_material: { ...row.related_material, uom: nextUom } } : row
+                        )
+                      )
+                    } catch (err) {
+                      setUomSaveErr(err instanceof Error ? err.message : String(err))
+                      // откатываем select визуально через state (останется прежний uom)
+                      onRelatedChange([...relatedItems])
+                    } finally {
+                      setSavingUomByMaterialId((prev) => {
+                        const next = { ...prev }
+                        delete next[matId]
+                        return next
+                      })
+                    }
+                  }}
+                >
+                  <option value="">—</option>
+                  <option value={preferredUom.m2?.id ?? ''} disabled={!preferredUom.m2}>
+                    м²
+                  </option>
+                  <option value={preferredUom.m?.id ?? ''} disabled={!preferredUom.m}>
+                    м.п.
+                  </option>
+                  <option value={preferredUom.pc?.id ?? ''} disabled={!preferredUom.pc}>
+                    шт
+                  </option>
+                  <option value={preferredUom.l?.id ?? ''} disabled={!preferredUom.l}>
+                    л
+                  </option>
+                  <option value={preferredUom.kg?.id ?? ''} disabled={!preferredUom.kg}>
+                    кг
+                  </option>
+                </select>
+                <select
+                  className="admin-input mat-extras-scale-select"
+                  value={r.quantity_scale}
+                  title="Как умножать строку в калькуляторе (см. подсказку под таблицей)"
+                  onChange={(e) =>
+                    onRelatedChange(
+                      relatedItems.map((row, j) =>
+                        j === i
+                          ? { ...row, quantity_scale: e.target.value as RelatedQuantityScale }
+                          : row
+                      )
+                    )
+                  }
+                >
+                  <option value="follow_parent">Как у основного</option>
+                  <option value="per_facade">На фасад</option>
+                  <option value="use_related_uom">По ед. изм. строки</option>
+                </select>
                 <span>
                   {lineTotalRelated(r.quantity, r.related_material.base_price)} {BASE_CURRENCY}
                 </span>
@@ -270,17 +377,21 @@ export function MaterialExtrasPanel({
                   className="mat-extras-rm"
                   onClick={() => removeRelated(i)}
                   title="Убрать строку"
+                  aria-label="Удалить строку сопутствующего"
                 >
                   ×
                 </button>
               </li>
             ))}
           </ul>
+          {uomSaveErr && <p className="mat-extras-warn">{uomSaveErr}</p>}
         </section>
 
-        <section className="mat-extras-block">
+        <section className="mat-extras-block mat-extras-block-ops" aria-labelledby="mat-extras-ops-heading">
           <div className="mat-extras-head">
-            <h3 className="mat-extras-title">Операции</h3>
+            <h3 id="mat-extras-ops-heading" className="mat-extras-title">
+              Операции
+            </h3>
             <button
               type="button"
               className="mat-extras-plus"
@@ -296,11 +407,12 @@ export function MaterialExtrasPanel({
             <span>Кол-во</span>
             <span>Ед. изм.</span>
             <span>Цена ({BASE_CURRENCY})</span>
+            <span title="Умножать цену строки на число фасадов в калькуляторе">× фасад</span>
             <span />
           </div>
           <ul className="mat-extras-list mat-extras-list-ops">
             {opLines.length === 0 && (
-              <li className="admin-muted">Нет операций — нажмите + и заполните строку.</li>
+              <li className="admin-muted mat-extras-empty">Нет операций — нажмите + и заполните строку.</li>
             )}
             {opLines.map((o, i) => (
               <li key={o.id ?? `o-${i}`} className="mat-extras-row-ops">
@@ -356,11 +468,19 @@ export function MaterialExtrasPanel({
                     if (v !== undefined) updateOp(i, { price: normalizeDecimalOnBlur(v) })
                   }}
                 />
+                <label className="mat-extras-op-facade" title="Умножать цену строки на число фасадов в калькуляторе">
+                  <input
+                    type="checkbox"
+                    checked={o.price_per_facade}
+                    onChange={(e) => updateOp(i, { price_per_facade: e.target.checked })}
+                  />
+                </label>
                 <button
                   type="button"
                   className="mat-extras-rm"
                   onClick={() => removeOp(i)}
                   title="Удалить строку"
+                  aria-label="Удалить строку операции"
                 >
                   ×
                 </button>
@@ -370,8 +490,13 @@ export function MaterialExtrasPanel({
         </section>
       </div>
       <p className="mat-extras-total" aria-live="polite">
-        Предв. оценка: основной материал {mainP.toFixed(3)} + сопутствующие {sumRelated.toFixed(3)} + операции{' '}
-        {sumOps.toFixed(3)} = <strong>{grand.toFixed(3)} {BASE_CURRENCY}</strong>
+        Предв. оценка (карточка, без габаритов): основной {mainP.toFixed(3)} + сопутствующие{' '}
+        {sumRelated.toFixed(3)} + операции {sumOps.toFixed(3)} ={' '}
+        <strong>
+          {grand.toFixed(3)} {BASE_CURRENCY}
+        </strong>
+        . В калькуляторе сумма считается по масштабу строк и габаритам; операции с «× фасад» умножаются на число
+        фасадов.
       </p>
     </div>
   )

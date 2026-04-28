@@ -32,15 +32,8 @@
   min-width: 0;
 }
 
-.frame3-step {
-  font-size: 0.78rem;
-  color: rgba(17, 24, 39, 0.55);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
 .frame3-title {
-  margin-top: 0.25rem;
+  margin-top: 0;
   font-size: 1.15rem;
   font-weight: 900;
   color: #111827;
@@ -102,16 +95,6 @@
   font-size: 0.92rem;
 }
 
-.frame3-nav {
-  margin-top: 1.2rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid #e6e8ed;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
 .frame3-right {
   min-width: 0;
 }
@@ -147,6 +130,12 @@
   color: #374151;
   font-weight: 700;
   font-size: 0.78rem;
+  /* зазор между размерной линией и верхом эскиза (выносные пунктиры на всю высоту) */
+  --frame3-dim-sketch-gap-y: 30px;
+  --frame3-dim-sketch-gap-x: 28px;
+  /* участок от вертикальной линии до эскиза (+ запас до наконечника стрелки) */
+  --frame3-dim-vtrack: 34px;
+  --frame3-dim-witness: rgba(107, 114, 128, 0.72);
 }
 
 /* Ширина: сверху */
@@ -158,8 +147,23 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 10px;
+  gap: 10px;
+  padding-bottom: var(--frame3-dim-sketch-gap-y);
+}
+
+.frame3-dim-drawing__top-row {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.frame3-dim-drawing__top-row .frame3-dim-drawing__h {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .frame3-dim-drawing__value {
@@ -202,21 +206,25 @@
   border-color: transparent transparent transparent #374151;
 }
 
-/* Вертикальные выносные линии: от углов эскиза к размерной линии */
-.frame3-dim-drawing__ext-v {
+/* Вертикальные выносные: от верхних углов эскиза к концам горизонтальной размерной линии */
+.frame3-dim-drawing__top-row .frame3-dim-drawing__ext-v {
   position: absolute;
-  bottom: 0;
+  top: 0;
+  bottom: calc(-1 * var(--frame3-dim-sketch-gap-y));
   width: 0;
-  height: 10px;
-  border-left: 1px dashed rgba(55, 65, 81, 0.55);
+  border: 0;
+  border-left: 1px dashed var(--frame3-dim-witness);
 }
 
-.frame3-dim-drawing__ext-v--l {
+.frame3-dim-drawing__top-row .frame3-dim-drawing__ext-v--l {
   left: 0;
 }
 
-.frame3-dim-drawing__ext-v--r {
+.frame3-dim-drawing__top-row .frame3-dim-drawing__ext-v--r {
+  left: auto;
   right: 0;
+  border-left: 0;
+  border-right: 1px dashed var(--frame3-dim-witness);
 }
 
 /* Высота: слева */
@@ -225,8 +233,8 @@
   right: 100%;
   top: 0;
   bottom: 0;
-  width: 52px;
-  margin-right: 10px;
+  width: 70px;
+  margin-right: var(--frame3-dim-sketch-gap-x);
 }
 
 .frame3-dim-drawing__left-col {
@@ -279,13 +287,18 @@
   border-color: #374151 transparent transparent transparent;
 }
 
-/* Горизонтальные выносные линии к вертикальной размерной линии */
-.frame3-dim-drawing__ext-h {
+/*
+ * Горизонтальные выносные: от вертикальной размерной линии к левому краю эскиза.
+ * У .frame3-dim-drawing--left есть margin-right (зазор) — без сдвига правый край линии
+ * остаётся у колонки, а не у фасада; пунктир визуально «от эскиза». Сдвигаем right
+ * в минус на зазор, как у верхних выносок, идущих к эскизу.
+ */
+.frame3-dim-drawing--left .frame3-dim-drawing__ext-h {
   position: absolute;
-  right: 0;
-  width: 10px;
+  right: calc(-1 * var(--frame3-dim-sketch-gap-x));
   height: 0;
-  border-top: 1px dashed rgba(55, 65, 81, 0.55);
+  border-top: 1px dashed var(--frame3-dim-witness);
+  width: var(--frame3-dim-vtrack);
 }
 
 .frame3-dim-drawing__ext-h--t {
@@ -298,12 +311,17 @@
 
 @media (max-width: 1024px) {
   .frame3-dim-drawing--left {
-    width: 44px;
-    margin-right: 6px;
+    width: 58px;
+    --frame3-dim-sketch-gap-x: 22px;
+  }
+
+  .frame3-dim-drawing--left .frame3-dim-drawing__ext-h {
+    --frame3-dim-vtrack: 30px;
   }
 
   .frame3-dim-drawing {
     font-size: 0.72rem;
+    --frame3-dim-sketch-gap-y: 26px;
   }
 }
 

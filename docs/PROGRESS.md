@@ -1,10 +1,47 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-04-26
+**Последнее обновление:** 2026-04-28
 
 ## Краткая сводка
 
-Проект: **Django + DRF (JWT)** + **Vite + React 19 (TS)** — веб‑админка справочника материалов + задел под калькулятор. Реализовано: дерево **папок**, список материалов, карточка с вкладками (**«Общие параметры»**, **«Доп. параметры»**, **«Параметры текстуры»**), сопутствующие/операции, **уникальный непустой артикул**. Разделы вынесены в URL: `/materials`, `/calculator`, `/orders`. В калькуляторе шаги в URL: `/calculator` (шаг 1), `/calculator/frame|mdf|pvc` (шаг 2 по фасаду), **`/calculator/frame/size` (шаг 3: габариты рамочного фасада)**. **UI калькулятора:** вкладки «Шаг 1 / 2 / 3» в едином стиле; шаг 3 доступен только для рамочного фасада и после выбора типа профиля и цвета на шаге 2; склейка шагов через `localStorage` + событие `calc-frame-session` и `useSyncExternalStore` (`frameCalcSession.ts`); эскиз шагов 2–3 с общим стилем рамки (`sketchFrame.ts`), без внешней обводки у `.frame2-sketch`; на шаге 3 размеры в виде **чертежа** (выносные пунктирные линии, размерная линия со стрелками); левая панель формы — класс **`.calc-side-panel`**: фиксированная высота от `100dvh`, **прокрутка** при переполнении; шаг 1 — `max-width` карточки как у первой колонки сетки рамочного шага. Подробная архитектура: [ARCHITECTURE.md](ARCHITECTURE.md).
+Проект: **Django + DRF (JWT)** + **Vite + React 19 (TS)** — веб‑админка справочника материалов + **калькулятор** (админский и **публичный**).
+
+**Публичная часть (без входа):** маршрут **`/`** — тот же сценарий шагов, что и в админке, но URL **без** префикса `/calculator`: `/` (шаг 1), `/frame`, `/frame/size`, `/frame/filling`, `/mdf`, `/pvc`. Режим **только чтение**: нет кнопок добавления/удаления/редактирования типов профилей и наполнения, нет добавления материалов в тип наполнения из модалки. Шапка **`PublicShell`**: бренд, ссылка «Вход для сотрудников» или «Админка» (если сессия уже есть).
+
+**Админка (после `/login`):** `/materials`, `/calculator`, `/orders` — полный калькулятор с префиксом **`/calculator/...`**, счётчиком профилей (`fetchCalculatorProfiles`), всеми админ‑действиями на шагах 2 и 4.
+
+Реализовано: дерево **папок**, список материалов, карточка с вкладками, сопутствующие/операции, **уникальный непустой артикул**. Калькулятор (рамочный): **шаг 2** — тип профиля и цвет; **шаг 3** — габариты (`/…/frame/size`); **шаг 4** — наполнение (`/…/frame/filling`), типы **`CalculatorFillingType`**, `localStorage` `calc_filling_type_id` / `calc_filling_material_id`. Склейка шагов 2→3 через `localStorage` + **`calc-frame-session`** (`frameCalcSession.ts`). **Ориентировочная цена** — панель справа (`CalcPriceTotals`), расчёт в **`calculator/framePriceEstimate.ts`**: геометрия по ед. изм. материала (м² / **периметр в м.п.** `2(H+W)` / шт), сопутствующие и операции (в т.ч. флаг `price_per_facade`). Шаг 1: только текст-подсказка; при выборе фасада — **`clearFrameCalculatorStorage()`**. Шаг 3: **`calc_frame_qty`**, гидратация габаритов из `localStorage` при открытии. Удаление материала: **модалка** в `MaterialForm`; каскад калькулятора — миграция **`0020`**. Контекст маршрутов: **`calculator/calcPathsContext.tsx`** (`step()`, `readOnly`, `home`).
+
+### Изменения 2026-04-28 (факт)
+
+- **Калькулятор: панель «Расчёт»**
+  - Скрыта на шагах **1–2**, появляется с шага **3** (после ввода размеров).
+  - Исправлено: операции учитываются не только у профиля, но и у **наполнения**.
+  - Улучшено пояснение по ед. изм. (показывается площадь/периметр на 1 фасад и ед. изм. профиля/наполнения отдельно).
+- **Шаг 2 (рамочный): выбор цвета**
+  - Исправлено: эскиз обновляет цвет/текстуру корректно (зависимости `selectedColorMaterial` учитывают `texByMaterialId`).
+- **Шаг 4 (рамочный): наполнение**
+  - Размеры с шага 3 **не пропадают**: шаг 4 читает габариты через `subscribeFrameCalcSession`/`readCalculatorPriceConfigKey`.
+  - Добавлен чертёж с размерами (как на шаге 3).
+- **Эскиз фасада на шагах 3–4**
+  - Эскиз мягко реагирует на \(H×W\): меняется `aspectRatio` (по \(W/H\) с «ослаблением») и слегка меняется высота через CSS‑переменную `--sketch-scale-y` (ограничено, чтобы не ломать подписи/кнопки).
+- **Шаг 3: ввод габаритов**
+  - Поля высоты/ширины/количества принимают только цифры.
+  - При уходе из поля значение автоматически поджимается к min/max (по лимитам материала); количество фасадов — минимум 1.
+- **Материалы: список**
+  - Выбранный материал в списке подсвечивается (`.mat-list-row--active`).
+- **Панель сопутствующих/операций**
+  - Внешний вид упорядочен (строки как карточки, hover, выравнивание чисел, компактные кнопки).
+  - Убрана подсказка‑summary про масштаб.
+  - В сопутствующих добавлен выбор **ед. изм.** выпадающим списком (м²/м.п./шт/л/кг) с сохранением в БД.
+- **Backend: UoM**
+  - Добавлена миграция **`materials.0022_seed_uom_l_kg`** — сидирование ед. изм. `l` (л) и `kg` (кг).
+
+**Бэкенд:** для **`MaterialViewSet`**, **`CalculatorProfileTypeViewSet`**, **`CalculatorFillingTypeViewSet`** — класс **`AllowAnyReadAuthenticatedModelPermsWrite`** (GET без JWT; POST/PATCH/DELETE — только авторизованные пользователи с правами Django). **`CalculatorProfileViewSet`** — по‑прежнему только с JWT (`AuthReadModelPermsWrite`).
+
+**Расчёт цены:** сопутствующие считаются **поштучно** по **`quantity_scale`** (`follow_parent` / `per_facade` / `use_related_uom`); операции — с опциональным **`price_per_facade`** (× число фасадов). Наполнение: основной материал и его сопутствующие по той же логике; стекло — ед. изм. м² у материала заполнения.
+
+Подробная архитектура и таблицы API: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -13,13 +50,13 @@
 | Область | Состояние |
 |---------|-----------|
 | **Проект Django** | `config/` (urls, settings, wsgi/asgi), SQLite `db.sqlite3` по умолчанию. |
-| **API** | DRF `DefaultRouter`: `material-classes`, `uom`, `categories`, `materials`, `calculator-profiles`, **`calculator-profile-types`**. |
+| **API** | DRF `DefaultRouter`: `material-classes`, `uom`, `categories`, `materials`, `calculator-profiles`, `calculator-profile-types`, **`calculator-filling-types`**. |
 | **Аутентификация** | `djangorestframework-simplejwt`: `POST /api/auth/token/`, `POST /api/auth/token/refresh/`, `GET /api/auth/me/`. |
-| **Права** | `IsAuthenticated` + `DjangoModelPermissions`; группа **«Редактор материалов»** (`is_staff=False` — без Django admin). Суперпользователь — веб + `/admin/django/`. |
+| **Права** | По умолчанию справочники — **JWT + DjangoModelPermissions**. **Исключение для публичного калькулятора:** `GET/HEAD/OPTIONS` на **`/api/materials/`**, **`/api/calculator-profile-types/`**, **`/api/calculator-filling-types/`** — **без** JWT (`AllowAnyReadAuthenticatedModelPermsWrite`). Запись на эти ресурсы — только авторизованным с model permissions. **`/api/calculator-profiles/`** — только с JWT. Группа **«Редактор материалов»** (`is_staff=False`). |
 | **Пагинация** | `PageNumberPagination`, `PAGE_SIZE=100` (`config/settings.py`). |
 | **Категории (папки)** | `GET /api/categories/?tree=1` — дерево; `POST` — создать; `PATCH/PUT/DELETE` — по `/api/categories/{id}/`. **Удаление** запрещено с ответом `400`, если есть **вложенные папки** или **материалы** в папке (`MaterialCategoryViewSet.destroy`). |
-| **Материалы** | `GET/POST/PUT/PATCH/DELETE` на `/api/materials/`, `?category=`, `?search=` (имя, артикул, ФНП). |
-| **Миграции** | В т.ч. `0010_companion_and_operations` (сопутствующие/операции, права группы), **`0011_material_article_unique_nonempty`** — частичный **unique** на `article` при непустом значении; `0012` — доп. параметры; `0013` — параметры текстуры; `0014` — увеличение `max_length` у `texture_image`; **`0015_calculator_profiles`** — профили калькулятора и их «цвета»; **`0016`–`0017`** — типы профилей и картинка; **`0018`** — минимальные размеры материала. |
+| **Материалы** | `GET` (в т.ч. **без JWT** для каталога в калькуляторе) / `POST/PUT/PATCH/DELETE` (только с JWT и правами) на `/api/materials/`, `?category=`, `?search=`. |
+| **Миграции** | В т.ч. `0010`–`0017` (сопутствующие, артикул, текстуры, профили и типы профилей); **`0018`** — min/max размеры материала; **`0019_calculator_filling_types`** — типы наполнения и связь с материалами (шаг 4); **`0020_calculator_material_fk_cascade`** — при удалении материала каскадно убираются строки калькулятора: цвет в профиле (`CalculatorProfileColor`), цвет в типе профиля (`CalculatorProfileTypeColor`), материал в типе наполнения (`CalculatorFillingTypeMaterial`); **`0021_related_quantity_scale_op_per_facade`** — у сопутствующих **`quantity_scale`** (масштаб в калькуляторе), у операций **`price_per_facade`**. |
 
 ### Модели (сущности)
 
@@ -34,6 +71,7 @@
 - `CalculatorProfileColor` — «цвет профиля»: привязка профиля к другому материалу (многие‑ко‑многим через таблицу, с порядком и уникальностью).
 - `CalculatorProfileType` — тип профиля (калькулятор): имя + картинка (`card_image` или `image_url`), порядок, активность; **не привязан к материалу профиля**.
 - `CalculatorProfileTypeColor` — «цвет типа профиля»: ссылка на материал + флаги `is_new/is_hit/is_sale`.
+- `CalculatorFillingType` — тип наполнения (имя, картинка, порядок); **`CalculatorFillingTypeMaterial`** — материалы внутри типа (M2M через промежуточную таблицу).
 
 ### Сериализация материала
 
@@ -59,7 +97,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 | **Артикул** | Код/номер для сопоставления с учётом, справочниками, 1С. Непустой артикул **не дублируется**; после ввода обрезка **пробелов** (`strip`). |
 | **Активен** (`is_active`) | «Мягкое» отключение карточки без удаления: задел для скрытия в калькуляторе, отчётах, фильтрах. Сохраняется в БД; **фильтрация списка в веб-админке по флагу может быть ещё не сделана** — при необходимости доработать. |
 | **Коэф** (колонка списка) | Зарезервировано под будущий коэффициент, пока `—`. |
-| **Вкладки карточки** | **«Общие параметры»** — вся текущая форма; **«Доп. параметры»** / **«Параметры текстуры»** — заглушки «скоро» ([PLAN.md](PLAN.md)). |
+| **Вкладки карточки** | **«Общие параметры»**, **«Доп. параметры»**, **«Параметры текстуры»** — реализованы; план продукта: [PLAN.md](PLAN.md). |
 | **Сопутствующие / Операции** | К расчёту будущей цены; панель внизу **средней** колонки, предпросчёт в UI. |
 
 ---
@@ -68,17 +106,23 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 
 | Файл / папка | Назначение |
 |--------------|------------|
-| `AdminApp.tsx` | Дерево `TreeRow`, папки: **шестерёнка** → меню «Переименовать» / **«Удалить…»**; удаление папки — **модальное окно** (`createPortal` в `document.body`, не `window.confirm`). `MaterialForm`, портал `MaterialExtrasPanel`, модалка удаления папки. |
+| `AdminApp.tsx` | Дерево `TreeRow`, папки: **шестерёнка** → меню «Переименовать» / **«Удалить…»**; удаление папки — **модальное окно** (`createPortal` в `document.body`, не `window.confirm`). `MaterialForm`: удаление материала — **модалка** с предупреждением (не `window.confirm`). Портал `MaterialExtrasPanel`. |
 | `MaterialExtrasPanel.tsx` | Сопутствующие, операции, предпросчёт. |
-| `CalculatorPage.tsx` | Калькулятор: шаг 1 `/calculator`; шаг 2 (`/calculator/frame`, `/calculator/mdf`, `/calculator/pvc`); **шаг 3 для рамочного**: `/calculator/frame/size`. Вкладки шагов 1–3; `NavLink` шага 1 с **`end`** (без ложной активности на вложенных путях). Шаг 3: `isFrameStep2Ready()` + `canOpenFrameStep3`. |
+| `App.tsx` | Маршруты: **`/login`**; защищённые **`/materials/*`**, **`/calculator/*`**, **`/orders/*`** (редирект на логин с `state.from`); **`/*`** — публичный **`PublicShell`** + **`CalculatorPage variant="public"`**. Состояние сессии: `guest` / `authed` / `loading`; `refreshAuth` после входа. |
+| `App.css` | Классы **`public-shell*`** — шапка гостевой страницы. |
+| `CalculatorPage.tsx` | Проп **`variant`**: **`admin`** — префикс `/calculator`, полный UI; **`public`** — URL с корня (`/`, `/frame/...`), заголовок «Подбор фасада», без запроса профилей. Обёртка **`CalcPathsProvider`**. Шаги 1–4; `NavLink` шага 1 с **`end`**. |
+| `calculator/calcPathsContext.tsx` | `step(rel)`, `home`, `readOnly`, `normalizedCalcPath`, `facadeFromNormalized`. |
+| `calculator/Step4FrameFilling.tsx` | Шаг 4 (рамочный): типы наполнения, модалка материалов; в **`readOnly`** скрыты CRUD и блок «Добавить материалы». |
 | `CalculatorPage.css` | **`.calc-side-panel`** — единая высота левой панели (шаги 1–3, `frame2-card`, `frame3-left`, заглушки МДФ/ПВХ), `overflow-y: auto`. **`#calc-step-panel-1 .calc-card`** — `max-width` 640px / 700px (≥1280px), как первая колонка сетки рамочного шага. |
-| `calculator/Step2FrameFacade.tsx` | Шаг 2 (рамочный): плитки типов профилей, выбор цвета в модалке, справа эскиз. Заголовок «Тип профиля и цвет» **внутри** `frame2-card` (сетка и эскиз начинаются на одной высоте с шагом 3). Синхронизация `localStorage` (`calc_frame_type_id`, `calc_frame_color_id`) после гидрации и при валидной паре тип+цвет; **`notifyFrameCalcSession`**; эффекты не сбрасывают выбор, пока **`loading`** / до гидрации (возврат с шага 3). Класс **`calc-side-panel`** на `frame2-card`. |
+| `calculator/Step2FrameFacade.tsx` | Шаг 2 (рамочный): плитки типов профилей, выбор цвета в модалке, эскиз. `localStorage` + **`notifyFrameCalcSession`**; навигация через **`useCalcPaths()`**. В **`readOnly`** скрыты создание/редактирование/удаление типов и шестерёнки. **`calc-side-panel`** на `frame2-card`. |
 | `calculator/Step2MdfFacade.tsx` / `Step2PvcFacade.tsx` | Заглушки; контент в **`calc-side-panel`**. |
-| `calculator/Step3FrameSizes.tsx` | Шаг 3: габариты и кол-во; min/max из материала цвета; редирект на `/calculator/frame`, если сессия шага 2 не готова. Эскиз в **`frame3-drawing`** (обёртка = контур `.sketch`); размеры — **`.frame3-dim-drawing`** (чертёж); внутри листа таблица как на шаге 2 + строка **«Размеры»** (выс×шир мм). **`frame2-sketch-inner`** на контейнере эскиза + **`line-height: normal`** у `.sketch` (не наследовать `line-height: 0` от обёртки). |
+| `calculator/Step3FrameSizes.tsx` | Шаг 3: габариты и кол-во; min/max из материала цвета; редирект на **`step('frame')`**, если сессия шага 2 не готова. Чертёж **`frame3-dim-drawing`**. |
 | `calculator/Step3FrameSizes.css` | Сетка `frame3` как у `frame2`; **`frame3-right.frame2-sketch`**: `overflow: visible`; стили чертёжных размеров; **`z-index`** у размеров выше эскиза. |
 | `calculator/sketchFrame.ts` | `resolveMediaUrl`, `sketchFrameInlineStyle` для периметра `.sketch-frame`. |
-| `calculator/frameCalcSession.ts` | `isFrameStep2Ready`, `FRAME_CALC_SESSION_EVENT`, `subscribeFrameCalcSession`, `notifyFrameCalcSession` — вкладка шаг 3 и согласованность с `localStorage`. |
-| `api.ts` | `apiFetch` + разбор ошибок DRF + методы `calculator-profiles`. |
+| `calculator/frameCalcSession.ts` | `isFrameStep2Ready`, `FRAME_CALC_SESSION_EVENT`, `subscribeFrameCalcSession`, `notifyFrameCalcSession`, **`clearFrameCalculatorStorage`**, **`readCalculatorPriceConfigKey`**. |
+| `calculator/framePriceEstimate.ts` | Разбор ед. изм., **`relatedItemsCalculatorCost`** (масштаб строк), **`operationLinesCost(..., facadeCount)`**, `computeFramePriceBreakdown` (профиль, наполнение). |
+| `calculator/CalcPriceTotals.tsx` | Панель «Расчёт / Итого»; шаг 1 без сумм; `useSyncExternalStore` + `fetchMaterial` по id из `localStorage`. |
+| `api.ts` | `apiFetch` + методы калькулятора (`calculator-profiles`, `calculator-profile-types`, `calculator-filling-types`, материалы). Для гостя GET уходит **без** Bearer (если нет токена) — см. права бэкенда. |
 | `index.css` / `App.css` / `AdminApp.css` | Без **прокрутки `document`** на десктопе: окно сетки 3 колонок укладывается в `100dvh`, скролл **внутри** колонок; панель сопутствующих **привязана** к низу центральной колонки. |
 
 ### Поведение UI
@@ -87,19 +131,27 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 - **Список материалов:** легенда колонок, колонка «Коэф» — плейсхолдер.
 - **Карточка:** вкладки **«Общие параметры»**, **«Доп. параметры»**, **«Параметры текстуры»**.
 - **Сопутствующие/операции** — под списком папок (портал), только при открытой карточке (редактирование).
-- **Калькулятор:** ключи `localStorage`: `calc_frame_type_id`, `calc_frame_color_id` (только при валидной паре тип+цвет в данных API). **`frame2-sketch`:** без внешней рамки, `overflow: visible`; эскиз по центру — **`frame2-sketch-inner`** (`flex` + `justify-content: center`). Стили эскиза (`.sketch`, `.sketch-sheet`, …) в **`Step2FrameFacade.css`** (шаг 3 подключает этот файл).
+- **Калькулятор:** `localStorage`: `calc_frame_type_id`, `calc_frame_color_id`; **`calc_frame_height_mm`**, **`calc_frame_width_mm`**, **`calc_frame_qty`** (шаг 3); **`calc_filling_type_id`**, **`calc_filling_material_id`** (шаг 4, при валидной паре). Сброс при новом выборе фасада на шаге 1. **`frame2-sketch`:** без внешней рамки; стили эскиза в **`Step2FrameFacade.css`** (шаги 3–4 подключают при необходимости).
 
 ---
 
 ## Операция и типовые сбои
 
-- **500 на `/api/materials/`** — часто **не применена миграция** `0010` (и при необходимости `0011`): `.\.venv\Scripts\python.exe backend\manage.py migrate`
+- **500 на `/api/materials/`**, во фронте «HTML вместо JSON» — чаще всего **схема БД не совпадает с кодом**: выполнить `py backend\manage.py migrate` (в т.ч. **`0021`** — `quantity_scale`, `price_per_facade`), остановить все старые `runserver`, поднять заново. Для очень старых баз также нужны `0010`–`0011`.
 - **404 на `/api/calculator-profiles/`** — обычно запущен **старый/другой** `runserver` или конфликтует несколько процессов. Решение: оставить **один** backend на `:8000`, применить миграции и перезапустить.
-- **401 на `/api/*`** — ожидаемо без JWT; сперва войти через веб‑админку (Vite) или получить токен через `/api/auth/token/`.
+- **401 на `/api/*`** — для **категорий, профилей калькулятора (`calculator-profiles`), auth/me** и т.п. без JWT — ожидаемо; войти через **`/login`**. Для **`GET /api/materials/`**, **`GET /api/calculator-profile-types/`**, **`GET /api/calculator-filling-types/`** при актуальном бэкенде **401 быть не должно** (анонимное чтение). Если 401 — проверить, что поднят актуальный `views.py` и нет лишнего `IsAuthenticated` на list/retrieve.
 - **CORS (dev):** `http://127.0.0.1:5173` / `localhost:5173` в `backend/.env`.
 - **Текстуры (dev):** раздача файлов включена только в `DEBUG=1` через `/media/`. Для работы загрузки нужен `Pillow`.
 - **Длинные имена файлов текстур:** у `ImageField` увеличен `max_length` (миграция `0014`), иначе возможен 400 при загрузке.
 - **Удаление текстуры:** кнопка «Убрать текстуру» очищает поле и сохраняет удаление через `PATCH texture_image=null`.
+- **Миграция `0021`:** после обновления кода выполнить `py backend\manage.py migrate` (поля сопутствующих/операций).
+
+### Ручная проверка расчёта (после `0021`)
+
+1. Материал цвета профиля с ед. изм. м.п., сопутствующее **«Как у основного»** — сумма сопутствующих растёт с периметром и с \(N\) фасадов.
+2. То же + строка **«На фасад»** — эта строка не растёт с периметром, только с \(N\).
+3. Наполнение м² + шаг 3 — цена наполнения меняется с площадью; сопутствующие наполнения с **«По ед. изм. строки»** — по правилам ед. изм. сопутствующего.
+4. Операция с **«× фасад»** — при \(N=2\) цена строки удваивается; без флага — не зависит от \(N\).
 
 ---
 
@@ -126,8 +178,11 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 - [x] Профили калькулятора (материалы) и цвета (материалы) через `/api/calculator-profiles/`.
 - [x] Типы профилей (не материал) + цвета с флагами + загрузка картинки: `/api/calculator-profile-types/`.
 - [x] Калькулятор (рамочный): шаг 2 — выбор типа профиля и цвета + эскиз; шаг 3 — габариты с ограничениями из материалов.
+- [x] Калькулятор: шаг 4 — наполнение (`CalculatorFillingType`, API, UI).
+- [x] Публичная главная **`/`**: калькулятор без входа, read-only UI; анонимное **GET** для материалов и типов калькулятора на бэкенде.
+- [x] Калькулятор (рамочный): ориентировочная **цена справа**; сопутствующие с **`quantity_scale`**, операции с **`price_per_facade`** (миграция **`0021`**).
 - [ ] Модель заказа, экран «Заказы».
-- [ ] Клиентский калькулятор (реф. Modusline).
+- [ ] Клиентский калькулятор: доработка до уровня реф. Modusline (ценники, корзина, оформление).
 - [ ] 1С: sync; `article` + `external_id` как якоря.
 
 ## Как продолжить (агент / разработчик)

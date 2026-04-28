@@ -18,3 +18,47 @@
   justify-content: center;
   min-width: 0;
 }
+
+.public-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.public-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1.25rem;
+  border-bottom: 1px solid #e2e5eb;
+  background: #fafbfc;
+}
+
+.public-shell__brand {
+  font-weight: 600;
+  color: #2c3138;
+  text-decoration: none;
+}
+
+.public-shell__brand:hover {
+  text-decoration: underline;
+}
+
+.public-shell__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.public-shell__link {
+  font-size: 0.9rem;
+  color: #3d6ad6;
+  text-decoration: none;
+}
+
+.public-shell__link:hover {
+  text-decoration: underline;
+}

@@ -1,9 +1,15 @@
 from rest_framework import filters, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import SAFE_METHODS, DjangoModelPermissions, IsAuthenticated
+from rest_framework.permissions import (
+    SAFE_METHODS,
+    BasePermission,
+    DjangoModelPermissions,
+    IsAuthenticated,
+)
 from rest_framework.response import Response
 
 from .models import (
+    CalculatorFillingType,
     CalculatorProfile,
     CalculatorProfileType,
     Material,
@@ -12,6 +18,7 @@ from .models import (
     UnitOfMeasure,
 )
 from .serializers import (
+    CalculatorFillingTypeSerializer,
     CalculatorProfileSerializer,
     CalculatorProfileTypeSerializer,
     MaterialCategorySerializer,
@@ -81,6 +88,17 @@ class MaterialCategoryViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
 
+class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
+    """GET/HEAD/OPTIONS — всем (в т.ч. без авторизации); запись — авторизация + Django model permissions."""
+
+    def has_permission(self, request, view) -> bool:
+        if request.method in SAFE_METHODS:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return DjangoModelPermissions().has_permission(request, view)
+
+
 class MaterialViewSet(viewsets.ModelViewSet):
     queryset = (
         Material.objects.all()
@@ -93,7 +111,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
         )
     )
     serializer_class = MaterialSerializer
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     filter_backends = [filters.SearchFilter]
     search_fields = ("name", "article", "fnp_name")
@@ -131,5 +149,12 @@ class CalculatorProfileViewSet(viewsets.ModelViewSet):
 class CalculatorProfileTypeViewSet(viewsets.ModelViewSet):
     queryset = CalculatorProfileType.objects.all().prefetch_related("colors__color_material__uom")
     serializer_class = CalculatorProfileTypeSerializer
-    permission_classes = [AuthReadModelPermsWrite]
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+
+class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
+    queryset = CalculatorFillingType.objects.all().prefetch_related("materials__material__uom")
+    serializer_class = CalculatorFillingTypeSerializer
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]

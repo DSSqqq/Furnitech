@@ -6,8 +6,10 @@ import {
   fetchCalculatorProfileTypes,
   fetchMaterial,
   searchMaterials,
+  updateCalculatorProfileType,
 } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
+import { useCalcPaths } from './calcPathsContext'
 import { notifyFrameCalcSession } from './frameCalcSession'
 import { resolveMediaUrl, sketchFrameInlineStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
@@ -47,6 +49,7 @@ type ColorFlags = { is_new: boolean; is_hit: boolean; is_sale: boolean }
 
 export function Step2FrameFacade() {
   const nav = useNavigate()
+  const { readOnly, step } = useCalcPaths()
   const [profileTypes, setProfileTypes] = useState<CalculatorProfileType[]>([])
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null)
   const [modalTypeId, setModalTypeId] = useState<number | null>(null)
@@ -68,6 +71,15 @@ export function Step2FrameFacade() {
   const [createColorsPicking, setCreateColorsPicking] = useState(false)
   const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
   const [calcSessionHydrated, setCalcSessionHydrated] = useState(false)
+
+  const [editTypeId, setEditTypeId] = useState<number | null>(null)
+  const [editTypeName, setEditTypeName] = useState('')
+  const [editTypeImageFile, setEditTypeImageFile] = useState<File | null>(null)
+  const editImageInputRef = useRef<HTMLInputElement>(null)
+  const [editColorsQ, setEditColorsQ] = useState('')
+  const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
+  const [editColorsPicking, setEditColorsPicking] = useState(false)
+  const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
 
   const reload = useCallback(() => {
     setErr(null)
@@ -164,6 +176,23 @@ export function Step2FrameFacade() {
     return () => clearTimeout(t)
   }, [createColorsQ, createOpen])
 
+  useEffect(() => {
+    if (editTypeId == null) return
+    const q = editColorsQ.trim()
+    const t = window.setTimeout(() => {
+      if (!q) {
+        setEditColorsHit([])
+        return
+      }
+      setEditColorsPicking(true)
+      searchMaterials(q)
+        .then((r) => setEditColorsHit(r.results ?? []))
+        .catch(() => setEditColorsHit([]))
+        .finally(() => setEditColorsPicking(false))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [editColorsQ, editTypeId])
+
   const createTypeImagePreview = useMemo(() => {
     if (!createTypeImageFile) return ''
     return URL.createObjectURL(createTypeImageFile)
@@ -174,6 +203,97 @@ export function Step2FrameFacade() {
       if (createTypeImagePreview) URL.revokeObjectURL(createTypeImagePreview)
     }
   }, [createTypeImagePreview])
+
+  const editTypeImagePreview = useMemo(() => {
+    if (!editTypeImageFile) return ''
+    return URL.createObjectURL(editTypeImageFile)
+  }, [editTypeImageFile])
+
+  useEffect(() => {
+    return () => {
+      if (editTypeImagePreview) URL.revokeObjectURL(editTypeImagePreview)
+    }
+  }, [editTypeImagePreview])
+
+  const editingType = useMemo(
+    () => (editTypeId != null ? profileTypes.find((p) => p.id === editTypeId) ?? null : null),
+    [editTypeId, profileTypes]
+  )
+
+  const editExistingCardUrl = useMemo(() => {
+    if (!editingType) return ''
+    return resolveMediaUrl(((editingType.card_image ?? '') || (editingType.image_url ?? '')).trim())
+  }, [editingType])
+
+  const openEditType = (t: CalculatorProfileType) => {
+    setCreateOpen(false)
+    setErr(null)
+    setEditTypeId(t.id)
+    setEditTypeName(t.name)
+    setEditTypeImageFile(null)
+    if (editImageInputRef.current) editImageInputRef.current.value = ''
+    const m: Record<number, ColorFlags> = {}
+    for (const c of t.colors ?? []) {
+      m[c.color_material_id] = {
+        is_new: !!c.is_new,
+        is_hit: !!c.is_hit,
+        is_sale: !!c.is_sale,
+      }
+    }
+    setEditColors(m)
+    setEditColorsQ('')
+    setEditColorsHit([])
+  }
+
+  const closeEditType = () => {
+    setEditTypeId(null)
+    setEditTypeName('')
+    setEditTypeImageFile(null)
+    if (editImageInputRef.current) editImageInputRef.current.value = ''
+    setEditColors({})
+    setEditColorsQ('')
+    setEditColorsHit([])
+  }
+
+  const submitEditType = async () => {
+    const t = editingType
+    if (!t || editTypeId == null) return
+    const name = editTypeName.trim()
+    if (!name) {
+      setErr('Укажите название типа профиля.')
+      return
+    }
+    setErr(null)
+    try {
+      const colors = Object.entries(editColors).map(([id, f]) => ({
+        color_material_id: Number(id),
+        is_new: !!f.is_new,
+        is_hit: !!f.is_hit,
+        is_sale: !!f.is_sale,
+      }))
+      let updated: CalculatorProfileType
+      if (editTypeImageFile) {
+        const fd = new FormData()
+        fd.append('name', name)
+        fd.append('is_active', String(t.is_active))
+        fd.append('sort_order', String(t.sort_order))
+        fd.append('colors', JSON.stringify(colors))
+        fd.append('card_image', editTypeImageFile)
+        updated = await updateCalculatorProfileType(editTypeId, fd)
+      } else {
+        updated = await updateCalculatorProfileType(editTypeId, {
+          name,
+          is_active: t.is_active,
+          sort_order: t.sort_order,
+          colors,
+        })
+      }
+      setProfileTypes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+      closeEditType()
+    } catch (e) {
+      setErr(String(e))
+    }
+  }
 
   const submitCreate = async () => {
     const name = createTypeName.trim()
@@ -220,11 +340,23 @@ export function Step2FrameFacade() {
         setProfileTypes((prev) => prev.filter((p) => p.id !== selected.id))
         setSelectedTypeId((prevSel) => (prevSel === selected.id ? null : prevSel))
         setModalTypeId((prevSel) => (prevSel === selected.id ? null : prevSel))
+        setEditTypeId((prev) => (prev === selected.id ? null : prev))
       })
       .catch((e) => setErr(String(e)))
   }
 
-  // (пока не используем) Редактирование цветов у существующего типа можно будет добавить отдельной формой.
+  useEffect(() => {
+    if (editTypeId == null) return
+    if (!profileTypes.some((p) => p.id === editTypeId)) {
+      setEditTypeId(null)
+      setEditTypeName('')
+      setEditTypeImageFile(null)
+      if (editImageInputRef.current) editImageInputRef.current.value = ''
+      setEditColors({})
+      setEditColorsQ('')
+      setEditColorsHit([])
+    }
+  }, [editTypeId, profileTypes])
 
   const selectedType = useMemo(
     () => profileTypes.find((p) => p.id === selectedTypeId) ?? null,
@@ -277,7 +409,7 @@ export function Step2FrameFacade() {
       texture_image: (base as any).texture_image || fallback.texture_image,
       name: base.name || fallback.name,
     }
-  }, [selectedColorId, selectedType])
+  }, [selectedColorId, selectedType, texByMaterialId])
 
   const selectedColorFlags = useMemo(() => {
     if (!selectedType) return null
@@ -297,30 +429,35 @@ export function Step2FrameFacade() {
 
           <div className="frame2-card-head">
             <h4 className="frame2-h4">Типы профилей</h4>
-            <div className="frame2-actions">
-              <button
-                type="button"
-                className="admin-primary"
-                onClick={() => {
-                  setCreateOpen((o) => !o)
-                  setErr(null)
-                }}
-              >
-                + Добавить тип профиля
-              </button>
-              <button
-                type="button"
-                className="admin-secondary"
-                disabled={!selectedType}
-                onClick={deleteSelectedType}
-                title={!selectedType ? 'Выберите тип профиля' : undefined}
-              >
-                Удалить тип
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="frame2-actions">
+                <button
+                  type="button"
+                  className="admin-primary"
+                  onClick={() => {
+                    setErr(null)
+                    setCreateOpen((was) => {
+                      if (!was) closeEditType()
+                      return !was
+                    })
+                  }}
+                >
+                  + Добавить тип профиля
+                </button>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  disabled={!selectedType}
+                  onClick={deleteSelectedType}
+                  title={!selectedType ? 'Выберите тип профиля' : undefined}
+                >
+                  Удалить тип
+                </button>
+              </div>
+            )}
           </div>
 
-          {createOpen && (
+          {!readOnly && createOpen && (
             <div className="frame2-create">
               <div className="frame2-create-head">
                 <div className="frame2-create-title">Создание типа профиля</div>
@@ -469,6 +606,140 @@ export function Step2FrameFacade() {
             </div>
           )}
 
+          {!readOnly && editTypeId != null && editingType && (
+            <div className="frame2-create">
+              <div className="frame2-create-head">
+                <div className="frame2-create-title">Редактирование типа профиля</div>
+                <div className="frame2-actions">
+                  <button type="button" className="admin-secondary" onClick={closeEditType}>
+                    Отмена
+                  </button>
+                  <button type="button" className="admin-primary" onClick={() => void submitEditType()}>
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+
+              <div className="frame2-create-grid">
+                <div className="frame2-block">
+                  <div className="frame2-block-title">Тип профиля</div>
+                  <input
+                    className="admin-input"
+                    value={editTypeName}
+                    onChange={(e) => setEditTypeName(e.target.value)}
+                    placeholder="Название типа профиля…"
+                  />
+                  <div className="frame2-file-row">
+                    <label className="frame2-file-label" htmlFor="profile-type-card-image-edit">
+                      Новое изображение (необязательно)
+                    </label>
+                    <input
+                      id="profile-type-card-image-edit"
+                      ref={editImageInputRef}
+                      className="frame2-file-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setEditTypeImageFile(e.target.files?.[0] ?? null)}
+                    />
+                    {(editTypeImagePreview || editExistingCardUrl) && (
+                      <div className="frame2-file-preview frame2-file-preview--cover">
+                        <img src={editTypeImagePreview || editExistingCardUrl} alt="" />
+                      </div>
+                    )}
+                    <p className="admin-muted frame2-file-hint">
+                      Оставьте поле файла пустым, чтобы сохранить текущую картинку. Загрузка заменит её.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="frame2-block">
+                  <div className="frame2-block-title">Цвета (материалы)</div>
+                  <input
+                    className="admin-input"
+                    value={editColorsQ}
+                    onChange={(e) => setEditColorsQ(e.target.value)}
+                    placeholder="Поиск материалов…"
+                  />
+                  {editColorsPicking && <p className="admin-muted">Поиск…</p>}
+                  {editColorsHit.length > 0 && (
+                    <ul className="frame2-checklist">
+                      {editColorsHit.map((m) => {
+                        const checked = editColors[m.id] != null
+                        const flags = editColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
+                        return (
+                          <li key={m.id}>
+                            <div className="frame2-checkrow" title={matLabel(m)}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setEditColors((prev) => {
+                                    const next = { ...prev }
+                                    if (next[m.id]) delete next[m.id]
+                                    else next[m.id] = { is_new: false, is_hit: false, is_sale: false }
+                                    return next
+                                  })
+                                }
+                              />
+                              <span className="frame2-check-article">{m.article || '—'}</span>
+                              <span className="frame2-check-name">{m.name}</span>
+                            </div>
+                            {checked && (
+                              <div className="frame2-flags">
+                                <label className="frame2-flag">
+                                  <input
+                                    type="checkbox"
+                                    checked={flags.is_new}
+                                    onChange={() =>
+                                      setEditColors((prev) => ({
+                                        ...prev,
+                                        [m.id]: { ...flags, is_new: !flags.is_new },
+                                      }))
+                                    }
+                                  />{' '}
+                                  New
+                                </label>
+                                <label className="frame2-flag">
+                                  <input
+                                    type="checkbox"
+                                    checked={flags.is_hit}
+                                    onChange={() =>
+                                      setEditColors((prev) => ({
+                                        ...prev,
+                                        [m.id]: { ...flags, is_hit: !flags.is_hit },
+                                      }))
+                                    }
+                                  />{' '}
+                                  Hit
+                                </label>
+                                <label className="frame2-flag">
+                                  <input
+                                    type="checkbox"
+                                    checked={flags.is_sale}
+                                    onChange={() =>
+                                      setEditColors((prev) => ({
+                                        ...prev,
+                                        [m.id]: { ...flags, is_sale: !flags.is_sale },
+                                      }))
+                                    }
+                                  />{' '}
+                                  Sale
+                                </label>
+                              </div>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                  {Object.keys(editColors).length > 0 && (
+                    <div className="admin-muted">Выбрано цветов: {Object.keys(editColors).length}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <ul className="frame2-list" aria-label="Список типов профилей">
             {profileTypes.length === 0 && <li className="admin-muted">Типов профилей пока нет.</li>}
           </ul>
@@ -478,26 +749,44 @@ export function Step2FrameFacade() {
               const title = t.name || `Тип #${t.id}`
               const active = t.id === selectedTypeId
               return (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={active ? 'tile tile--active' : 'tile'}
-                  onClick={() => {
-                    setSelectedTypeId(t.id)
-                    setModalTypeId(t.id)
-                  }}
-                  title={title}
-                >
-                  {typeThumb({ name: title, image_url: t.image_url, card_image: t.card_image })}
-                  <div className="tile-title">{title}</div>
-                  <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
-                </button>
+                <div key={t.id} className="tile-cell">
+                  <button
+                    type="button"
+                    className={active ? 'tile tile--active' : 'tile'}
+                    onClick={() => {
+                      setSelectedTypeId(t.id)
+                      setModalTypeId(t.id)
+                    }}
+                    title={title}
+                  >
+                    {typeThumb({ name: title, image_url: t.image_url, card_image: t.card_image })}
+                    <div className="tile-title">{title}</div>
+                    <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
+                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="tile-gear"
+                      title="Редактировать тип"
+                      aria-label={`Редактировать тип «${title}»`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        openEditType(t)
+                      }}
+                    >
+                      <span className="tile-gear-ico" aria-hidden>
+                        ⚙
+                      </span>
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
 
           <div className="frame2-card-nav">
-            <button type="button" className="admin-secondary" onClick={() => nav('/calculator')}>
+            <button type="button" className="admin-secondary" onClick={() => nav(step(''))}>
               ← Предыдущий шаг
             </button>
             <button
@@ -505,7 +794,7 @@ export function Step2FrameFacade() {
               className="admin-primary"
               disabled={!selectedTypeId || !selectedColorId}
               title={!selectedTypeId || !selectedColorId ? 'Сначала выберите тип профиля и цвет' : undefined}
-              onClick={() => nav('/calculator/frame/size')}
+              onClick={() => nav(step('frame/size'))}
             >
               Следующий шаг →
             </button>

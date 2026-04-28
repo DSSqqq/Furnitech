@@ -11,6 +11,20 @@ class RoundingMode(models.TextChoices):
     CEIL_MULTIPLE = "ceil_multiple", "Округлять вверх до кратного числа"
 
 
+class RelatedQuantityScale(models.TextChoices):
+    """Как масштабировать строку сопутствующего в калькуляторе."""
+
+    FOLLOW_PARENT = (
+        "follow_parent",
+        "Как у родителя (× м²/м.п./шт по карточке основного материала)",
+    )
+    PER_FACADE = "per_facade", "На фасад (× количество фасадов)"
+    USE_RELATED_UOM = (
+        "use_related_uom",
+        "По ед. изм. сопутствующего (× м²/м.п./шт по его карточке)",
+    )
+
+
 class MaterialClass(models.Model):
     """Справочник классов материалов (премиум, стандарт, …)."""
 
@@ -359,6 +373,12 @@ class MaterialRelatedItem(models.Model):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0"))],
     )
+    quantity_scale = models.CharField(
+        "Масштаб в калькуляторе",
+        max_length=32,
+        choices=RelatedQuantityScale.choices,
+        default=RelatedQuantityScale.FOLLOW_PARENT,
+    )
     sort_order = models.PositiveIntegerField("Порядок", default=0)
 
     class Meta:
@@ -408,6 +428,11 @@ class MaterialOperationLine(models.Model):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0"))],
     )
+    price_per_facade = models.BooleanField(
+        "Цена за каждый фасад",
+        default=False,
+        help_text="Если включено, в калькуляторе строка умножается на количество фасадов; иначе — один раз на конфигурацию.",
+    )
     sort_order = models.PositiveIntegerField("Порядок", default=0)
 
     class Meta:
@@ -453,7 +478,7 @@ class CalculatorProfileColor(models.Model):
     )
     color_material = models.ForeignKey(
         Material,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="calculator_color_in_profiles",
         verbose_name="Материал (цвет)",
     )
@@ -517,7 +542,7 @@ class CalculatorProfileTypeColor(models.Model):
     )
     color_material = models.ForeignKey(
         Material,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name="calculator_color_in_profile_types",
         verbose_name="Материал (цвет)",
     )
@@ -539,3 +564,67 @@ class CalculatorProfileTypeColor(models.Model):
 
     def __str__(self) -> str:
         return f"{self.profile_type_id} → {self.color_material_id}"
+
+
+class CalculatorFillingType(models.Model):
+    """Тип наполнения фасада (стекло, Лакобель, …) — для калькулятора / админки."""
+
+    name = models.CharField("Название типа наполнения", max_length=255)
+    image_url = models.CharField(
+        "Картинка (URL)",
+        max_length=1000,
+        blank=True,
+        default="",
+        help_text="URL картинки для карточки типа.",
+    )
+    card_image = models.ImageField(
+        "Картинка (файл)",
+        upload_to="filling_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Тип наполнения (калькулятор)"
+        verbose_name_plural = "Типы наполнения (калькулятор)"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class CalculatorFillingTypeMaterial(models.Model):
+    """Материал варианта наполнения (конкретное стекло / плёнка и т.д.)."""
+
+    filling_type = models.ForeignKey(
+        CalculatorFillingType,
+        on_delete=models.CASCADE,
+        related_name="materials",
+        verbose_name="Тип наполнения",
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name="calculator_filling_in_types",
+        verbose_name="Материал",
+    )
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Материал типа наполнения"
+        verbose_name_plural = "Материалы типов наполнения"
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["filling_type", "material"],
+                name="materials_calc_filling_type_material_uniq",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.filling_type_id} → {self.material_id}"

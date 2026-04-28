@@ -12,7 +12,7 @@ description: >-
 
 1. Из **корня репозитория** выполнить: `py scripts/furnitech_status.py`  
    (в Unix/mac: `python3 scripts/furnitech_status.py` при необходимости.)
-2. Прочитать **полный** [docs/PROGRESS.md](docs/PROGRESS.md) и при необходимости [docs/PLAN.md](docs/PLAN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+2. Прочитать **полный** [docs/PROGRESS.md](docs/PROGRESS.md) и при необходимости [docs/PLAN.md](docs/PLAN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). В PROGRESS и ARCHITECTURE зафиксированы **публичный калькулятор** (`/` без входа) и **анонимное GET** части API — не путать с полностью закрытым JWT API прошлых версий.
 
 ## Команда для нового агента (кратко)
 

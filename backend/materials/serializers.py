@@ -5,6 +5,8 @@ from django.db import IntegrityError
 from rest_framework import serializers
 
 from .models import (
+    CalculatorFillingType,
+    CalculatorFillingTypeMaterial,
     CalculatorProfile,
     CalculatorProfileColor,
     CalculatorProfileType,
@@ -15,6 +17,7 @@ from .models import (
     MaterialClass,
     MaterialOperationLine,
     MaterialRelatedItem,
+    RelatedQuantityScale,
     RoundingMode,
     UnitOfMeasure,
 )
@@ -208,6 +211,7 @@ class MaterialSerializer(serializers.ModelSerializer):
                     "related_material_id": rel.id,
                     "related_material": MaterialSummarySerializer(rel).data,
                     "quantity": str(x.quantity),
+                    "quantity_scale": x.quantity_scale,
                     "line_total": str(line_total),
                 }
             )
@@ -228,6 +232,7 @@ class MaterialSerializer(serializers.ModelSerializer):
                     "uom_id": x.uom_id,
                     "uom": UnitOfMeasureSerializer(x.uom).data if x.uom_id else None,
                     "price": str(x.price),
+                    "price_per_facade": x.price_per_facade,
                 }
             )
         return out
@@ -271,10 +276,21 @@ class MaterialSerializer(serializers.ModelSerializer):
             qty = _as_decimal(row.get("quantity", "0"))
             if qty <= 0:
                 raise serializers.ValidationError({"related_items": "Количество должно быть больше 0."})
+            scale_raw = row.get("quantity_scale") or RelatedQuantityScale.FOLLOW_PARENT
+            if isinstance(scale_raw, str):
+                scale_raw = scale_raw.strip()
+            else:
+                scale_raw = str(scale_raw).strip() if scale_raw is not None else RelatedQuantityScale.FOLLOW_PARENT
+            valid_scales = {c for c, _ in RelatedQuantityScale.choices}
+            if scale_raw not in valid_scales:
+                raise serializers.ValidationError(
+                    {"related_items": f"Недопустимый quantity_scale: {scale_raw!r}."}
+                )
             MaterialRelatedItem.objects.create(
                 parent_id=parent_id,
                 related_material_id=rid,
                 quantity=qty,
+                quantity_scale=scale_raw,
                 sort_order=i,
             )
 
@@ -307,6 +323,10 @@ class MaterialSerializer(serializers.ModelSerializer):
                 kwargs["uom_id"] = int(uom_id)
             else:
                 kwargs["uom_id"] = None
+            ppf = row.get("price_per_facade", False)
+            if isinstance(ppf, str):
+                ppf = ppf.strip().lower() in ("1", "true", "yes", "on")
+            kwargs["price_per_facade"] = bool(ppf)
             MaterialOperationLine.objects.create(**kwargs)
 
     @staticmethod
@@ -594,3 +614,67 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
         if colors is not None:
             self._replace_colors(profile_type, colors)
         return profile_type
+
+
+class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
+    materials = serializers.SerializerMethodField(read_only=True)
+    card_image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = CalculatorFillingType
+        fields = (
+            "id",
+            "name",
+            "image_url",
+            "card_image",
+            "is_active",
+            "sort_order",
+            "materials",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_materials(self, obj: CalculatorFillingType) -> list:
+        if not obj.pk:
+            return []
+        out = []
+        for x in obj.materials.all().select_related("material", "material__uom"):
+            out.append(
+                {
+                    "id": x.id,
+                    "material_id": x.material_id,
+                    "material": MaterialSummarySerializer(x.material).data,
+                }
+            )
+        return out
+
+    def _replace_materials(self, filling_type: CalculatorFillingType, rows: list) -> None:
+        for row in rows:
+            if not isinstance(row, dict):
+                raise serializers.ValidationError({"materials": "Каждая строка — объект."})
+        filling_type.materials.all().delete()
+        for i, row in enumerate(rows):
+            mid = row.get("material_id")
+            if mid is None or mid == "":
+                raise serializers.ValidationError({"materials": "Нужен material_id."})
+            CalculatorFillingTypeMaterial.objects.create(
+                filling_type=filling_type,
+                material_id=int(mid),
+                sort_order=i,
+            )
+
+    def create(self, validated_data):
+        materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
+        if materials is None:
+            materials = []
+        filling_type = super().create(validated_data)
+        self._replace_materials(filling_type, materials)
+        return filling_type
+
+    def update(self, instance, validated_data):
+        materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
+        filling_type = super().update(instance, validated_data)
+        if materials is not None:
+            self._replace_materials(filling_type, materials)
+        return filling_type
