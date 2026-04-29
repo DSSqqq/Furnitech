@@ -44,7 +44,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | URL | Назначение |
 |-----|------------|
 | `/` | Калькулятор для посетителя: **`CalculatorPage variant="public"`**, шаг 1 (выбор фасада) |
-| `/frame`, `/frame/size`, `/frame/filling` | Шаги 2–4 для **рамочного** фасада (те же компоненты, что в админке, с `readOnly`) |
+| `/frame`, `/frame/size`, `/frame/filling`, `/frame/summary` | Шаги 2–5 для **рамочного** фасада (те же компоненты, что в админке, с `readOnly`) |
 | `/mdf`, `/pvc` | Шаг 2 для МДФ / ПВХ (заглушки) |
 | `/login` | Вход сотрудника; после успеха — возврат на `state.from` или `/materials` |
 
@@ -64,6 +64,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 - **Шаг 2:** зависит от фасада; для рамочного — тип профиля и цвет (`Step2FrameFacade`)
 - **Шаг 3 (только рамочный):** габариты — `…/frame/size` (`Step3FrameSizes`)
 - **Шаг 4 (только рамочный):** наполнение — `…/frame/filling` (`Step4FrameFilling`)
+- **Шаг 5 (только рамочный):** итоговый эскиз — `…/frame/summary` (`Step5FrameSummary`)
 
 Префиксы маршрутов внутри калькулятора задаются **`calculator/calcPathsContext.tsx`** (`CalcPathsProvider`, хук **`useCalcPaths()`**: `step('frame/size')`, `home`, `readOnly`).
 
@@ -75,18 +76,21 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 |---------|----------|
 | Вкладки шагов | **Шаг 1** — `NavLink` на **`home`** из контекста (`/` или `/calculator`), с **`end`**. **Шаг 2** — кнопка на текущий фасад (`step(facade)`). **Шаг 3** и **Шаг 4** — только при `facade === 'frame'` и **`isFrameStep2Ready()`**; переходы на `step('frame/size')` и `step('frame/filling')`. Подсказки `title` при отключённых вкладках. |
 | Сессия рамочного шага 2→3 | `localStorage`: `calc_frame_type_id`, `calc_frame_color_id`. Запись после гидрации и при валидной паре «тип профиля + цвет» в ответе API; очистка при сбросе выбора. Событие **`calc-frame-session`** (`frameCalcSession.ts`) + подписка для `useSyncExternalStore` в `CalculatorPage` — обновление вкладки «Шаг 3» без перезагрузки. Готовность: **`isFrameStep2Ready()`**. Шаг 3 дополнительно: **`calc_frame_height_mm`**, **`calc_frame_width_mm`**, **`calc_frame_qty`**; при изменении — `notifyFrameCalcSession()`. Шаг 4 при записи выбора наполнения — тоже **`notifyFrameCalcSession()`**. |
+| Шаг 5 доступность | Шаг 5 доступен **только** если выбран материал наполнения на шаге 4: `localStorage.calc_filling_material_id` валиден. Проверка: **`isFrameStep4Ready()`** в `frameCalcSession.ts`. При прямом открытии URL шага 5 — редирект на шаг 4. |
 | Шаг 3 / 4 без сессии шага 2 | `Step3FrameSizes` / `Step4FrameFilling`: редирект на **`step('frame')`** (`replace`), если **`isFrameStep2Ready()`** ложно. |
-| Эскиз | Общий вид `.sketch`: периметр **`sketchFrameInlineStyle`** (`sketchFrame.ts`: `texture_color`, `texture_image`, dev-URL для `/media/`). Внешняя обводка колонки эскиза снята (`.frame2-sketch`: `border: 0`, `overflow: visible`). Выравнивание между шагами: одна сетка `frame2` / `frame3`, **`frame2-sketch-inner`** на контейнере эскиза шага 3 + `flex: 1` для центрирования. |
+| Эскиз | Общий вид `.sketch`: отрисовка текстуры через **`materialTextureLayerStyle`** (`sketchFrame.ts`) на внутренних слоях `.sketch-frame-texture` и `.sketch-paper-texture`. Это позволяет применять **`tex_opacity`** и `tex_mirror`, не ломая “чертёжные” псевдоэлементы `.sketch-paper::before/::after`. Для применения `tex_*` на шаге 2 и 4 догружается полный материал через `fetchMaterial(id)` (т.к. summary-ответы калькулятора не содержат `tex_*`). Текстура изображения в эскизе растягивается на всю область (`background-size: 100% 100%`); `tex_rotation_deg` в режиме эскиза сейчас игнорируется. |
 | Чертёжные размеры (шаг 3) | Блок **`frame3-drawing`** обнимает `.sketch`; **`frame3-dim-drawing`**: выносные пунктирные линии, размерная линия со стрелками, подписи мм; `z-index` выше листа эскиза. |
 | Левая панель формы | Класс **`.calc-side-panel`** (`CalculatorPage.css`): фиксированная высота от `100dvh`, вертикальная прокрутка при переполнении. Используется на шаге 1 (обёртка сетки фасадов), **`frame2-card`**, **`frame3-left`**, заглушках МДФ/ПВХ. Шаг 1: ограничение ширины **`#calc-step-panel-1 .calc-card`** под первую колонку сетки рамочного шага. |
 | Ориентировочная цена | Панель **`CalcPriceTotals`** справа (`CalculatorPage.tsx` + **`CalculatorPage.css`**: `.calc-body-with-totals`, `.calc-totals-*`). На **шагах 1–2** только подсказка, суммы нет (цена появляется с шага 3 после ввода габаритов). Подписка на **`calc-frame-session`** и `storage`, снимок ключей через **`readCalculatorPriceConfigKey`** (`frameCalcSession.ts`). Данные: `fetchMaterial` по `calc_frame_color_id` и при необходимости `calc_filling_material_id`. При выборе типа фасада на шаге 1 вызывается **`clearFrameCalculatorStorage()`**, чтобы не подтягивать прошлую конфигурацию. |
-| Расчёт суммы | Модуль **`calculator/framePriceEstimate.ts`**. Ед. изм. по `uom.code` (`m2`, `m`, `pc`), при пустом `code` — эвристика (**`resolvePricingUomCode`**). **Объём на все фасады** \(N\) — как раньше: м², м.п. периметра, шт. **Профиль:** `base_price × geomColor`. **Сопутствующие** (и у цвета профиля, и у наполнения): **поштучно** по полю **`quantity_scale`** строки (`follow_parent` — × тот же множитель, что у «родителя» строки: у профиля это `geomColor`, у наполнения — `geomFill`; `per_facade` — только × \(N\); `use_related_uom` — × объём по ед. изм. **сопутствующего** материала и габаритам). См. **`relatedItemsCalculatorCost`**. **Операции:** сумма `price`; если у строки **`price_per_facade`** — умножить на \(N\), иначе один раз на конфигурацию. **Наполнение:** `base_price × geomFill` + сопутствующие наполнения той же поштучной логикой. **Стекло:** у материала наполнения должна быть ед. изм. м² (код или подпись), иначе площадь шага 3 не войдёт в цену. |
+| Расчёт суммы | Модуль **`calculator/framePriceEstimate.ts`**. Ед. изм. по `uom.code` (`m2`, `m`/`mp`, `pc`), при пустом `code` — эвристика (**`resolvePricingUomCode`**). **Объём на все фасады** \(N\) — как раньше: м², м.п. периметра, шт. **Профиль:** `base_price × geomColor`. **Сопутствующие** (и у цвета профиля, и у наполнения): **поштучно** по полю **`quantity_scale`** строки (`follow_parent` — × тот же множитель, что у «родителя» строки: у профиля это `geomColor`, у наполнения — `geomFill`; `per_facade` — только × \(N\); `use_related_uom` — × объём по ед. изм. **сопутствующего** материала и габаритам). См. **`relatedItemsCalculatorCost`**. **Операции:** сумма `price`; если у строки **`price_per_facade`** — умножить на \(N\), иначе один раз на конфигурацию. **Наполнение:** `base_price × geomFill` + сопутствующие наполнения той же поштучной логикой. **Стекло:** у материала наполнения должна быть ед. изм. м² (код или подпись), иначе площадь шага 3 не войдёт в цену. |
 
 Дополнительно (UI):
 
+- Глобальный фон: текстура дерева задаётся CSS‑переменной `--ft-wood-texture` (сейчас `frontend/src/assets/wood-premium.png`) и рисуется на уровне `#root::before` как `background-size: cover` (без тайлинга/швов).
 - На шагах **3–4** эскиз мягко меняет пропорции по \(H×W\): `aspectRatio` смешивается с дефолтным (≈ 0.714) и ограничивается, чтобы не ломать подписи/кнопки. Высота эскиза слегка масштабируется через CSS‑переменную `--sketch-scale-y` (ограничено диапазоном).
 - На шаге **4** размеры не теряются: габариты читаются из `localStorage` через `subscribeFrameCalcSession`/`readCalculatorPriceConfigKey` и показываются на чертеже.
 - На шаге **3** поля размеров/кол-ва фильтруют ввод (только цифры) и автоматически поджимают значение в допустимый диапазон по min/max выбранного материала (кол-во фасадов — минимум 1).
+- Выпадающие списки: для консистентного «премиум» UI вместо нативного `<select>` используется кастомный **`FtSelect`** (портал в `document.body`), т.к. системный список в Windows/Chrome плохо стилизуется.
 
 ## REST API (сводно)
 

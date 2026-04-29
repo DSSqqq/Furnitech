@@ -4,6 +4,16 @@
   margin-top: 0;
 }
 
+.mat-extras-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--ft-border);
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
 /* Сопутствующие сверху, операции под ними (одна колонка на всю ширину панели). */
 .mat-extras-stack {
   display: flex;
@@ -14,9 +24,9 @@
 }
 
 .mat-extras-block {
-  background: #fff;
-  border: 1px solid #e2e5ea;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
   padding: 0.65rem 0.75rem 0.85rem;
   min-width: 0;
 }
@@ -33,21 +43,24 @@
   font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
-  color: #1a1d23;
+  color: var(--ft-accent-2);
+  font-family: var(--ft-font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .mat-extras-plus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  min-width: 1.6rem;
-  min-height: 1.6rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  min-width: 1.65rem;
+  min-height: 1.65rem;
   border-radius: 10px;
-  border: 1px solid rgba(37, 99, 235, 0.45);
-  background: rgba(37, 99, 235, 0.08);
-  color: #1d4ed8;
+  border: 1px solid rgba(203, 176, 121, 0.35);
+  background: rgba(203, 176, 121, 0.1);
+  color: var(--ft-accent-2);
   font-size: 1.1rem;
   line-height: 1;
   font-weight: 600;
@@ -58,9 +71,9 @@
 }
 
 .mat-extras-plus:hover {
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.65);
-  box-shadow: 0 1px 6px rgba(17, 24, 39, 0.08);
+  background: rgba(203, 176, 121, 0.16);
+  border-color: rgba(203, 176, 121, 0.48);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
 }
 
 .mat-extras-plus:active {
@@ -68,7 +81,7 @@
 }
 
 .mat-extras-plus:focus-visible {
-  outline: 2px solid rgba(37, 99, 235, 0.55);
+  outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 2px;
 }
 
@@ -82,9 +95,9 @@
   padding: 0;
   max-height: 9rem;
   overflow-y: auto;
-  border: 1px solid #e2e5ea;
-  border-radius: 6px;
-  background: #fafbfc;
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .mat-extras-picklist li button {
@@ -94,12 +107,12 @@
   width: 100%;
   text-align: left;
   border: none;
-  border-bottom: 1px solid #ecf0f4;
+  border-bottom: 1px solid var(--ft-border);
   background: none;
   padding: 0.4rem 0.5rem;
   font: inherit;
   cursor: pointer;
-  color: #1a1d23;
+  color: var(--ft-text);
 }
 
 .mat-extras-picklist li:last-child button {
@@ -107,12 +120,12 @@
 }
 
 .mat-extras-picklist li button:hover {
-  background: #eef4ff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .mat-extras-pick-article {
   font-size: 0.8rem;
-  color: #5c6370;
+  color: var(--ft-muted);
   min-width: 3.5rem;
 }
 
@@ -125,7 +138,7 @@
 
 .mat-extras-pick-price {
   font-size: 0.8rem;
-  color: #1a1d23;
+  color: var(--ft-text);
 }
 
 .mat-extras-legend {
@@ -134,10 +147,10 @@
   gap: 0.3rem 0.35rem;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #5c6370;
+  color: var(--ft-muted);
   text-transform: none;
   padding-bottom: 0.2rem;
-  border-bottom: 1px solid #d5d9e0;
+  border-bottom: 1px solid var(--ft-border);
   margin-bottom: 0.3rem;
 }
 
@@ -170,9 +183,9 @@
   font-size: 0.8rem;
   margin-bottom: 0.35rem;
   padding: 0.35rem 0.4rem;
-  border: 1px solid #edf0f4;
+  border: 1px solid var(--ft-border);
   border-radius: 8px;
-  background: #fcfdff;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .mat-extras-row-ops {
@@ -181,16 +194,20 @@
 
 .mat-extras-row:hover,
 .mat-extras-row-ops:hover {
-  background: #f5f8ff;
-  border-color: #dbe6ff;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .mat-extras-row .admin-input,
-.mat-extras-row-ops .admin-input,
-.mat-extras-row-ops select {
+.mat-extras-row-ops .admin-input {
   min-width: 0;
   font-size: 0.8rem;
-  padding: 0.25rem 0.4rem;
+  padding: 0.3rem 0.45rem;
+}
+
+.mat-extras-row .ft-select,
+.mat-extras-row-ops .ft-select {
+  min-width: 0;
 }
 
 .mat-extras-row > span,
@@ -221,27 +238,27 @@
 }
 
 .mat-extras-rm {
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  background: rgba(244, 63, 94, 0.08);
-  color: #9f1239;
-  width: 1.55rem;
-  height: 1.55rem;
-  min-width: 1.55rem;
-  min-height: 1.55rem;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  width: 1.65rem;
+  height: 1.65rem;
+  min-width: 1.65rem;
+  min-height: 1.65rem;
   line-height: 1;
   border-radius: 10px;
   padding: 0;
   font-size: 1rem;
   cursor: pointer;
-  margin-left: 0.1rem;
+  margin-left: 0;
   justify-self: end;
   transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
 }
 
 .mat-extras-rm:hover {
-  background: rgba(244, 63, 94, 0.12);
-  border-color: rgba(244, 63, 94, 0.55);
-  box-shadow: 0 1px 6px rgba(17, 24, 39, 0.08);
+  background: rgba(255, 107, 107, 0.16);
+  border-color: rgba(255, 107, 107, 0.55);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
 }
 
 .mat-extras-rm:active {
@@ -249,22 +266,22 @@
 }
 
 .mat-extras-rm:focus-visible {
-  outline: 2px solid rgba(244, 63, 94, 0.45);
+  outline: 2px solid rgba(255, 107, 107, 0.55);
   outline-offset: 2px;
 }
 
 .mat-extras-total {
   margin: 0.6rem 0 0;
   font-size: 0.85rem;
-  color: #3d4450;
+  color: var(--ft-muted);
   padding: 0.4rem 0.5rem;
-  background: #f0f2f4;
-  border-radius: 6px;
-  border: 1px solid #e2e5ea;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  border: 1px solid var(--ft-border);
 }
 
 .mat-extras-total strong {
-  color: #1a1d23;
+  color: var(--ft-accent-2);
   font-size: 0.95rem;
 }
 
@@ -272,7 +289,7 @@
   margin: 0.35rem 0 0;
   font-size: 0.72rem;
   line-height: 1.35;
-  color: #5c6370;
+  color: var(--ft-faint);
 }
 
 .mat-extras-uom-select {
@@ -283,15 +300,11 @@
   margin: 0.45rem 0 0;
   font-size: 0.78rem;
   line-height: 1.35;
-  color: #7a2a2a;
-  background: #fdf5f5;
-  border: 1px solid #f1c9c9;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
   border-radius: 8px;
   padding: 0.45rem 0.55rem;
-}
-
-.mat-extras-scale-select {
-  padding: 0.2rem 0.25rem;
 }
 
 .mat-extras-op-facade {

@@ -1,9 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+  --ft-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23cbb079' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  --ft-bg: #070708;
+  --ft-bg-elev: #0b0b0d;
+  --ft-surface: #0f1013;
+  --ft-surface-2: #14161b;
+  --ft-surface-3: #1a1d23;
+  --ft-text: rgba(255, 255, 255, 0.92);
+  --ft-muted: rgba(255, 255, 255, 0.66);
+  --ft-faint: rgba(255, 255, 255, 0.48);
+  --ft-border: rgba(255, 255, 255, 0.12);
+  --ft-border-2: rgba(255, 255, 255, 0.2);
+  --ft-accent: #cbb079;
+  --ft-accent-2: #e6d4ae;
+  --ft-danger: #ff6b6b;
+  --ft-warn: #ffcc66;
+
+  --ft-radius-sm: 10px;
+  --ft-radius-md: 14px;
+
+  --ft-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --ft-shadow-2: 0 14px 45px rgba(0, 0, 0, 0.55);
+
+  --ft-font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ft-font-display: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+
+  --ft-wood-texture: url('./assets/wood-premium.png');
+
+  font-family: var(--ft-font-body);
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1d23;
-  background-color: #f4f5f7;
+  color: var(--ft-text);
+  background-color: var(--ft-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -13,10 +44,52 @@
   box-sizing: border-box;
 }
 
+/* Scrollbar (global) */
+html {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(203, 176, 121, 0.5) rgba(255, 255, 255, 0.06);
+}
+
+/* Chromium / WebKit */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(230, 212, 174, 0.5),
+    rgba(203, 176, 121, 0.42)
+  );
+  border: 2px solid rgba(7, 7, 8, 0.88);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(230, 212, 174, 0.68),
+    rgba(203, 176, 121, 0.56)
+  );
+}
+
+*::-webkit-scrollbar-corner {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100dvh;
+  background: radial-gradient(1200px 900px at 50% -180px, rgba(203, 176, 121, 0.12), transparent 55%),
+    radial-gradient(900px 700px at 75% 0, rgba(255, 255, 255, 0.06), transparent 55%),
+    var(--ft-bg);
+  color: var(--ft-text);
 }
 
 /* Десктоп-админка: без прокрутки document — только внутри колонок (панель внизу всегда в кадре). */
@@ -38,4 +111,8 @@ body {
 
 button {
   font-family: inherit;
+}
+
+::selection {
+  background: rgba(203, 176, 121, 0.28);
 }

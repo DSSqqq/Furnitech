@@ -17,7 +17,11 @@ export function resolvePricingUomCode(u: UnitOfMeasure | undefined | null): stri
   if (!u) return 'm2'
 
   const raw = (u.code ?? '').trim().toLowerCase()
+  if (raw === 'mp') return 'm'
   if (raw === 'm2' || raw === 'm' || raw === 'pc') return raw
+  // Единицы без геометрии фасада в формуле — как «шт» (1× цена за единицу на фасад).
+  const pieceLike = new Set(['m3', 'kg', 'l', 'sheet', 'mm', 'roll', 'pack', 'tg', 'pair'])
+  if (pieceLike.has(raw)) return 'pc'
 
   const short = (u.short_name ?? '').trim().toLowerCase()
   const name = (u.name ?? '').trim().toLowerCase()
@@ -33,16 +37,37 @@ export function resolvePricingUomCode(u: UnitOfMeasure | undefined | null): stri
   ) {
     return 'm2'
   }
+  if (hay.includes('куб') || hay.includes('м³') || hay.includes('m³')) {
+    return 'pc'
+  }
   if (
     hay.includes('погон') ||
     hay.includes('м.п') ||
     hay.includes('м. п') ||
     hay.includes('п.п') ||
-    hay.includes('п.м')
+    hay.includes('п.м') ||
+    (short === 'м' &&
+      !hay.includes('кв') &&
+      !hay.includes('куб') &&
+      !hay.includes('м²') &&
+      !hay.includes('м2'))
   ) {
     return 'm'
   }
-  if (hay.includes('шт') || hay.includes('штук')) {
+  if (
+    hay.includes('шт') ||
+    hay.includes('штук') ||
+    hay.includes('кг') ||
+    hay.includes('литр') ||
+    hay.includes('лист') ||
+    hay.includes('рулон') ||
+    hay.includes('упак') ||
+    hay.includes('пара') ||
+    hay.includes('тенге') ||
+    hay.includes('миллиметр') ||
+    short === 'мм' ||
+    short === 'тг'
+  ) {
     return 'pc'
   }
 

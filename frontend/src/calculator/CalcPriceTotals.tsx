@@ -8,6 +8,7 @@ import {
   resolvePricingUomCode,
   unitsPerFacade,
 } from './framePriceEstimate'
+import { formatNumberForUi } from '../floatInput'
 import {
   readCalculatorPriceConfigKey,
   subscribeFrameCalcSession,
@@ -26,7 +27,7 @@ function asPositiveMm(s: string | null, fallback: number): number {
 }
 
 function formatSum(n: number): string {
-  return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return formatNumberForUi(n, 3)
 }
 
 function uomLabel(m: Material | null): string {
@@ -41,7 +42,13 @@ function uomDebug(m: Material | null): string {
 
 function uomPricingLabel(m: Material | null): string {
   const code = resolvePricingUomCode(m?.uom)
-  return code === 'm2' ? 'м²' : code === 'm' ? 'м.п.' : 'шт'
+  if (code === 'm2') return 'кв.м'
+  if (code === 'm') {
+    const raw = (m?.uom?.code ?? '').trim().toLowerCase()
+    return raw === 'mp' ? 'м.п.' : 'м'
+  }
+  if (code === 'pc') return 'шт'
+  return m?.uom?.short_name || m?.uom?.name || 'шт'
 }
 
 function CalcPriceTotalsActive() {

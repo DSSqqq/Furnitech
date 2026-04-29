@@ -2,8 +2,8 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: #f4f5f7;
-  color: #1a1d23;
+  background: transparent;
+  color: var(--ft-text);
   min-width: 0;
 }
 
@@ -20,8 +20,10 @@
 
 .admin-header {
   padding: 1rem 1.5rem;
-  background: #1e2430;
-  color: #f0f2f5;
+  background: linear-gradient(180deg, rgba(7, 7, 8, 0.98), rgba(7, 7, 8, 0.78));
+  color: var(--ft-text);
+  border-bottom: 1px solid var(--ft-border);
+  backdrop-filter: blur(10px);
   flex-shrink: 0;
 }
 
@@ -49,10 +51,10 @@
 }
 
 .admin-logout {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f0f2f5;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 6px;
+  background: rgba(203, 176, 121, 0.08);
+  color: var(--ft-accent-2);
+  border: 1px solid rgba(203, 176, 121, 0.32);
+  border-radius: 999px;
   padding: 0.35rem 0.65rem;
   font: inherit;
   font-size: 0.85rem;
@@ -60,13 +62,17 @@
 }
 
 .admin-logout:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(203, 176, 121, 0.14);
+  border-color: rgba(203, 176, 121, 0.42);
 }
 
 .admin-brand {
-  font-weight: 700;
-  font-size: 1.15rem;
-  letter-spacing: 0.02em;
+  font-family: var(--ft-font-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ft-accent-2);
 }
 
 .admin-sub {
@@ -82,15 +88,15 @@
   gap: 0.35rem;
   padding: 0.2rem;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ft-border);
 }
 
 .admin-tab {
   appearance: none;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(240, 242, 245, 0.9);
+  color: rgba(255, 255, 255, 0.82);
   padding: 0.38rem 0.7rem;
   border-radius: 8px;
   font: inherit;
@@ -100,36 +106,38 @@
 }
 
 .admin-tab:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f0f2f5;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ft-text);
 }
 
 .admin-tab:focus-visible {
-  outline: 2px solid #2d6cdf;
+  outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 2px;
 }
 
 .admin-tab--active {
-  background: rgba(255, 255, 255, 0.92);
-  color: #1a1d23;
-  border-color: rgba(255, 255, 255, 0.92);
+  background: rgba(203, 176, 121, 0.18);
+  color: var(--ft-accent-2);
+  border-color: rgba(203, 176, 121, 0.32);
 }
 
 .admin-orders-placeholder {
   grid-column: 1 / -1;
-  background: #fff;
-  border-radius: 10px;
+  background: var(--ft-surface);
+  border-radius: var(--ft-radius-md);
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--ft-shadow-1);
+  border: 1px solid var(--ft-border);
   min-height: 0;
 }
 
 .admin-error {
   margin: 0.75rem 1.5rem;
   padding: 0.6rem 0.75rem;
-  background: #fde8e8;
-  color: #8b1a1a;
-  border-radius: 6px;
+  background: rgba(255, 107, 107, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 107, 107, 0.35);
   flex-shrink: 0;
 }
 
@@ -138,7 +146,8 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(15, 18, 25, 0.45);
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -148,23 +157,24 @@
 .admin-modal {
   width: 100%;
   max-width: 24rem;
-  background: #fff;
-  border-radius: 10px;
+  background: var(--ft-surface-2);
+  border-radius: var(--ft-radius-md);
   padding: 1.25rem 1.35rem 1.1rem;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--ft-shadow-2);
+  border: 1px solid var(--ft-border);
 }
 
 .admin-modal-title {
   margin: 0 0 0.5rem;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1a1d23;
+  color: var(--ft-text);
 }
 
 .admin-modal-text {
   margin: 0 0 1.1rem;
   font-size: 0.9rem;
-  color: #3d4450;
+  color: var(--ft-muted);
   line-height: 1.45;
 }
 
@@ -176,10 +186,10 @@
 }
 
 .admin-secondary {
-  background: #fff;
-  color: #1a1d23;
-  border: 1px solid #c8ccd4;
-  border-radius: 6px;
+  background: transparent;
+  color: var(--ft-text);
+  border: 1px solid var(--ft-border-2);
+  border-radius: 999px;
   padding: 0.45rem 0.9rem;
   font: inherit;
   font-size: 0.9rem;
@@ -187,14 +197,15 @@
 }
 
 .admin-secondary--sm {
-  padding: 0.32rem 0.65rem;
-  border-radius: 10px;
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
   font-size: 0.86rem;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .admin-secondary:hover {
-  background: #f4f5f7;
-  border-color: #a8b0bc;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .admin-secondary:active {
@@ -202,21 +213,38 @@
 }
 
 .admin-secondary:focus-visible {
-  outline: 2px solid rgba(45, 108, 223, 0.55);
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: 2px;
+}
+
+.admin-danger {
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.admin-danger:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.18);
+  border-color: rgba(255, 107, 107, 0.5);
+}
+
+.admin-danger:focus-visible {
+  outline: 2px solid rgba(255, 107, 107, 0.6);
   outline-offset: 2px;
 }
 
 button.admin-primary.admin-modal-confirm {
-  background: #8b1a1a;
-  color: #fff;
+  background: rgba(255, 107, 107, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 107, 107, 0.45);
 }
 
 button.admin-primary.admin-modal-confirm:hover {
-  background: #6f1212;
+  background: rgba(255, 107, 107, 0.22);
 }
 
 .admin-muted {
-  color: #5c6370;
+  color: var(--ft-muted);
   font-size: 0.9rem;
 }
 
@@ -255,16 +283,59 @@ button.admin-primary.admin-modal-confirm:hover {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
   }
+
+  /* Mobile: let the document scroll naturally (no "bottom panel" overlap). */
+  .admin-aside,
+  .admin-panel {
+    overflow: visible;
+  }
+
+  .admin-main {
+    height: auto;
+  }
+
+  .admin-main-scroll {
+    overflow: visible;
+  }
+
+  .admin-main-extras-host {
+    margin-top: 0;
+  }
 }
 
 .admin-aside,
 .admin-main,
 .admin-panel {
-  background: #fff;
-  border-radius: 10px;
+  background: var(--ft-surface);
+  border-radius: var(--ft-radius-md);
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--ft-shadow-1);
+  border: 1px solid var(--ft-border);
   min-height: 0;
+}
+
+.admin-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.admin-main-col > .admin-main {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.admin-extras-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: min(42dvh, 420px);
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: var(--ft-radius-md);
+  border: 1px solid var(--ft-border);
+  background: linear-gradient(180deg, rgba(15, 16, 19, 0.72), rgba(15, 16, 19, 0.98));
+  box-shadow: var(--ft-shadow-1);
 }
 
 .admin-aside,
@@ -280,7 +351,7 @@ button.admin-primary.admin-modal-confirm:hover {
   height: 100%;
 }
 
-/* Прокрутка списка; блок сопутствующих/операций — у нижнего края колонки. */
+/* Прокрутка списка; на десктопе список скроллится внутри колонки. */
 .admin-main-scroll {
   flex: 1 1 0;
   min-height: 0;
@@ -302,17 +373,10 @@ button.admin-primary.admin-modal-confirm:hover {
   min-height: 0;
 }
 
+/* Legacy portal host (was inside admin-main). Kept for backward compatibility. */
 .admin-main-extras-host {
-  flex: 0 0 auto;
-  min-height: 0;
   width: 100%;
   max-width: 100%;
-  margin-top: auto;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e6e8ed;
-  background: #fff;
-  box-shadow: 0 -6px 14px rgba(0, 0, 0, 0.05);
-  z-index: 1;
 }
 
 .admin-h2 {
@@ -356,7 +420,7 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .field > .field-label-row > span {
   font-size: 0.8rem;
-  color: #444a54;
+  color: var(--ft-muted);
 }
 
 .tree-root,
@@ -364,6 +428,29 @@ button.admin-primary.admin-modal-confirm:hover {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Разделитель: панель создания → дерево папок */
+.admin-aside .tree-root {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--ft-border);
+  position: relative;
+}
+
+.admin-aside .tree-root::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(203, 176, 121, 0.55),
+    transparent
+  );
 }
 
 .tree-item {
@@ -390,7 +477,7 @@ button.admin-primary.admin-modal-confirm:hover {
   border: 1px solid transparent;
   background: transparent;
   border-radius: 6px;
-  color: #5c6370;
+  color: var(--ft-muted);
   cursor: pointer;
   line-height: 1;
   flex-shrink: 0;
@@ -401,13 +488,13 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .tree-expander:hover {
-  background: #eef0f4;
-  border-color: #d5d9e0;
-  color: #1a1d23;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--ft-text);
 }
 
 .tree-expander:focus-visible {
-  outline: 2px solid #2d6cdf;
+  outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 1px;
 }
 
@@ -451,21 +538,22 @@ button.admin-primary.admin-modal-confirm:hover {
   min-width: 1.5rem;
   min-height: 1.5rem;
   box-sizing: border-box;
-  border: 1px solid #c8ccd4;
-  background: #fff;
+  border: 1px solid var(--ft-border-2);
+  background: transparent;
   border-radius: 4px;
   font: inherit;
   padding: 0;
   cursor: pointer;
-  color: #3d4450;
+  color: var(--ft-muted);
   line-height: 1;
   flex-shrink: 0;
 }
 
 .tree-gear-btn:hover,
 .tree-gear-btn[aria-expanded='true'] {
-  background: #eef0f4;
-  border-color: #a8b0bc;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--ft-text);
 }
 
 .tree-gear-ico {
@@ -483,10 +571,10 @@ button.admin-primary.admin-modal-confirm:hover {
   margin: 0.2rem 0 0;
   padding: 0.25rem 0;
   min-width: 10rem;
-  background: #fff;
-  border: 1px solid #e0e3e8;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--ft-shadow-2);
   z-index: 30;
 }
 
@@ -499,24 +587,24 @@ button.admin-primary.admin-modal-confirm:hover {
   font: inherit;
   font-size: 0.88rem;
   padding: 0.45rem 0.9rem;
-  color: #1a1d23;
+  color: var(--ft-text);
   cursor: pointer;
 }
 
 .tree-gear-menu-item:hover,
 .tree-gear-menu-item:focus-visible {
-  background: #f0f2f4;
+  background: rgba(255, 255, 255, 0.06);
   outline: none;
 }
 
 .tree-gear-menu-item--danger {
-  color: #7a2a2a;
+  color: rgba(255, 107, 107, 0.92);
 }
 
 .tree-gear-menu-item--danger:hover,
 .tree-gear-menu-item--danger:focus-visible {
-  background: #fdf5f5;
-  color: #5a1515;
+  background: rgba(255, 107, 107, 0.12);
+  color: rgba(255, 107, 107, 0.98);
 }
 
 .tree-link {
@@ -533,11 +621,12 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .tree-link:hover {
-  background: #eef0f4;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .tree-link-active {
-  background: #e3e9f7;
+  background: rgba(203, 176, 121, 0.12);
+  border: 1px solid rgba(203, 176, 121, 0.18);
   font-weight: 600;
 }
 
@@ -551,10 +640,62 @@ button.admin-primary.admin-modal-confirm:hover {
 .admin-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #c8ccd4;
-  border-radius: 6px;
+  border: 1px solid var(--ft-border-2);
+  border-radius: 12px;
   padding: 0.45rem 0.6rem;
   font: inherit;
+  color: var(--ft-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: rgba(203, 176, 121, 0.48);
+  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
+}
+
+/* Select: единый тёмный стиль + акцентная стрелка */
+select.admin-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  padding: 0.5rem 2.35rem 0.5rem 0.75rem;
+  line-height: 1.35;
+  background-color: rgba(255, 255, 255, 0.04);
+  background-image: var(--ft-select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1.05rem 1.05rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+select.admin-input:hover:not(:disabled) {
+  border-color: rgba(203, 176, 121, 0.35);
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+select.admin-input:focus {
+  border-color: rgba(203, 176, 121, 0.55);
+  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.14);
+}
+
+select.admin-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+select.admin-input option,
+select.admin-input optgroup {
+  background: var(--ft-surface);
+  color: var(--ft-text);
 }
 
 .admin-row {
@@ -564,17 +705,18 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .admin-primary {
-  background: #2d6cdf;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
+  background: rgba(203, 176, 121, 0.14);
+  color: var(--ft-accent-2);
+  border: 1px solid rgba(203, 176, 121, 0.32);
+  border-radius: 999px;
   padding: 0.45rem 0.9rem;
   font: inherit;
   cursor: pointer;
 }
 
 .admin-primary:hover {
-  background: #2558b8;
+  background: rgba(203, 176, 121, 0.2);
+  border-color: rgba(203, 176, 121, 0.42);
 }
 
 .admin-primary:disabled {
@@ -602,9 +744,9 @@ button.admin-primary.admin-modal-confirm:hover {
 .mat-list-legend {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #5c6370;
+  color: var(--ft-muted);
   letter-spacing: 0.01em;
-  border-bottom: 1px solid #d5d9e0;
+  border-bottom: 1px solid var(--ft-border);
   padding-bottom: 0.4rem;
   margin-bottom: 0.2rem;
 }
@@ -631,10 +773,10 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .mat-list-row {
-  background: #fff;
-  border: 1px solid #e2e5ea;
-  border-radius: 6px;
-  color: #1a1d23;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
+  color: var(--ft-text);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -643,14 +785,14 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .mat-list-row:hover {
-  border-color: #b8c2d0;
-  background: #fafbfd;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .mat-list-row--active {
-  border-color: rgba(37, 99, 235, 0.65);
-  background: rgba(37, 99, 235, 0.08);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: rgba(203, 176, 121, 0.55);
+  background: rgba(203, 176, 121, 0.1);
+  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
   position: relative;
 }
 
@@ -661,12 +803,12 @@ button.admin-primary.admin-modal-confirm:hover {
   top: -1px;
   bottom: -1px;
   width: 4px;
-  background: #2563eb;
-  border-radius: 6px 0 0 6px;
+  background: var(--ft-accent);
+  border-radius: 12px 0 0 12px;
 }
 
 .mat-list-row:focus-visible {
-  outline: 2px solid #2d6cdf;
+  outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 1px;
 }
 
@@ -678,26 +820,26 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .mat-list-cell-name {
   font-weight: 500;
-  color: #1a1d23;
+  color: var(--ft-text);
 }
 
 .mat-list-cell-article,
 .mat-list-cell-uom,
 .mat-list-cell-coeff {
-  color: #3d4450;
+  color: var(--ft-muted);
   font-size: 0.85rem;
 }
 
 .mat-list-cell-price {
   font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
-  color: #1a1d23;
+  color: var(--ft-text);
 }
 
 .mat-link {
   background: none;
   border: none;
-  color: #2d6cdf;
+  color: var(--ft-accent);
   cursor: pointer;
   font: inherit;
   text-decoration: underline;
@@ -716,7 +858,7 @@ button.admin-primary.admin-modal-confirm:hover {
   flex-wrap: wrap;
   gap: 0.2rem;
   align-items: flex-end;
-  border-bottom: 1px solid #e2e5ea;
+  border-bottom: 1px solid var(--ft-border);
   margin: 0 0 0.75rem;
   padding: 0;
 }
@@ -729,21 +871,21 @@ button.admin-primary.admin-modal-confirm:hover {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   background: transparent;
-  color: #5c6370;
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   border-radius: 6px 6px 0 0;
 }
 
 .mat-form-tab:hover:not(:disabled) {
-  color: #1a1d23;
-  background: rgba(0, 0, 0, 0.04);
+  color: var(--ft-text);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .mat-form-tab[aria-selected='true'] {
-  color: #1a1d23;
+  color: var(--ft-accent-2);
   font-weight: 600;
-  border-bottom-color: #2d6cdf;
-  background: #fff;
+  border-bottom-color: rgba(203, 176, 121, 0.75);
+  background: rgba(203, 176, 121, 0.08);
 }
 
 .mat-form-tab:disabled {
@@ -774,8 +916,8 @@ button.admin-primary.admin-modal-confirm:hover {
   border-radius: 50%;
   position: relative;
   overflow: hidden;
-  background: #e9ecf2;
-  border: 1px solid #d9dde5;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ft-border);
   box-shadow: inset -12px -16px 30px rgba(0, 0, 0, 0.18);
 }
 
@@ -853,7 +995,7 @@ button.admin-primary.admin-modal-confirm:hover {
 .tex-range .tex-range-val {
   font-variant-numeric: tabular-nums;
   text-align: right;
-  color: #3d4450;
+  color: var(--ft-muted);
   font-size: 0.85rem;
 }
 
@@ -866,7 +1008,7 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .field span {
   font-size: 0.8rem;
-  color: #444a54;
+  color: var(--ft-muted);
 }
 
 .field-row {
@@ -909,26 +1051,28 @@ button.admin-primary.admin-modal-confirm:hover {
   height: var(--mat-class-btn-size);
   min-width: var(--mat-class-btn-size);
   min-height: var(--mat-class-btn-size);
-  border: 1px solid #c8ccd4;
-  border-radius: 50%;
-  background: #f8f9fb;
-  color: #1a1d23;
+  border: 1px solid var(--ft-border-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ft-text);
   font-size: calc(var(--mat-class-btn-size) * 0.42);
   line-height: 1;
   font-weight: 600;
   padding: 0;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
 }
 
 .mat-class-ctrl:hover:not(:disabled) {
-  background: #eef0f4;
-  border-color: #a8b0bc;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
 }
 
 .mat-class-ctrl:focus-visible {
-  outline: 2px solid #2d6cdf;
-  outline-offset: 1px;
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: 2px;
 }
 
 .mat-class-ctrl:disabled {
@@ -937,25 +1081,25 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .mat-class-ctrl--add {
-  color: #1a5f1a;
-  border-color: #8bbd8b;
-  background: #f0faf0;
+  color: var(--ft-accent-2);
+  border-color: rgba(203, 176, 121, 0.32);
+  background: rgba(203, 176, 121, 0.14);
 }
 
 .mat-class-ctrl--add:hover:not(:disabled) {
-  background: #e2f2e2;
-  border-color: #6fa86f;
+  background: rgba(203, 176, 121, 0.2);
+  border-color: rgba(203, 176, 121, 0.42);
 }
 
 .mat-class-ctrl--remove {
-  color: #7a2a2a;
-  border-color: #d4a0a0;
-  background: #fdf5f5;
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.12);
 }
 
 .mat-class-ctrl--remove:hover:not(:disabled) {
-  background: #f8e8e8;
-  border-color: #c08080;
+  background: rgba(255, 107, 107, 0.18);
+  border-color: rgba(255, 107, 107, 0.55);
 }
 
 .field-half {
@@ -983,4 +1127,35 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .mat-form-actions {
   margin-top: 0.5rem;
+}
+
+/* ---------- Mobile fixes (must be last to win cascade) ---------- */
+@media (max-width: 1024px) {
+  /* Let page scroll; avoid "floating" extras overlapping the form. */
+  .admin-body {
+    overflow: visible;
+  }
+
+  .admin-aside,
+  .admin-main,
+  .admin-panel {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .admin-extras-panel {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .admin-main-scroll {
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+
+  /* The portal host for MaterialExtrasPanel should take natural space. */
+  .admin-main-extras-host {
+    margin-top: 0;
+  }
 }

@@ -39,6 +39,21 @@ export function normalizeDecimalOnBlur(s: string): string {
   return n === '' ? '0' : n
 }
 
+/** Blur: как normalizeDecimalOnBlur, но убирает хвостовые нули в дроби и ограничивает дробь до maxFractionDigits. */
+export function normalizeDecimalForInput(
+  s: string,
+  maxFractionDigits: number = DECIMAL_FRACTION_DIGITS
+): string {
+  const base = commitDecimalForApi(normalizeDecimalOnBlur(s), maxFractionDigits)
+  const d = base.indexOf('.')
+  if (d < 0) return base
+  const intPart = base.slice(0, d) || '0'
+  let frac = base.slice(d + 1)
+  frac = frac.replace(/0+$/g, '')
+  if (!frac) return intPart
+  return `${intPart}.${frac}`
+}
+
 /** Сохранение: дробь не длиннее `maxFractionDigits`. */
 export function commitDecimalForApi(
   s: string,
@@ -67,4 +82,35 @@ export function capDecimalString(
   const d = t.indexOf('.')
   if (d < 0) return t
   return t.slice(0, d + 1 + maxFractionDigits)
+}
+
+/**
+ * Формат для UI:
+ * - если дробная часть = 0 (например 12,000) → показываем "12"
+ * - иначе показываем до `maxFractionDigits` знаков после запятой (обрезая хвостовые нули)
+ * - разделитель — запятая (ru-RU)
+ */
+export function formatNumberForUi(n: number, maxFractionDigits: number = DECIMAL_FRACTION_DIGITS): string {
+  if (!Number.isFinite(n)) return '0'
+  return n.toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxFractionDigits,
+  })
+}
+
+export function formatDecimalStringForUi(
+  s: string | null | undefined,
+  maxFractionDigits: number = DECIMAL_FRACTION_DIGITS
+): string {
+  const t = normalizeDecimalOnBlur(String(s ?? '0'))
+  const n = Number(t.replace(',', '.'))
+  return formatNumberForUi(n, maxFractionDigits)
+}
+
+/** Строка для input value (с точкой, без лишних нулей). */
+export function formatDecimalStringForInput(
+  s: string | null | undefined,
+  maxFractionDigits: number = DECIMAL_FRACTION_DIGITS
+): string {
+  return normalizeDecimalForInput(String(s ?? '0'), maxFractionDigits)
 }

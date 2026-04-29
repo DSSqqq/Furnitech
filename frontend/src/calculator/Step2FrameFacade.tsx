@@ -9,9 +9,11 @@ import {
   updateCalculatorProfileType,
 } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
+import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { notifyFrameCalcSession } from './frameCalcSession'
-import { resolveMediaUrl, sketchFrameInlineStyle } from './sketchFrame'
+import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 
 function matLabel(m: { name: string; article?: string | null }) {
@@ -57,6 +59,8 @@ export function Step2FrameFacade() {
 
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
+  const [modalSaving, setModalSaving] = useState(false)
+  const [removeColorConfirm, setRemoveColorConfirm] = useState<null | { id: number; name: string }>(null)
   const [texByMaterialId, setTexByMaterialId] = useState<
     Record<number, { texture_color?: string; texture_image?: string | null; name?: string }>
   >({})
@@ -192,6 +196,31 @@ export function Step2FrameFacade() {
     }, 250)
     return () => clearTimeout(t)
   }, [editColorsQ, editTypeId])
+
+  useEffect(() => {
+    const list = [...createColorsHit, ...editColorsHit]
+    const ids = new Set<number>()
+    for (const m of list) {
+      const has = (m.texture_image ?? '').trim() || (m.texture_color ?? '').trim()
+      if (!has) ids.add(m.id)
+    }
+    const missing = [...ids].filter((id) => texByMaterialId[id] == null)
+    if (missing.length === 0) return
+    Promise.all(missing.map((id) => fetchMaterial(id).then((m) => ({ id, m })).catch(() => null))).then((rows) => {
+      setTexByMaterialId((prev) => {
+        const next = { ...prev }
+        for (const r of rows) {
+          if (!r) continue
+          next[r.id] = {
+            texture_color: (r.m as any).texture_color,
+            texture_image: (r.m as any).texture_image,
+            name: r.m.name,
+          }
+        }
+        return next
+      })
+    })
+  }, [createColorsHit, editColorsHit, texByMaterialId])
 
   const createTypeImagePreview = useMemo(() => {
     if (!createTypeImageFile) return ''
@@ -368,6 +397,38 @@ export function Step2FrameFacade() {
     [profileTypes, modalTypeId]
   )
 
+  const patchModalColors = useCallback(async (typeId: number, rows: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]) => {
+    setModalSaving(true)
+    setErr(null)
+    try {
+      const updated = await updateCalculatorProfileType(typeId, { colors: rows })
+      setProfileTypes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+    } catch (e) {
+      setErr(String(e))
+    } finally {
+      setModalSaving(false)
+    }
+  }, [])
+
+  const removeModalColor = useCallback(async (colorMaterialId: number) => {
+    if (!modalType) return
+    const nextColors = (modalType.colors ?? [])
+      .filter((c) => c.color_material_id !== colorMaterialId)
+      .map((c) => ({
+        color_material_id: c.color_material_id,
+        is_new: Boolean(c.is_new),
+        is_hit: Boolean(c.is_hit),
+        is_sale: Boolean(c.is_sale),
+      }))
+
+    await patchModalColors(modalType.id, nextColors)
+
+    if (selectedColorId === colorMaterialId) {
+      const nextSel = nextColors[0]?.color_material_id ?? null
+      setSelectedColorId(nextSel)
+    }
+  }, [modalType, patchModalColors, selectedColorId])
+
   useEffect(() => {
     const ids = new Set<number>()
     for (const c of modalType?.colors ?? []) {
@@ -410,6 +471,27 @@ export function Step2FrameFacade() {
       name: base.name || fallback.name,
     }
   }, [selectedColorId, selectedType, texByMaterialId])
+
+  // Для параметров текстуры (opacity/offset/step/rotate/mirror) нужен полный материал, а не summary из списка цветов.
+  const [selectedColorMaterialFull, setSelectedColorMaterialFull] = useState<Material | null>(null)
+  useEffect(() => {
+    let cancel = false
+    ;(async () => {
+      if (!selectedColorId) {
+        setSelectedColorMaterialFull(null)
+        return
+      }
+      try {
+        const m = await fetchMaterial(selectedColorId)
+        if (!cancel) setSelectedColorMaterialFull(m)
+      } catch {
+        if (!cancel) setSelectedColorMaterialFull(null)
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [selectedColorId])
 
   const selectedColorFlags = useMemo(() => {
     if (!selectedType) return null
@@ -493,13 +575,16 @@ export function Step2FrameFacade() {
                     placeholder="Название типа профиля…"
                   />
                   <div className="frame2-file-row">
-                    <label className="frame2-file-label" htmlFor="profile-type-card-image">
-                      Изображение для карточки
-                    </label>
+                    <div className="frame2-file-label-row">
+                      <label className="frame2-file-label" htmlFor="profile-type-card-image">
+                        Изображение для карточки
+                      </label>
+                      <HintButton text="Выберите изображение с компьютера. Обычно в диалоге можно открыть «Рабочий стол». Поддерживаются форматы изображений (PNG/JPG/WebP и т.п.)." />
+                    </div>
                     <input
                       id="profile-type-card-image"
                       ref={cardImageInputRef}
-                      className="frame2-file-input"
+                      className="frame2-file-input frame2-file-input--sr"
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
@@ -507,14 +592,23 @@ export function Step2FrameFacade() {
                         setCreateTypeImageFile(f)
                       }}
                     />
+                    <div className="frame2-file-picker-row">
+                      <button
+                        type="button"
+                        className="admin-secondary frame2-file-btn"
+                        onClick={() => cardImageInputRef.current?.click()}
+                      >
+                        {createTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                      </button>
+                      <div className="frame2-file-name" aria-live="polite">
+                        {createTypeImageFile ? createTypeImageFile.name : 'Файл не выбран'}
+                      </div>
+                    </div>
                     {createTypeImagePreview && (
                       <div className="frame2-file-preview frame2-file-preview--cover">
                         <img src={createTypeImagePreview} alt="" />
                       </div>
                     )}
-                    <p className="admin-muted frame2-file-hint">
-                      Файл с вашего компьютера (в диалоге можно открыть «Рабочий стол»). Формат — изображение.
-                    </p>
                   </div>
                 </div>
 
@@ -534,7 +628,15 @@ export function Step2FrameFacade() {
                         const flags = createColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
                         return (
                           <li key={m.id}>
-                            <div className="frame2-checkrow" title={matLabel(m)}>
+                            <div
+                              className={[
+                                'frame2-checkrow',
+                                checked ? 'frame2-checkrow--checked' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              title={matLabel(m)}
+                            >
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -548,7 +650,14 @@ export function Step2FrameFacade() {
                                 }
                               />
                               <span className="frame2-check-article">{m.article || '—'}</span>
-                              <span className="frame2-check-name">{m.name}</span>
+                              <MaterialCheckSwatch
+                                name={m.name}
+                                material={m}
+                                texExtra={texByMaterialId[m.id]}
+                              />
+                              <span className="frame2-check-name-wrap">
+                                <span className="frame2-check-name">{m.name}</span>
+                              </span>
                             </div>
                             {checked && (
                               <div className="frame2-flags">
@@ -630,25 +739,37 @@ export function Step2FrameFacade() {
                     placeholder="Название типа профиля…"
                   />
                   <div className="frame2-file-row">
-                    <label className="frame2-file-label" htmlFor="profile-type-card-image-edit">
-                      Новое изображение (необязательно)
-                    </label>
+                    <div className="frame2-file-label-row">
+                      <label className="frame2-file-label" htmlFor="profile-type-card-image-edit">
+                        Новое изображение (необязательно)
+                      </label>
+                      <HintButton text="Оставьте поле пустым, чтобы сохранить текущую картинку. Если выбрать файл — он заменит текущую картинку." />
+                    </div>
                     <input
                       id="profile-type-card-image-edit"
                       ref={editImageInputRef}
-                      className="frame2-file-input"
+                      className="frame2-file-input frame2-file-input--sr"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setEditTypeImageFile(e.target.files?.[0] ?? null)}
                     />
+                    <div className="frame2-file-picker-row">
+                      <button
+                        type="button"
+                        className="admin-secondary frame2-file-btn"
+                        onClick={() => editImageInputRef.current?.click()}
+                      >
+                        {editTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                      </button>
+                      <div className="frame2-file-name" aria-live="polite">
+                        {editTypeImageFile ? editTypeImageFile.name : 'Файл не выбран'}
+                      </div>
+                    </div>
                     {(editTypeImagePreview || editExistingCardUrl) && (
                       <div className="frame2-file-preview frame2-file-preview--cover">
                         <img src={editTypeImagePreview || editExistingCardUrl} alt="" />
                       </div>
                     )}
-                    <p className="admin-muted frame2-file-hint">
-                      Оставьте поле файла пустым, чтобы сохранить текущую картинку. Загрузка заменит её.
-                    </p>
                   </div>
                 </div>
 
@@ -668,7 +789,15 @@ export function Step2FrameFacade() {
                         const flags = editColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
                         return (
                           <li key={m.id}>
-                            <div className="frame2-checkrow" title={matLabel(m)}>
+                            <div
+                              className={[
+                                'frame2-checkrow',
+                                checked ? 'frame2-checkrow--checked' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              title={matLabel(m)}
+                            >
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -682,7 +811,14 @@ export function Step2FrameFacade() {
                                 }
                               />
                               <span className="frame2-check-article">{m.article || '—'}</span>
-                              <span className="frame2-check-name">{m.name}</span>
+                              <MaterialCheckSwatch
+                                name={m.name}
+                                material={m}
+                                texExtra={texByMaterialId[m.id]}
+                              />
+                              <span className="frame2-check-name-wrap">
+                                <span className="frame2-check-name">{m.name}</span>
+                              </span>
                             </div>
                             {checked && (
                               <div className="frame2-flags">
@@ -804,8 +940,15 @@ export function Step2FrameFacade() {
         <section className="frame2-sketch" aria-label="Эскиз фасада">
           <div className="frame2-sketch-inner">
             <div className="sketch">
-              <div className="sketch-frame" style={sketchFrameInlineStyle(selectedColorMaterial)} />
-              <div className="sketch-paper" />
+              <div className="sketch-frame">
+                <div
+                  className="sketch-frame-texture"
+                  style={materialTextureLayerStyle(selectedColorMaterialFull ?? selectedColorMaterial)}
+                />
+              </div>
+              <div className="sketch-paper">
+                <div className="sketch-paper-texture" />
+              </div>
               <div className="sketch-sheet">
                 <div className="sketch-title">ЛИЦЕВАЯ СТОРОНА ФАСАДА</div>
                 <div className="sketch-sub">Визуализация примерная</div>
@@ -860,37 +1003,53 @@ export function Step2FrameFacade() {
               {(modalType.colors ?? []).map((c) => {
                 const active = c.color_material_id === selectedColorId
                 return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={active ? 'tile tile--active' : 'tile'}
-                    onClick={() => {
-                      setSelectedColorId(c.color_material_id)
-                      setModalTypeId(null)
-                    }}
-                    title={matLabel(c.color_material)}
-                  >
-                    {textureThumb({
-                      texture_image:
-                        (c.color_material as any).texture_image ??
-                        texByMaterialId[c.color_material_id]?.texture_image ??
-                        null,
-                      texture_color:
-                        (c.color_material as any).texture_color ??
-                        texByMaterialId[c.color_material_id]?.texture_color ??
-                        '',
-                      name: c.color_material.name,
-                    })}
-                    <div className="tile-title">{c.color_material.name}</div>
-                    <div className="tile-sub">{c.color_material.article || '—'}</div>
-                    {(c.is_new || c.is_hit || c.is_sale) && (
-                      <div className="tile-flags">
-                        {c.is_new && <span className="tile-flag tile-flag--new">New</span>}
-                        {c.is_hit && <span className="tile-flag tile-flag--hit">Hit</span>}
-                        {c.is_sale && <span className="tile-flag tile-flag--sale">Sale</span>}
-                      </div>
+                  <div key={c.id} className="tile-cell">
+                    <button
+                      type="button"
+                      className={active ? 'tile tile--active tile--fill' : 'tile tile--fill'}
+                      onClick={() => {
+                        setSelectedColorId(c.color_material_id)
+                        setModalTypeId(null)
+                      }}
+                      title={matLabel(c.color_material)}
+                    >
+                      {textureThumb({
+                        texture_image:
+                          (c.color_material as any).texture_image ??
+                          texByMaterialId[c.color_material_id]?.texture_image ??
+                          null,
+                        texture_color:
+                          (c.color_material as any).texture_color ??
+                          texByMaterialId[c.color_material_id]?.texture_color ??
+                          '',
+                        name: c.color_material.name,
+                      })}
+                      <div className="tile-title">{c.color_material.name}</div>
+                      <div className="tile-sub">{c.color_material.article || '—'}</div>
+                      {(c.is_new || c.is_hit || c.is_sale) && (
+                        <div className="tile-flags">
+                          {c.is_new && <span className="tile-flag tile-flag--new">New</span>}
+                          {c.is_hit && <span className="tile-flag tile-flag--hit">Hit</span>}
+                          {c.is_sale && <span className="tile-flag tile-flag--sale">Sale</span>}
+                        </div>
+                      )}
+                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="tile-action-remove"
+                        title="Убрать цвет из типа"
+                        disabled={modalSaving}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setRemoveColorConfirm({ id: c.color_material_id, name: c.color_material.name })
+                        }}
+                      >
+                        ×
+                      </button>
                     )}
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -898,6 +1057,42 @@ export function Step2FrameFacade() {
             {(modalType.colors ?? []).length === 0 && (
               <div className="admin-muted">Цвета для типа профиля не заданы.</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {removeColorConfirm && (
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Подтверждение удаления"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRemoveColorConfirm(null)
+          }}
+        >
+          <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+            <h3 className="admin-modal-title">Убрать цвет из типа?</h3>
+            <p className="admin-modal-text">
+              Вы уверены, что хотите убрать «{removeColorConfirm.name}» из этого типа профиля?
+            </p>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-secondary" onClick={() => setRemoveColorConfirm(null)}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="admin-primary"
+                disabled={modalSaving}
+                onClick={() => {
+                  const id = removeColorConfirm.id
+                  setRemoveColorConfirm(null)
+                  void removeModalColor(id)
+                }}
+              >
+                Убрать
+              </button>
+            </div>
           </div>
         </div>
       )}

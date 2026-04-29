@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { searchMaterials, updateMaterial } from './api'
 import { BASE_CURRENCY } from './currencies'
 import {
-  capDecimalString,
   DECIMAL_FRACTION_DIGITS,
   filterDecimalInput,
+  formatDecimalStringForInput,
+  formatNumberForUi,
+  normalizeDecimalForInput,
   normalizeDecimalOnBlur,
 } from './floatInput'
+import { FtSelect } from './FtSelect'
+import { sortUomForSelect } from './uomSelectOrder'
 import type {
   Material,
   MaterialOperationLineDto,
@@ -39,7 +43,7 @@ function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedIte
   return items.map((x) => ({
     id: x.id,
     related_material_id: x.related_material_id,
-    quantity: capDecimalString(String(x.quantity), DECIMAL_FRACTION_DIGITS),
+    quantity: formatDecimalStringForInput(String(x.quantity), DECIMAL_FRACTION_DIGITS),
     quantity_scale: x.quantity_scale ?? 'follow_parent',
     related_material: { ...x.related_material, id: x.related_material.id },
   }))
@@ -51,9 +55,9 @@ function toOpState(items: MaterialOperationLineDto[] | undefined): OpLineState[]
     id: x.id,
     name: x.name,
     model_parameter: x.model_parameter,
-    quantity: capDecimalString(String(x.quantity), DECIMAL_FRACTION_DIGITS),
+    quantity: formatDecimalStringForInput(String(x.quantity), DECIMAL_FRACTION_DIGITS),
     uom_id: x.uom_id ?? 0,
-    price: capDecimalString(String(x.price), DECIMAL_FRACTION_DIGITS),
+    price: formatDecimalStringForInput(String(x.price), DECIMAL_FRACTION_DIGITS),
     price_per_facade: Boolean(x.price_per_facade),
   }))
 }
@@ -71,7 +75,7 @@ type Props = {
 function lineTotalRelated(q: string, basePrice: string) {
   const a = parseFloat(normalizeDecimalOnBlur(q).replace(',', '.')) || 0
   const b = parseFloat(normalizeDecimalOnBlur(basePrice).replace(',', '.')) || 0
-  return (a * b).toFixed(3)
+  return formatNumberForUi(a * b, DECIMAL_FRACTION_DIGITS)
 }
 
 export function materialExtrasInitRelated(m: Material | null): RelatedItemState[] {
@@ -91,6 +95,7 @@ export function MaterialExtrasPanel({
   onOpLinesChange,
   basePrice,
 }: Props) {
+  const [tab, setTab] = useState<'related' | 'ops'>('related')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [searchHit, setSearchHit] = useState<Material[]>([])
@@ -104,21 +109,7 @@ export function MaterialExtrasPanel({
     return m
   }, [uomList])
 
-  const preferredUom = useMemo(() => {
-    const codeOf = (u: UnitOfMeasure) => (u.code ?? '').trim().toLowerCase()
-    const byCode: Record<string, UnitOfMeasure | undefined> = {}
-    for (const u of uomList) {
-      const c = codeOf(u)
-      if (c) byCode[c] = u
-    }
-    return {
-      m2: byCode.m2,
-      m: byCode.m,
-      pc: byCode.pc,
-      l: byCode.l,
-      kg: byCode.kg,
-    }
-  }, [uomList])
+  const sortedUom = useMemo(() => sortUomForSelect(uomList), [uomList])
 
   const excludedIds = useMemo(() => {
     const s = new Set<number>(relatedItems.map((r) => r.related_material_id))
@@ -152,7 +143,7 @@ export function MaterialExtrasPanel({
       ...relatedItems,
       {
         related_material_id: m.id,
-        quantity: capDecimalString('1', DECIMAL_FRACTION_DIGITS),
+        quantity: formatDecimalStringForInput('1', DECIMAL_FRACTION_DIGITS),
         quantity_scale: 'follow_parent',
         related_material: {
           id: m.id,
@@ -185,9 +176,9 @@ export function MaterialExtrasPanel({
       {
         name: '',
         model_parameter: '',
-        quantity: capDecimalString('1', DECIMAL_FRACTION_DIGITS),
+        quantity: formatDecimalStringForInput('1', DECIMAL_FRACTION_DIGITS),
         uom_id: uomList[0]?.id ?? 0,
-        price: capDecimalString('0', DECIMAL_FRACTION_DIGITS),
+        price: formatDecimalStringForInput('0', DECIMAL_FRACTION_DIGITS),
         price_per_facade: false,
       },
     ])
@@ -217,8 +208,39 @@ export function MaterialExtrasPanel({
 
   return (
     <div className="mat-extras">
+      <div className="mat-extras-tabs" role="tablist" aria-label="Дополнительные строки материала">
+        <button
+          type="button"
+          className={tab === 'related' ? 'mat-form-tab' : 'mat-form-tab'}
+          role="tab"
+          aria-selected={tab === 'related'}
+          aria-controls="mat-extras-panel-related"
+          id="mat-extras-tab-related"
+          onClick={() => setTab('related')}
+        >
+          Сопутствующие
+        </button>
+        <button
+          type="button"
+          className={tab === 'ops' ? 'mat-form-tab' : 'mat-form-tab'}
+          role="tab"
+          aria-selected={tab === 'ops'}
+          aria-controls="mat-extras-panel-ops"
+          id="mat-extras-tab-ops"
+          onClick={() => setTab('ops')}
+        >
+          Операции
+        </button>
+      </div>
       <div className="mat-extras-stack">
-        <section className="mat-extras-block mat-extras-block-related" aria-labelledby="mat-extras-related-heading">
+        {tab === 'related' && (
+        <section
+          className="mat-extras-block mat-extras-block-related"
+          aria-labelledby="mat-extras-related-heading"
+          role="tabpanel"
+          id="mat-extras-panel-related"
+          aria-controls="mat-extras-tab-related"
+        >
           <div className="mat-extras-head">
             <h3 id="mat-extras-related-heading" className="mat-extras-title">
               Сопутствующие материалы
@@ -294,19 +316,20 @@ export function MaterialExtrasPanel({
                     onRelatedChange(
                       relatedItems.map((row, j) =>
                         j === i
-                          ? { ...row, quantity: normalizeDecimalOnBlur(row.quantity) }
+                          ? { ...row, quantity: normalizeDecimalForInput(row.quantity, DECIMAL_FRACTION_DIGITS) }
                           : row
                       )
                     )
                   }
                 />
-                <select
-                  className="admin-input mat-extras-uom-select"
-                  value={r.related_material.uom?.id ?? ''}
+                <FtSelect
+                  className="mat-extras-uom-select"
+                  compact
+                  value={r.related_material.uom?.id != null ? String(r.related_material.uom.id) : ''}
                   disabled={savingUomByMaterialId[r.related_material_id] === true}
                   title="Ед. изм. сопутствующего материала (сохраняется в базе материалов)"
-                  onChange={async (e) => {
-                    const nextUomId = Number(e.target.value)
+                  onChange={async (v) => {
+                    const nextUomId = Number(v)
                     if (!nextUomId) return
                     const u = uomById.get(nextUomId)
                     if (!u) return
@@ -323,7 +346,6 @@ export function MaterialExtrasPanel({
                       )
                     } catch (err) {
                       setUomSaveErr(err instanceof Error ? err.message : String(err))
-                      // откатываем select визуально через state (останется прежний uom)
                       onRelatedChange([...relatedItems])
                     } finally {
                       setSavingUomByMaterialId((prev) => {
@@ -333,42 +355,31 @@ export function MaterialExtrasPanel({
                       })
                     }
                   }}
-                >
-                  <option value="">—</option>
-                  <option value={preferredUom.m2?.id ?? ''} disabled={!preferredUom.m2}>
-                    м²
-                  </option>
-                  <option value={preferredUom.m?.id ?? ''} disabled={!preferredUom.m}>
-                    м.п.
-                  </option>
-                  <option value={preferredUom.pc?.id ?? ''} disabled={!preferredUom.pc}>
-                    шт
-                  </option>
-                  <option value={preferredUom.l?.id ?? ''} disabled={!preferredUom.l}>
-                    л
-                  </option>
-                  <option value={preferredUom.kg?.id ?? ''} disabled={!preferredUom.kg}>
-                    кг
-                  </option>
-                </select>
-                <select
-                  className="admin-input mat-extras-scale-select"
+                  options={[
+                    { value: '', label: '—' },
+                    ...sortedUom.map((u) => ({
+                      value: String(u.id),
+                      label: u.short_name || u.name,
+                    })),
+                  ]}
+                />
+                <FtSelect
+                  compact
                   value={r.quantity_scale}
                   title="Как умножать строку в калькуляторе (см. подсказку под таблицей)"
-                  onChange={(e) =>
+                  onChange={(v) =>
                     onRelatedChange(
                       relatedItems.map((row, j) =>
-                        j === i
-                          ? { ...row, quantity_scale: e.target.value as RelatedQuantityScale }
-                          : row
+                        j === i ? { ...row, quantity_scale: v as RelatedQuantityScale } : row
                       )
                     )
                   }
-                >
-                  <option value="follow_parent">Как у основного</option>
-                  <option value="per_facade">На фасад</option>
-                  <option value="use_related_uom">По ед. изм. строки</option>
-                </select>
+                  options={[
+                    { value: 'follow_parent', label: 'Как у основного' },
+                    { value: 'per_facade', label: 'На фасад' },
+                    { value: 'use_related_uom', label: 'По ед. изм. строки' },
+                  ]}
+                />
                 <span>
                   {lineTotalRelated(r.quantity, r.related_material.base_price)} {BASE_CURRENCY}
                 </span>
@@ -386,8 +397,16 @@ export function MaterialExtrasPanel({
           </ul>
           {uomSaveErr && <p className="mat-extras-warn">{uomSaveErr}</p>}
         </section>
+        )}
 
-        <section className="mat-extras-block mat-extras-block-ops" aria-labelledby="mat-extras-ops-heading">
+        {tab === 'ops' && (
+        <section
+          className="mat-extras-block mat-extras-block-ops"
+          aria-labelledby="mat-extras-ops-heading"
+          role="tabpanel"
+          id="mat-extras-panel-ops"
+          aria-controls="mat-extras-tab-ops"
+        >
           <div className="mat-extras-head">
             <h3 id="mat-extras-ops-heading" className="mat-extras-title">
               Операции
@@ -439,22 +458,22 @@ export function MaterialExtrasPanel({
                   onBlur={() => {
                     const v = opLines[i]?.quantity
                     if (v !== undefined) {
-                      updateOp(i, { quantity: normalizeDecimalOnBlur(v) })
+                      updateOp(i, { quantity: normalizeDecimalForInput(v, DECIMAL_FRACTION_DIGITS) })
                     }
                   }}
                 />
-                <select
-                  className="admin-input"
-                  value={o.uom_id || ''}
-                  onChange={(e) => updateOp(i, { uom_id: Number(e.target.value) })}
-                >
-                  <option value="">—</option>
-                  {uomList.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.short_name || u.name}
-                    </option>
-                  ))}
-                </select>
+                <FtSelect
+                  compact
+                  value={o.uom_id ? String(o.uom_id) : ''}
+                  onChange={(v) => updateOp(i, { uom_id: v ? Number(v) : 0 })}
+                  options={[
+                    { value: '', label: '—' },
+                    ...sortedUom.map((u) => ({
+                      value: String(u.id),
+                      label: u.short_name || u.name,
+                    })),
+                  ]}
+                />
                 <input
                   className="admin-input"
                   value={o.price}
@@ -465,7 +484,7 @@ export function MaterialExtrasPanel({
                   }
                   onBlur={() => {
                     const v = opLines[i]?.price
-                    if (v !== undefined) updateOp(i, { price: normalizeDecimalOnBlur(v) })
+                    if (v !== undefined) updateOp(i, { price: normalizeDecimalForInput(v, DECIMAL_FRACTION_DIGITS) })
                   }}
                 />
                 <label className="mat-extras-op-facade" title="Умножать цену строки на число фасадов в калькуляторе">
@@ -488,15 +507,16 @@ export function MaterialExtrasPanel({
             ))}
           </ul>
         </section>
+        )}
       </div>
       <p className="mat-extras-total" aria-live="polite">
-        Предв. оценка (карточка, без габаритов): основной {mainP.toFixed(3)} + сопутствующие{' '}
-        {sumRelated.toFixed(3)} + операции {sumOps.toFixed(3)} ={' '}
+        Предв. оценка (карточка, без габаритов): основной {formatNumberForUi(mainP, DECIMAL_FRACTION_DIGITS)} +
+        сопутствующие {formatNumberForUi(sumRelated, DECIMAL_FRACTION_DIGITS)} + операции{' '}
+        {formatNumberForUi(sumOps, DECIMAL_FRACTION_DIGITS)} ={' '}
         <strong>
-          {grand.toFixed(3)} {BASE_CURRENCY}
+          {formatNumberForUi(grand, DECIMAL_FRACTION_DIGITS)} {BASE_CURRENCY}
         </strong>
-        . В калькуляторе сумма считается по масштабу строк и габаритам; операции с «× фасад» умножаются на число
-        фасадов.
+        .
       </p>
     </div>
   )

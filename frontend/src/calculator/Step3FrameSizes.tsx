@@ -4,7 +4,7 @@ import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import { isFrameStep2Ready, notifyFrameCalcSession } from './frameCalcSession'
-import { sketchFrameInlineStyle } from './sketchFrame'
+import { materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -163,7 +163,7 @@ export function Step3FrameSizes() {
     (limits.minW <= 0 || widthN >= limits.minW) &&
     (limits.maxW <= 0 || widthN <= limits.maxW)
 
-  const sketchFrameStyle = useMemo(() => sketchFrameInlineStyle(colorMaterial), [colorMaterial])
+  const sketchFrameStyle = useMemo(() => materialTextureLayerStyle(colorMaterial), [colorMaterial])
 
   return (
     <div className="frame3">
@@ -273,8 +273,12 @@ export function Step3FrameSizes() {
                   : undefined
               }
             >
-              <div className="sketch-frame" style={sketchFrameStyle} />
-              <div className="sketch-paper" />
+              <div className="sketch-frame">
+                <div className="sketch-frame-texture" style={sketchFrameStyle} />
+              </div>
+              <div className="sketch-paper">
+                <div className="sketch-paper-texture" />
+              </div>
               <div className="sketch-sheet">
                 <div className="sketch-title">ЛИЦЕВАЯ СТОРОНА ФАСАДА</div>
                 <div className="sketch-sub">Визуализация примерная</div>

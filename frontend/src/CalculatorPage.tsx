@@ -10,6 +10,7 @@ import {
 import {
   clearFrameCalculatorStorage,
   isFrameStep2Ready,
+  isFrameStep4Ready,
   notifyFrameCalcSession,
   subscribeFrameCalcSession,
 } from './calculator/frameCalcSession'
@@ -18,6 +19,7 @@ import { Step2MdfFacade } from './calculator/Step2MdfFacade'
 import { Step2PvcFacade } from './calculator/Step2PvcFacade'
 import { Step3FrameSizes } from './calculator/Step3FrameSizes'
 import { Step4FrameFilling } from './calculator/Step4FrameFilling'
+import { Step5FrameSummary } from './calculator/Step5FrameSummary'
 import { CalcPriceTotals } from './calculator/CalcPriceTotals'
 import './CalculatorPage.css'
 
@@ -50,11 +52,15 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
   const isStep1 = normalized === '/' || normalized === ''
   const isStep3FrameSizes = normalized === '/frame/size'
   const isStep4FrameFilling = normalized === '/frame/filling'
-  const isStep2 = Boolean(facade) && !isStep1 && !isStep3FrameSizes && !isStep4FrameFilling
+  const isStep5FrameSummary = normalized === '/frame/summary'
+  const isStep2 =
+    Boolean(facade) && !isStep1 && !isStep3FrameSizes && !isStep4FrameFilling && !isStep5FrameSummary
 
   const frameStep2Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep2Ready, isFrameStep2Ready)
+  const frameStep4Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep4Ready, isFrameStep4Ready)
   const canOpenFrameStep3 = facade === 'frame' && frameStep2Ready
   const canOpenFrameStep4 = facade === 'frame' && frameStep2Ready
+  const canOpenFrameStep5 = facade === 'frame' && frameStep4Ready
 
   useEffect(() => {
     if (!showProfilesCount) return
@@ -150,6 +156,29 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
           >
             Шаг 4
           </button>
+          <button
+            type="button"
+            role="tab"
+            className={isStep5FrameSummary ? 'calc-step-tab calc-step-tab--active' : 'calc-step-tab'}
+            aria-selected={isStep5FrameSummary}
+            disabled={!canOpenFrameStep5}
+            onClick={() => {
+              if (canOpenFrameStep5) nav(step('frame/summary'))
+            }}
+            title={
+              !facade
+                ? 'Сначала выберите фасад'
+                : facade !== 'frame'
+                  ? 'Шаг 5 только для рамочного фасада'
+                  : !frameStep2Ready
+                    ? 'Сначала на шаге 2 выберите тип профиля и цвет'
+                    : !frameStep4Ready
+                      ? 'Сначала на шаге 4 выберите наполнение'
+                    : undefined
+            }
+          >
+            Шаг 5
+          </button>
         </div>
       </div>
 
@@ -214,6 +243,19 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                             <h3 className="calc-h3">Рамочный фасад — наполнение</h3>
                           </div>
                           <Step4FrameFilling />
+                        </section>
+                      </div>
+                    }
+                  />
+                  <Route
+                    path="frame/summary"
+                    element={
+                      <div className="calc-grid" id="calc-step-panel-5" role="tabpanel">
+                        <section className="calc-card">
+                          <div className="admin-heading-row calc-card-title-row">
+                            <h3 className="calc-h3">Рамочный фасад — итог</h3>
+                          </div>
+                          <Step5FrameSummary />
                         </section>
                       </div>
                     }

@@ -15,9 +15,9 @@
   min-width: 1.15rem;
   min-height: 1.15rem;
   border-radius: 50%;
-  border: 1px solid #a8b0bc;
-  background: #f0f2f5;
-  color: #5c6370;
+  border: 1px solid rgba(203, 176, 121, 0.35);
+  background: rgba(203, 176, 121, 0.1);
+  color: var(--ft-accent-2);
   font-size: 0.65rem;
   font-style: italic;
   font-weight: 700;
@@ -31,20 +31,20 @@
 
 .hint-btn:hover,
 .hint-btn:focus-visible {
-  background: #e5e8ee;
-  border-color: #8b96a3;
-  color: #1a1d23;
+  background: rgba(203, 176, 121, 0.16);
+  border-color: rgba(203, 176, 121, 0.48);
+  color: var(--ft-accent-2);
 }
 
 .hint-btn:focus-visible {
-  outline: 2px solid #2d6cdf;
+  outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 1px;
 }
 
 .hint-btn[aria-expanded='true'] {
-  background: #dde3eb;
-  border-color: #7d8a9a;
-  color: #1a1d23;
+  background: rgba(203, 176, 121, 0.18);
+  border-color: rgba(203, 176, 121, 0.55);
+  color: var(--ft-accent-2);
 }
 
 .hint-popover {
@@ -60,11 +60,11 @@
   font-weight: 400;
   font-family: inherit;
   text-align: left;
-  color: #1a1d23;
-  background: #fff;
-  border: 1px solid #c8ccd4;
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  color: var(--ft-text);
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
+  box-shadow: var(--ft-shadow-2);
   cursor: default;
   user-select: text;
 }

@@ -14,6 +14,19 @@ export function isFrameStep2Ready(): boolean {
   }
 }
 
+/** Шаг 4 готов, если выбрано наполнение (конкретный материал). */
+export function isFrameStep4Ready(): boolean {
+  try {
+    if (!isFrameStep2Ready()) return false
+    const m = localStorage.getItem('calc_filling_material_id')
+    if (!m) return false
+    const mid = Number(m)
+    return Number.isFinite(mid) && mid > 0
+  } catch {
+    return false
+  }
+}
+
 export function notifyFrameCalcSession() {
   window.dispatchEvent(new Event(FRAME_CALC_SESSION_EVENT))
 }

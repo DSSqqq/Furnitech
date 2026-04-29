@@ -22,10 +22,15 @@ import {
   capDecimalString,
   commitDecimalForApi,
   DECIMAL_FRACTION_DIGITS,
+  formatDecimalStringForUi,
+  formatDecimalStringForInput,
   filterDecimalInput,
+  normalizeDecimalForInput,
   normalizeDecimalOnBlur,
 } from './floatInput'
+import { FtSelect } from './FtSelect'
 import { HintButton } from './HintButton'
+import { sortUomForSelect } from './uomSelectOrder'
 import {
   materialExtrasInitOps,
   materialExtrasInitRelated,
@@ -311,7 +316,7 @@ function dashIfEmpty(s: string | undefined | null) {
 }
 
 function formatListBasePrice(m: Material) {
-  const p = capDecimalString(String(m.base_price), DECIMAL_FRACTION_DIGITS)
+  const p = formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)
   return `${p} ${m.base_currency || BASE_CURRENCY}`
 }
 
@@ -386,7 +391,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
 
   const loadRefs = useCallback(() => {
     return Promise.all([fetchUom(), fetchMaterialClasses()]).then(([u, mc]) => {
-      setUom(u.results)
+      setUom(sortUomForSelect(u.results))
       setMclasses(mc.results)
     })
   }, [])
@@ -533,21 +538,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               <h2 className="admin-h2">Папки материалов</h2>
               <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать или удалить (удаление с подтверждением; папка без вложенных и без материалов). Наведите на строку, чтобы появилась кнопка." />
             </div>
-            <ul className="tree-root">
-              {tree.map((c) => (
-                <TreeRow
-                  key={c.id}
-                  c={c}
-                  depth={0}
-                  selectedId={selected}
-                  expandedIds={expandedIds}
-                  onToggleExpanded={toggleExpanded}
-                  onSelect={setSelected}
-                  onRename={renameFolder}
-                  onDelete={deleteFolder}
-                />
-              ))}
-            </ul>
             <div className="admin-stack">
               <input
                 className="admin-input"
@@ -569,25 +559,36 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 </button>
               </div>
             </div>
+            <ul className="tree-root">
+              {tree.map((c) => (
+                <TreeRow
+                  key={c.id}
+                  c={c}
+                  depth={0}
+                  selectedId={selected}
+                  expandedIds={expandedIds}
+                  onToggleExpanded={toggleExpanded}
+                  onSelect={setSelected}
+                  onRename={renameFolder}
+                  onDelete={deleteFolder}
+                />
+              ))}
+            </ul>
           </aside>
-          <main className="admin-main">
-            {selected == null ? (
-              <p className="admin-muted admin-main-empty">
-                Выберите папку слева.{' '}
-                <HintButton text="Кликните по папке в левой колонке — здесь появится список материалов." />
-              </p>
-            ) : (
-              <>
+          <div className="admin-main-col">
+            <main className="admin-main">
+              {selected == null ? (
+                <p className="admin-muted admin-main-empty">
+                  Выберите папку слева.{' '}
+                  <HintButton text="Кликните по папке в левой колонке — здесь появится список материалов." />
+                </p>
+              ) : (
                 <div className="admin-main-scroll">
                   <div className="admin-heading-row">
                     <h2 className="admin-h2">Материалы в папке</h2>
                     <HintButton text="Создавайте и редактируйте материалы выбранной папки. Сохраняйте карточку в панели справа." />
                   </div>
-                  <button
-                    type="button"
-                    className="admin-primary"
-                    onClick={() => setEditing('new')}
-                  >
+                  <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
                     + Материал
                   </button>
                   <div className="mat-list-table" aria-label="Список материалов в папке">
@@ -610,37 +611,27 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                             }
                             onClick={() => setEditing(m)}
                             title="Открыть карточку материала"
-                            aria-current={editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined}
+                            aria-current={
+                              editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined
+                            }
                           >
-                            <span className="mat-list-cell mat-list-cell-article">
-                              {dashIfEmpty(m.article)}
-                            </span>
+                            <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
                             <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
-                            <span className="mat-list-cell mat-list-cell-uom">
-                              {m.uom?.short_name || m.uom?.name || '—'}
-                            </span>
-                            <span className="mat-list-cell mat-list-cell-price">
-                              {formatListBasePrice(m)}
-                            </span>
-                            <span className="mat-list-cell mat-list-cell-coeff">
-                              {materialListCoeffPlaceholder()}
-                            </span>
+                            <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
+                            <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
+                            <span className="mat-list-cell mat-list-cell-coeff">{materialListCoeffPlaceholder()}</span>
                           </button>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </div>
-                {editing && (
-                  <div
-                    className="admin-main-extras-host"
-                    ref={setMatExtraHost}
-                    aria-label="Сопутствующие материалы и операции"
-                  />
-                )}
-              </>
+              )}
+            </main>
+            {editing && (
+              <div className="admin-extras-panel" ref={setMatExtraHost} aria-label="Сопутствующие материалы и операции" />
             )}
-          </main>
+          </div>
           <section className="admin-panel">
             {editing && selected != null && (
               <MaterialForm
@@ -784,12 +775,9 @@ function MaterialForm({
     name: material?.name ?? '',
     article: material?.article ?? '',
     fnp_name: material?.fnp_name ?? '',
-    uom_id: material?.uom_id ?? (uomList[0]?.id ?? 0),
-    unit_mass: capDecimalString(
-      String(material?.unit_mass ?? '0'),
-      DECIMAL_FRACTION_DIGITS
-    ),
-    base_price: capDecimalString(String(material?.base_price ?? '0'), DECIMAL_FRACTION_DIGITS),
+    uom_id: (material as any)?.uom_id ?? (material as any)?.uom?.id ?? (uomList[0]?.id ?? 0),
+    unit_mass: formatDecimalStringForInput(String(material?.unit_mass ?? '0'), DECIMAL_FRACTION_DIGITS),
+    base_price: formatDecimalStringForInput(String(material?.base_price ?? '0'), DECIMAL_FRACTION_DIGITS),
     alt_currency: '',
     alt_prices_map: mapFromAltPriceRows(material?.alt_prices),
     note: material?.note ?? '',
@@ -797,27 +785,27 @@ function MaterialForm({
     rounding_multiple: material?.rounding_multiple ?? '',
     is_active: material?.is_active ?? true,
     material_class_ids: normalizeMaterialClassIds(material?.material_class_ids),
-    thickness: capDecimalString(String(material?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
-    min_length: capDecimalString(String((material as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
-    max_length: capDecimalString(String(material?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
-    min_width: capDecimalString(String((material as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
-    max_width: capDecimalString(String(material?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
+    thickness: formatDecimalStringForInput(String(material?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
+    min_length: formatDecimalStringForInput(String((material as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
+    max_length: formatDecimalStringForInput(String(material?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
+    min_width: formatDecimalStringForInput(String((material as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
+    max_width: formatDecimalStringForInput(String(material?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
     designation: material?.designation ?? '',
-    cut_coeff: capDecimalString(String(material?.cut_coeff ?? '1'), 6),
+    cut_coeff: formatDecimalStringForInput(String(material?.cut_coeff ?? '1'), 6),
     calc_type: material?.calc_type ?? 'tape',
 
     texture_mode: (material?.texture_mode ?? 'texture') as string,
     texture_color: material?.texture_color ?? '#ffffff',
     texture_image: material?.texture_image ?? null,
-    tex_offset_x: capDecimalString(String(material?.tex_offset_x ?? '0'), DECIMAL_FRACTION_DIGITS),
-    tex_offset_y: capDecimalString(String(material?.tex_offset_y ?? '0'), DECIMAL_FRACTION_DIGITS),
-    tex_step_x: capDecimalString(String(material?.tex_step_x ?? '100'), DECIMAL_FRACTION_DIGITS),
-    tex_step_y: capDecimalString(String(material?.tex_step_y ?? '100'), DECIMAL_FRACTION_DIGITS),
-    tex_opacity: capDecimalString(String(material?.tex_opacity ?? '1'), 3),
+    tex_offset_x: formatDecimalStringForInput(String(material?.tex_offset_x ?? '0'), DECIMAL_FRACTION_DIGITS),
+    tex_offset_y: formatDecimalStringForInput(String(material?.tex_offset_y ?? '0'), DECIMAL_FRACTION_DIGITS),
+    tex_step_x: formatDecimalStringForInput(String(material?.tex_step_x ?? '100'), DECIMAL_FRACTION_DIGITS),
+    tex_step_y: formatDecimalStringForInput(String(material?.tex_step_y ?? '100'), DECIMAL_FRACTION_DIGITS),
+    tex_opacity: formatDecimalStringForInput(String(material?.tex_opacity ?? '1'), 3),
     tex_mirror: material?.tex_mirror ?? false,
-    tex_specular_sharpness: capDecimalString(String(material?.tex_specular_sharpness ?? '0.5'), 3),
-    tex_specular_brightness: capDecimalString(String(material?.tex_specular_brightness ?? '0.35'), 3),
-    tex_rotation_deg: capDecimalString(String(material?.tex_rotation_deg ?? '0'), 2),
+    tex_specular_sharpness: formatDecimalStringForInput(String(material?.tex_specular_sharpness ?? '0.5'), 3),
+    tex_specular_brightness: formatDecimalStringForInput(String(material?.tex_specular_brightness ?? '0.35'), 3),
+    tex_rotation_deg: formatDecimalStringForInput(String(material?.tex_rotation_deg ?? '0'), 2),
   })
   const [saving, setSaving] = useState(false)
   const [localErr, setLocalErr] = useState<string | null>(null)
@@ -1090,7 +1078,7 @@ function MaterialForm({
           <h3 className="admin-h2">{material ? 'Карточка материала' : 'Новый материал'}</h3>
           <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие и операции — внизу по центру (под списком папки)." />
         </div>
-        <button type="button" onClick={onClose}>
+        <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
         </button>
       </div>
@@ -1232,17 +1220,14 @@ function MaterialForm({
       </label>
       <label className="field">
         <span>Ед. измерения *</span>
-        <select
-          className="admin-input"
-          value={form.uom_id}
-          onChange={(e) => setField('uom_id', Number(e.target.value))}
-        >
-          {uomList.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.short_name || u.name} ({u.name})
-            </option>
-          ))}
-        </select>
+        <FtSelect
+          value={String(form.uom_id)}
+          onChange={(v) => setField('uom_id', Number(v))}
+          options={uomList.map((u) => ({
+            value: String(u.id),
+            label: `${u.short_name || u.name} (${u.name})`,
+          }))}
+        />
       </label>
       <label className="field">
         <span>Масса на ед. изм.</span>
@@ -1253,7 +1238,7 @@ function MaterialForm({
           autoComplete="off"
           value={form.unit_mass}
           onChange={(e) => setField('unit_mass', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-          onBlur={(e) => setField('unit_mass', normalizeDecimalOnBlur(e.currentTarget.value))}
+          onBlur={(e) => setField('unit_mass', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))}
         />
       </label>
       <div className="field">
@@ -1273,7 +1258,7 @@ function MaterialForm({
           autoComplete="off"
           value={form.base_price}
           onChange={(e) => setField('base_price', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-          onBlur={(e) => setField('base_price', normalizeDecimalOnBlur(e.currentTarget.value))}
+          onBlur={(e) => setField('base_price', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))}
         />
       </label>
       <div className="field">
@@ -1284,11 +1269,9 @@ function MaterialForm({
       </div>
       <label className="field">
         <span>Валюта для ввода</span>
-        <select
-          className="admin-input"
+        <FtSelect
           value={form.alt_currency}
-          onChange={(e) => {
-            const next = e.target.value
+          onChange={(next) => {
             setForm((f) => {
               const nextMap = { ...f.alt_prices_map }
               if (f.alt_currency) {
@@ -1299,14 +1282,11 @@ function MaterialForm({
               return { ...f, alt_currency: next, alt_prices_map: nextMap }
             })
           }}
-        >
-          <option value="">Не выбрана (только просмотр / без ввода)</option>
-          {ALTERNATIVE_CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: 'Не выбрана (только просмотр / без ввода)' },
+            ...ALTERNATIVE_CURRENCIES.map((c) => ({ value: c.code, label: c.label })),
+          ]}
+        />
       </label>
       <label className="field">
         <span>
@@ -1357,17 +1337,11 @@ function MaterialForm({
       </label>
       <label className="field">
         <span>Округление количества</span>
-        <select
-          className="admin-input"
+        <FtSelect
           value={form.rounding_mode}
-          onChange={(e) => setField('rounding_mode', e.target.value as RoundingMode)}
-        >
-          {ROUNDING.map((o) => (
-            <option key={o.v} value={o.v}>
-              {o.l}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setField('rounding_mode', v as RoundingMode)}
+          options={ROUNDING.map((o) => ({ value: o.v, label: o.l }))}
+        />
       </label>
       {form.rounding_mode === 'ceil_multiple' && (
         <label className="field">
@@ -1400,6 +1374,7 @@ function MaterialForm({
         {material && (
           <button
             type="button"
+            className="admin-secondary admin-danger"
             disabled={saving || classSyncPending}
             onClick={() => setMaterialDeleteOpen(true)}
           >
@@ -1431,7 +1406,9 @@ function MaterialForm({
                   filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
                 )
               }
-              onBlur={(e) => setField('thickness', normalizeDecimalOnBlur(e.currentTarget.value))}
+              onBlur={(e) =>
+                setField('thickness', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
+              }
               placeholder="например 0.8"
             />
           </label>
@@ -1450,7 +1427,9 @@ function MaterialForm({
                   filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
                 )
               }
-              onBlur={(e) => setField('max_length', normalizeDecimalOnBlur(e.currentTarget.value))}
+              onBlur={(e) =>
+                setField('max_length', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
+              }
               placeholder="например 3000"
             />
           </label>
@@ -1470,7 +1449,10 @@ function MaterialForm({
                 )
               }
               onBlur={(e) =>
-                setField('min_length' as any, normalizeDecimalOnBlur(e.currentTarget.value) as any)
+                setField(
+                  'min_length' as any,
+                  normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS) as any
+                )
               }
               placeholder="например 200"
             />
@@ -1490,7 +1472,9 @@ function MaterialForm({
                   filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
                 )
               }
-              onBlur={(e) => setField('max_width', normalizeDecimalOnBlur(e.currentTarget.value))}
+              onBlur={(e) =>
+                setField('max_width', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
+              }
               placeholder="например 1200"
             />
           </label>
@@ -1510,7 +1494,10 @@ function MaterialForm({
                 )
               }
               onBlur={(e) =>
-                setField('min_width' as any, normalizeDecimalOnBlur(e.currentTarget.value) as any)
+                setField(
+                  'min_width' as any,
+                  normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS) as any
+                )
               }
               placeholder="например 100"
             />
@@ -1535,20 +1522,18 @@ function MaterialForm({
               autoComplete="off"
               value={form.cut_coeff}
               onChange={(e) => setField('cut_coeff', filterDecimalInput(e.target.value, 6))}
-              onBlur={(e) => setField('cut_coeff', normalizeDecimalOnBlur(e.currentTarget.value))}
+              onBlur={(e) => setField('cut_coeff', normalizeDecimalForInput(e.currentTarget.value, 6))}
               placeholder="например 1.12"
             />
           </label>
 
           <label className="field">
             <span>Тип</span>
-            <select
-              className="admin-input"
+            <FtSelect
               value={form.calc_type}
-              onChange={(e) => setField('calc_type', e.target.value)}
-            >
-              <option value="tape">Лента</option>
-            </select>
+              onChange={(v) => setField('calc_type', v)}
+              options={[{ value: 'tape', label: 'Лента' }]}
+            />
           </label>
 
           <div className="admin-row mat-form-actions">
@@ -1563,6 +1548,7 @@ function MaterialForm({
             {material && (
               <button
                 type="button"
+                className="admin-secondary admin-danger"
                 disabled={saving || classSyncPending}
                 onClick={() => setMaterialDeleteOpen(true)}
               >
@@ -1704,7 +1690,12 @@ function MaterialForm({
                       className="admin-input"
                       value={form.tex_offset_x}
                       onChange={(e) => setField('tex_offset_x', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) => setField('tex_offset_x', normalizeDecimalOnBlur(e.currentTarget.value))}
+                      onBlur={(e) =>
+                        setField(
+                          'tex_offset_x',
+                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
+                        )
+                      }
                       placeholder="X"
                     />
                   </div>
@@ -1713,7 +1704,12 @@ function MaterialForm({
                       className="admin-input"
                       value={form.tex_offset_y}
                       onChange={(e) => setField('tex_offset_y', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) => setField('tex_offset_y', normalizeDecimalOnBlur(e.currentTarget.value))}
+                      onBlur={(e) =>
+                        setField(
+                          'tex_offset_y',
+                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
+                        )
+                      }
                       placeholder="Y"
                     />
                   </div>
@@ -1728,7 +1724,12 @@ function MaterialForm({
                       className="admin-input"
                       value={form.tex_step_x}
                       onChange={(e) => setField('tex_step_x', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) => setField('tex_step_x', normalizeDecimalOnBlur(e.currentTarget.value))}
+                      onBlur={(e) =>
+                        setField(
+                          'tex_step_x',
+                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
+                        )
+                      }
                       placeholder="X"
                     />
                   </div>
@@ -1737,7 +1738,12 @@ function MaterialForm({
                       className="admin-input"
                       value={form.tex_step_y}
                       onChange={(e) => setField('tex_step_y', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) => setField('tex_step_y', normalizeDecimalOnBlur(e.currentTarget.value))}
+                      onBlur={(e) =>
+                        setField(
+                          'tex_step_y',
+                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
+                        )
+                      }
                       placeholder="Y"
                     />
                   </div>
@@ -1825,6 +1831,7 @@ function MaterialForm({
                 {material && (
                   <button
                     type="button"
+                    className="admin-secondary admin-danger"
                     disabled={saving || classSyncPending}
                     onClick={() => setMaterialDeleteOpen(true)}
                   >

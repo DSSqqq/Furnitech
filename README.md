@@ -57,6 +57,39 @@
 
 Подробные таблицы API, правил удаления папок, **артикула** и **`is_active`**, вёрстки и UI — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); **текущий прогресс и чеклист** — в [docs/PROGRESS.md](docs/PROGRESS.md).
 
+## UI / дизайн (тёмная тема + дерево)
+
+Во фронтенде внедрена единая дизайн‑система в стиле «тёмный премиум» (чёрный фон + золотой акцент) + текстура дерева на заднем плане.
+
+### Где настраивать
+
+- **Токены темы, шрифты, скроллбар:** `frontend/src/index.css`
+  - CSS переменные `--ft-*`
+  - `--ft-wood-texture` → `frontend/src/assets/wood.png`
+  - глобальный стиль полосы прокрутки (`::-webkit-scrollbar*`, `scrollbar-color`)
+- **Глобальный фон (дерево “за всеми секциями”):** `frontend/src/App.css`
+  - `#root::before` рисует текстуру под всем приложением
+  - `#root::after` — затемнение градиентом к низу (если включено)
+- **Админка (контейнеры, формы, кнопки, select):** `frontend/src/AdminApp.css`
+- **Калькулятор (карточки/итоги/шаги):** `frontend/src/CalculatorPage.css`
+  - локальные стили шагов: `frontend/src/calculator/Step2FrameFacade.css`, `Step3FrameSizes.css`
+
+### Админка: сопутствующие и операции (MaterialExtrasPanel)
+
+В разделе **Материалы** блок **`MaterialExtrasPanel`** (сопутствующие/операции/предв. оценка) выводится в отдельной панели в центральной колонке (не перекрывает список/форму на узких экранах).
+
+- Компонент: `frontend/src/MaterialExtrasPanel.tsx` (+ стили `MaterialExtrasPanel.css`)
+- Хост-панель в админке: `frontend/src/AdminApp.tsx` + `frontend/src/AdminApp.css`
+- Внутри панели есть вкладки: **Сопутствующие** / **Операции**
+
+### Формат чисел (без .000)
+
+Для отображения и значений в полях ввода используется формат:
+- если дробная часть нулевая → показываем без неё (`200.000` → `200`)
+- иначе до 3 знаков после запятой, без хвостовых нулей
+
+Реализация: `frontend/src/floatInput.ts` (`formatNumberForUi`, `formatDecimalStringForUi`, `normalizeDecimalForInput`).
+
 ## Handoff для другого агента
 
 Из корня репозитория:

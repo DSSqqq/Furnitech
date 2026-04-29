@@ -10,9 +10,11 @@ import {
   updateCalculatorFillingType,
 } from '../api'
 import type { CalculatorFillingType, Material } from '../types'
+import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
-import { resolveMediaUrl, sketchFrameInlineStyle } from './sketchFrame'
+import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -68,12 +70,11 @@ function typeThumb(t: { name: string; image_url?: string; card_image?: string | 
 }
 
 function fillingPaperStyle(m: Material | null | undefined): CSSProperties {
+  // legacy fallback (если нет параметров текстуры); базовый фон "бумаги" остаётся белым.
   if (!m) return {}
-  const img = resolveMediaUrl((m.texture_image ?? '') as string)
-  if (img) return { backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center' }
   const c = (m.texture_color ?? '').trim()
   if (c) return { backgroundColor: c }
-  return { background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(240,244,248,0.95) 100%)' }
+  return {}
 }
 
 export function Step4FrameFilling() {
@@ -133,10 +134,6 @@ export function Step4FrameFilling() {
   const [editFillingMatPicking, setEditFillingMatPicking] = useState(false)
   const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
 
-  const [modalAddQ, setModalAddQ] = useState('')
-  const [modalAddHit, setModalAddHit] = useState<Material[]>([])
-  const [modalAddPicking, setModalAddPicking] = useState(false)
-  const [modalAddIds, setModalAddIds] = useState<Record<number, true>>({})
   const [modalSaving, setModalSaving] = useState(false)
 
   const [texByMaterialId, setTexByMaterialId] = useState<
@@ -262,28 +259,6 @@ export function Step4FrameFilling() {
     }, 250)
     return () => clearTimeout(id)
   }, [createMatQ, createOpen])
-
-  useEffect(() => {
-    if (modalTypeId == null) {
-      setModalAddQ('')
-      setModalAddHit([])
-      setModalAddIds({})
-      return
-    }
-    const q = modalAddQ.trim()
-    const id = window.setTimeout(() => {
-      if (!q) {
-        setModalAddHit([])
-        return
-      }
-      setModalAddPicking(true)
-      searchMaterials(q)
-        .then((r) => setModalAddHit(r.results ?? []))
-        .catch(() => setModalAddHit([]))
-        .finally(() => setModalAddPicking(false))
-    }, 250)
-    return () => clearTimeout(id)
-  }, [modalAddQ, modalTypeId])
 
   useEffect(() => {
     if (editFillingId == null) return
@@ -467,12 +442,37 @@ export function Step4FrameFilling() {
     return row?.material ?? null
   }, [selectedMaterialId, selectedType])
 
+  // Для параметров текстуры (opacity/offset/step/rotate/mirror) нужен полный материал, а не summary в составе типа.
+  const [selectedFillingMaterialFull, setSelectedFillingMaterialFull] = useState<Material | null>(null)
+  useEffect(() => {
+    let cancel = false
+    ;(async () => {
+      if (!selectedMaterialId) {
+        setSelectedFillingMaterialFull(null)
+        return
+      }
+      try {
+        const m = await fetchMaterial(selectedMaterialId)
+        if (!cancel) setSelectedFillingMaterialFull(m)
+      } catch {
+        if (!cancel) setSelectedFillingMaterialFull(null)
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [selectedMaterialId])
+
   useEffect(() => {
     const ids = new Set<number>()
     for (const c of modalType?.materials ?? []) {
       const cm = c.material as any
       const has = (cm?.texture_color ?? '').trim() || (cm?.texture_image ?? '')
       if (!has) ids.add(c.material_id)
+    }
+    for (const m of [...createMatHit, ...editFillingMatHit]) {
+      const has = (m.texture_image ?? '').trim() || (m.texture_color ?? '').trim()
+      if (!has) ids.add(m.id)
     }
     if (ids.size === 0) return
     const missing = [...ids].filter((id) => texByMaterialId[id] == null)
@@ -491,7 +491,7 @@ export function Step4FrameFilling() {
         return next
       })
     })
-  }, [modalType, texByMaterialId])
+  }, [modalType, createMatHit, editFillingMatHit, texByMaterialId])
 
   const patchModalMaterials = async (rows: { material_id: number }[]) => {
     if (!modalType) return
@@ -505,17 +505,6 @@ export function Step4FrameFilling() {
     } finally {
       setModalSaving(false)
     }
-  }
-
-  const addModalMaterials = async () => {
-    if (!modalType) return
-    const existing = new Set((modalType.materials ?? []).map((m) => m.material_id))
-    for (const id of Object.keys(modalAddIds)) existing.add(Number(id))
-    const rows = [...existing].map((material_id) => ({ material_id }))
-    await patchModalMaterials(rows)
-    setModalAddIds({})
-    setModalAddQ('')
-    setModalAddHit([])
   }
 
   const removeModalMaterial = async (materialId: number) => {
@@ -606,17 +595,32 @@ export function Step4FrameFilling() {
                     placeholder="Например: Лакобель, Мателюкс…"
                   />
                   <div className="frame2-file-row">
-                    <label className="frame2-file-label" htmlFor="filling-type-card-image">
-                      Изображение для карточки
-                    </label>
+                    <div className="frame2-file-label-row">
+                      <label className="frame2-file-label" htmlFor="filling-type-card-image">
+                        Изображение для карточки
+                      </label>
+                      <HintButton text="Выберите изображение с компьютера. Обычно в диалоге можно открыть «Рабочий стол». Поддерживаются форматы изображений (PNG/JPG/WebP и т.п.)." />
+                    </div>
                     <input
                       id="filling-type-card-image"
                       ref={cardImageInputRef}
-                      className="frame2-file-input"
+                      className="frame2-file-input frame2-file-input--sr"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
                     />
+                    <div className="frame2-file-picker-row">
+                      <button
+                        type="button"
+                        className="admin-secondary frame2-file-btn"
+                        onClick={() => cardImageInputRef.current?.click()}
+                      >
+                        {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                      </button>
+                      <div className="frame2-file-name" aria-live="polite">
+                        {createImageFile ? createImageFile.name : 'Файл не выбран'}
+                      </div>
+                    </div>
                     {createImagePreview && (
                       <div className="frame2-file-preview frame2-file-preview--cover">
                         <img src={createImagePreview} alt="" />
@@ -625,7 +629,7 @@ export function Step4FrameFilling() {
                   </div>
                 </div>
                 <div className="frame2-block">
-                  <div className="frame2-block-title">Материалы (из справочника)</div>
+                  <div className="frame2-block-title">Материалы</div>
                   <input
                     className="admin-input"
                     value={createMatQ}
@@ -637,7 +641,15 @@ export function Step4FrameFilling() {
                     <ul className="frame2-checklist">
                       {createMatHit.map((m) => (
                         <li key={m.id}>
-                          <label className="frame2-checkrow" title={matLabel(m)}>
+                          <label
+                            className={[
+                              'frame2-checkrow',
+                              createMatIds[m.id] ? 'frame2-checkrow--checked' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            title={matLabel(m)}
+                          >
                             <input
                               type="checkbox"
                               checked={createMatIds[m.id] === true}
@@ -651,7 +663,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                            <span className="frame2-check-name">{m.name}</span>
+                            <MaterialCheckSwatch
+                              name={m.name}
+                              material={m}
+                              texExtra={texByMaterialId[m.id]}
+                            />
+                            <span className="frame2-check-name-wrap">
+                              <span className="frame2-check-name">{m.name}</span>
+                            </span>
                           </label>
                         </li>
                       ))}
@@ -688,29 +707,41 @@ export function Step4FrameFilling() {
                     placeholder="Название…"
                   />
                   <div className="frame2-file-row">
-                    <label className="frame2-file-label" htmlFor="filling-type-card-image-edit">
-                      Новое изображение (необязательно)
-                    </label>
+                    <div className="frame2-file-label-row">
+                      <label className="frame2-file-label" htmlFor="filling-type-card-image-edit">
+                        Новое изображение (необязательно)
+                      </label>
+                      <HintButton text="Оставьте поле пустым, чтобы сохранить текущую картинку. Если выбрать файл — он заменит текущую картинку." />
+                    </div>
                     <input
                       id="filling-type-card-image-edit"
                       ref={editFillingImageRef}
-                      className="frame2-file-input"
+                      className="frame2-file-input frame2-file-input--sr"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setEditFillingImageFile(e.target.files?.[0] ?? null)}
                     />
+                    <div className="frame2-file-picker-row">
+                      <button
+                        type="button"
+                        className="admin-secondary frame2-file-btn"
+                        onClick={() => editFillingImageRef.current?.click()}
+                      >
+                        {editFillingImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                      </button>
+                      <div className="frame2-file-name" aria-live="polite">
+                        {editFillingImageFile ? editFillingImageFile.name : 'Файл не выбран'}
+                      </div>
+                    </div>
                     {(editFillingImagePreview || editFillingExistingCardUrl) && (
                       <div className="frame2-file-preview frame2-file-preview--cover">
                         <img src={editFillingImagePreview || editFillingExistingCardUrl} alt="" />
                       </div>
                     )}
-                    <p className="admin-muted frame2-file-hint">
-                      Пустое поле файла — оставить текущую картинку.
-                    </p>
                   </div>
                 </div>
                 <div className="frame2-block">
-                  <div className="frame2-block-title">Материалы (из справочника)</div>
+                  <div className="frame2-block-title">Материалы</div>
                   <input
                     className="admin-input"
                     value={editFillingMatQ}
@@ -722,7 +753,15 @@ export function Step4FrameFilling() {
                     <ul className="frame2-checklist">
                       {editFillingMatHit.map((m) => (
                         <li key={m.id}>
-                          <label className="frame2-checkrow" title={matLabel(m)}>
+                          <label
+                            className={[
+                              'frame2-checkrow',
+                              editFillingMatIds[m.id] ? 'frame2-checkrow--checked' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            title={matLabel(m)}
+                          >
                             <input
                               type="checkbox"
                               checked={editFillingMatIds[m.id] === true}
@@ -736,7 +775,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                            <span className="frame2-check-name">{m.name}</span>
+                            <MaterialCheckSwatch
+                              name={m.name}
+                              material={m}
+                              texExtra={texByMaterialId[m.id]}
+                            />
+                            <span className="frame2-check-name-wrap">
+                              <span className="frame2-check-name">{m.name}</span>
+                            </span>
                           </label>
                         </li>
                       ))}
@@ -796,7 +842,15 @@ export function Step4FrameFilling() {
             <button type="button" className="admin-secondary" onClick={() => nav(step('frame/size'))}>
               ← Предыдущий шаг
             </button>
-            <button type="button" className="admin-primary" disabled title="Следующий шаг пока не реализован">
+            <button
+              type="button"
+              className="admin-primary"
+              disabled={selectedMaterialId == null}
+              onClick={() => {
+                if (selectedMaterialId != null) nav(step('frame/summary'))
+              }}
+              title={selectedMaterialId == null ? 'Сначала выберите материал наполнения' : undefined}
+            >
               Следующий шаг →
             </button>
           </div>
@@ -816,8 +870,15 @@ export function Step4FrameFilling() {
                     : undefined
                 }
               >
-                <div className="sketch-frame" style={sketchFrameInlineStyle(frameColorMaterial)} />
-                <div className="sketch-paper" style={fillingPaperStyle(selectedFillingMaterial as Material)} />
+                <div className="sketch-frame">
+                  <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
+                </div>
+                <div className="sketch-paper" style={fillingPaperStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as Material)}>
+                  <div
+                    className="sketch-paper-texture"
+                    style={materialTextureLayerStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as any)}
+                  />
+                </div>
                 <div className="sketch-sheet">
                   <div className="sketch-title">ЛИЦЕВАЯ СТОРОНА ФАСАДА</div>
                   <div className="sketch-sub">Визуализация примерная</div>
@@ -899,14 +960,14 @@ export function Step4FrameFilling() {
             <p className="admin-muted frame2-modal-hint">
               {readOnly
                 ? 'Выберите материал наполнения для предпросмотра.'
-                : 'Выберите материал для предпросмотра или добавьте из справочника.'}
+                : 'Выберите материал. Состав типа меняется в форме «Редактировать тип» (⚙ на карточке).'}
             </p>
 
             <div className="tiles tiles--colors">
               {(modalType.materials ?? []).map((c) => {
                 const active = c.material_id === selectedMaterialId
                 return (
-                  <div key={c.id} className="tile tile--with-action">
+                  <div key={c.id} className="tile-cell">
                     <button
                       type="button"
                       className={active ? 'tile tile--active tile--fill' : 'tile tile--fill'}
@@ -956,59 +1017,7 @@ export function Step4FrameFilling() {
               <div className="admin-muted">
                 {readOnly
                   ? 'Для этого типа наполнения материалы ещё не настроены.'
-                  : 'Материалы не добавлены — воспользуйтесь поиском ниже.'}
-              </div>
-            )}
-
-            {!readOnly && (
-              <div className="frame2-modal-add">
-                <div className="frame2-block-title">Добавить материалы</div>
-                <input
-                  className="admin-input"
-                  value={modalAddQ}
-                  onChange={(e) => setModalAddQ(e.target.value)}
-                  placeholder="Поиск по названию или артикулу…"
-                />
-                {modalAddPicking && <p className="admin-muted">Поиск…</p>}
-                {modalAddHit.length > 0 && (
-                  <ul className="frame2-checklist">
-                    {modalAddHit.map((m) => {
-                      const already = (modalType.materials ?? []).some((x) => x.material_id === m.id)
-                      return (
-                        <li key={m.id}>
-                          <label className={`frame2-checkrow ${already ? 'frame2-checkrow--disabled' : ''}`}>
-                            <input
-                              type="checkbox"
-                              disabled={already}
-                              checked={already || modalAddIds[m.id] === true}
-                              onChange={() =>
-                                setModalAddIds((prev) => {
-                                  const next = { ...prev }
-                                  if (next[m.id]) delete next[m.id]
-                                  else next[m.id] = true
-                                  return next
-                                })
-                              }
-                            />
-                            <span className="frame2-check-article">{m.article || '—'}</span>
-                            <span className="frame2-check-name">{m.name}</span>
-                            {already && <span className="admin-muted"> (уже в типе)</span>}
-                          </label>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-                <div className="frame2-modal-add-actions">
-                  <button
-                    type="button"
-                    className="admin-primary"
-                    disabled={modalSaving || Object.keys(modalAddIds).length === 0}
-                    onClick={() => void addModalMaterials()}
-                  >
-                    Добавить выбранные
-                  </button>
-                </div>
+                  : 'Материалы не добавлены — укажите их при создании типа или в «Редактировать тип» (⚙).'}
               </div>
             )}
           </div>
