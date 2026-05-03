@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCalculatorHandleHoleDiameters,
@@ -16,6 +25,7 @@ import {
   type HandleHolesPersisted,
   type HandleOrientation,
   type HingeMountSide,
+  isFrameMortiseHingeSelected,
   isFrameStep2Ready,
   isFrameStep4Ready,
   isHandleSideBlockedByHinges,
@@ -88,6 +98,7 @@ export function Step7FrameHandleHoles() {
   const { step, readOnly } = useCalcPaths()
   const isAdminCalculator = !readOnly
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const mortiseHingeStep = useMemo(() => isFrameMortiseHingeSelected(), [cfgKey])
 
   const hingeLayout = useMemo(() => readHingeLayout(), [cfgKey])
   const hingeSide = hingeLayout?.side
@@ -95,7 +106,15 @@ export function Step7FrameHandleHoles() {
   const dims = useMemo(() => readFrameDimsMm(), [cfgKey])
   const { w: widthMm, h: heightMm } = dims
 
-  const [count, setCount] = useState(1)
+  /** Сырая строка поля: можно очистить; пустое при blur → «0». */
+  const [countStr, setCountStr] = useState('0')
+  const holeCount = useMemo(() => {
+    const t = countStr.trim()
+    if (t === '') return null as number | null
+    const n = Math.floor(Number(t.replace(',', '.')))
+    if (!Number.isFinite(n)) return null
+    return clamp(n, 0, MAX_HANDLE_HOLES)
+  }, [countStr])
   const [diameterStr, setDiameterStr] = useState('7')
   /** null — ответ ещё не получен (ошибка сети оставляет null → используем fallback). */
   const [diaList, setDiaList] = useState<CalculatorHandleHoleDiameter[] | null>(null)
@@ -189,9 +208,9 @@ export function Step7FrameHandleHoles() {
   }, [handleSide, widthMm, heightMm])
 
   const applyUniformDefaults = useCallback((c: number, L: number | null) => {
-    if (L == null || L <= 0) {
+    if (c <= 0 || L == null || L <= 0) {
       setOffsetStr('')
-      setSpanStr(Array.from({ length: Math.max(0, c - 1) }, () => ''))
+      setSpanStr([])
       return
     }
     const abs = defaultHingeAbsPositionsMm(L, c)
@@ -205,14 +224,14 @@ export function Step7FrameHandleHoles() {
   }, [])
 
   const didHydrate = useRef(false)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (didHydrate.current) return
     didHydrate.current = true
     const saved = readHandleHoles()
     const { w, h } = readFrameDimsMm()
 
     if (saved) {
-      setCount(saved.count)
+      setCountStr(String(saved.count))
       setDiameterStr(String(Math.round(saved.diameterMm)))
       setBushings(saved.bushings)
       setOrientation(saved.orientation)
@@ -229,10 +248,10 @@ export function Step7FrameHandleHoles() {
       const L0 = hingeEdgeLengthMm(side0, w, h)
       setOrientation(orient)
       setHandleSide(side0)
-      setCount(1)
+      setCountStr('0')
       setDiameterStr('7')
       setBushings(false)
-      applyUniformDefaults(1, L0)
+      applyUniformDefaults(0, L0)
     }
   }, [applyUniformDefaults])
 
@@ -258,6 +277,7 @@ export function Step7FrameHandleHoles() {
   }, [orientation, hingeSide])
 
   const persistedDraft = useMemo((): HandleHolesPersisted | null => {
+    if (holeCount == null || holeCount < 1) return null
     const d = asNum(diameterStr)
     if (d == null || d <= 0) return null
     if (diaList !== null && diaList.length === 0) return null
@@ -265,10 +285,10 @@ export function Step7FrameHandleHoles() {
     const off = asNum(offsetStr)
     if (off == null) return null
     const spans = spanStr.map((s) => asNum(s))
-    if (spans.length !== count - 1) return null
+    if (spans.length !== holeCount - 1) return null
     if (spans.some((x) => x == null || (x ?? 0) <= 0)) return null
     return {
-      count,
+      count: holeCount,
       diameterMm: d,
       bushings,
       orientation,
@@ -276,17 +296,28 @@ export function Step7FrameHandleHoles() {
       offsetStartMm: off,
       spanMm: spans.map((x) => x as number),
     }
-  }, [bushings, count, diameterAllowSet, diameterStr, diaList, handleSide, offsetStr, orientation, spanStr])
+  }, [bushings, holeCount, diameterAllowSet, diameterStr, diaList, handleSide, offsetStr, orientation, spanStr])
 
   const layoutError = useMemo(() => {
+    if (holeCount === null) return null
+    if (holeCount === 0) {
+      const any = offsetStr.trim() !== '' || spanStr.some((s) => s.trim() !== '')
+      return any ? 'При нуле отверстий укажите количество > 0 или очистите поля расположения.' : null
+    }
     if (persistedDraft == null) {
       const any = offsetStr.trim() !== '' || spanStr.some((s) => s.trim() !== '')
       return any ? 'Проверьте введённые числа.' : null
     }
     return validateHandleHoles(persistedDraft, hingeLayout)
-  }, [hingeLayout, offsetStr, persistedDraft, spanStr])
+  }, [hingeLayout, holeCount, offsetStr, persistedDraft, spanStr])
 
-  const valid = persistedDraft != null && layoutError == null
+  const valid =
+    holeCount !== null && (holeCount === 0 ? layoutError == null : persistedDraft != null && layoutError == null)
+
+  useEffect(() => {
+    if (holeCount !== 0) return
+    writeHandleHoles(null)
+  }, [holeCount])
 
   useEffect(() => {
     if (!valid || persistedDraft == null) return
@@ -305,12 +336,12 @@ export function Step7FrameHandleHoles() {
   }, [hingeLayout])
 
   const handleCenters = useMemo(() => {
-    if (!valid || persistedDraft == null) return null
+    if (!valid || persistedDraft == null || holeCount == null || holeCount < 1) return null
     const c = handleHoleCentersMm(persistedDraft)
-    if (c.length !== count) return null
+    if (c.length !== holeCount) return null
     if (validateHandleHoles(persistedDraft, hingeLayout)) return null
     return c
-  }, [count, hingeLayout, persistedDraft, valid])
+  }, [holeCount, hingeLayout, persistedDraft, valid])
 
   const hingePinCoords = useMemo(() => {
     if (widthMm == null || heightMm == null || !hingeLayout || hingePositionsOk == null) return []
@@ -401,13 +432,18 @@ export function Step7FrameHandleHoles() {
   }, [handleCenters, handleSide, heightMm, widthMm])
 
   const mainDimSide = hingeLayout?.side ?? handleSide
+  /** Как шаг 5: только общие габариты сверху и слева, без цепочек и маркеров петель/ручки. */
+  const noHandleOnSketch = holeCount === 0
   const mainDimPlacement = useMemo(() => {
+    if (noHandleOnSketch) {
+      return { widthPos: 'top' as const, heightPos: 'left' as const }
+    }
     const widthPos: 'top' | 'bottom' =
       mainDimSide === 'top' ? 'bottom' : mainDimSide === 'bottom' ? 'top' : 'top'
     const heightPos: 'left' | 'right' =
       mainDimSide === 'left' ? 'right' : mainDimSide === 'right' ? 'left' : 'left'
     return { widthPos, heightPos }
-  }, [mainDimSide])
+  }, [mainDimSide, noHandleOnSketch])
 
   const handleChainDims = useMemo(() => {
     if (handleEdgeL == null || handleCenters == null) return []
@@ -487,14 +523,15 @@ export function Step7FrameHandleHoles() {
           { id: 'bottom', label: 'Снизу' },
         ]
 
-  const setCountSafe = (n: number) => {
-    const c = clamp(Math.trunc(n), 1, MAX_HANDLE_HOLES)
-    setCount(c)
-    if (widthMm != null && heightMm != null) {
-      const L = hingeEdgeLengthMm(handleSide, widthMm, heightMm)
-      applyUniformDefaults(c, L)
-    }
-  }
+  const syncLayoutForCount = useCallback(
+    (c: number) => {
+      if (widthMm != null && heightMm != null) {
+        const L = hingeEdgeLengthMm(handleSide, widthMm, heightMm)
+        applyUniformDefaults(c, L)
+      }
+    },
+    [applyUniformDefaults, handleSide, widthMm, heightMm],
+  )
 
   return (
     <div className="frame2">
@@ -531,12 +568,26 @@ export function Step7FrameHandleHoles() {
           <input
             className="admin-input"
             type="number"
-            min={1}
+            min={0}
             max={MAX_HANDLE_HOLES}
-            value={count}
+            value={countStr}
             onChange={(e) => {
-              const v = Number(e.target.value)
-              setCountSafe(Number.isFinite(v) ? v : 1)
+              const raw = e.target.value
+              if (raw === '') {
+                setCountStr('')
+                return
+              }
+              const n = Math.trunc(Number(raw))
+              if (!Number.isFinite(n)) return
+              const c = clamp(n, 0, MAX_HANDLE_HOLES)
+              setCountStr(String(c))
+              syncLayoutForCount(c)
+            }}
+            onBlur={() => {
+              if (countStr.trim() === '') {
+                setCountStr('0')
+                syncLayoutForCount(0)
+              }
             }}
           />
         </div>
@@ -612,7 +663,7 @@ export function Step7FrameHandleHoles() {
                   setHandleSide(newSide)
                   if (widthMm != null && heightMm != null) {
                     const Ln = hingeEdgeLengthMm(newSide, widthMm, heightMm)
-                    applyUniformDefaults(count, Ln)
+                    applyUniformDefaults(holeCount ?? 0, Ln)
                   }
                 }}
               />
@@ -649,7 +700,7 @@ export function Step7FrameHandleHoles() {
                     setHandleSide(s.id)
                     if (widthMm != null && heightMm != null) {
                       const Ln = hingeEdgeLengthMm(s.id, widthMm, heightMm)
-                      applyUniformDefaults(count, Ln)
+                      applyUniformDefaults(holeCount ?? 0, Ln)
                     }
                   }}
                 />
@@ -682,7 +733,7 @@ export function Step7FrameHandleHoles() {
               placeholder="мм"
             />
           </div>
-          {Array.from({ length: Math.max(0, count - 1) }, (_, idx) => (
+          {Array.from({ length: Math.max(0, (holeCount ?? 0) - 1) }, (_, idx) => (
             <div key={idx} className="frame3-field">
               <label className="frame3-label" htmlFor={`handle-span-${idx}`}>
                 Межосевое A({idx + 1}): между №{idx + 1} и №{idx + 2} (мм)
@@ -713,7 +764,11 @@ export function Step7FrameHandleHoles() {
         ) : null}
 
         <div className="frame2-card-nav" style={{ marginTop: '1.25rem', paddingTop: '1rem' }}>
-          <button type="button" className="admin-secondary" onClick={() => nav(step('frame/hinge-layout'))}>
+          <button
+            type="button"
+            className="admin-secondary"
+            onClick={() => nav(step(mortiseHingeStep ? 'frame/hinge-layout' : 'frame/summary'))}
+          >
             ← Предыдущий шаг
           </button>
           <button type="button" className="admin-primary" disabled={!valid} onClick={() => nav(step('frame/result'))}>
@@ -727,7 +782,12 @@ export function Step7FrameHandleHoles() {
           <div className="frame3-drawing" aria-label="Чертёж фасада">
             <div className="frame3-drawing-core">
               <div
-                className={['sketch', hingePinCoords.length + handlePinCoords.length > 0 ? 'sketch--hinge-markers' : ''].filter(Boolean).join(' ')}
+                className={[
+                  'sketch',
+                  !noHandleOnSketch && hingePinCoords.length + handlePinCoords.length > 0 ? 'sketch--hinge-markers' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 style={
                   sketchAspect || sketchScaleY
                     ? ({
@@ -768,8 +828,9 @@ export function Step7FrameHandleHoles() {
                   </div>
                 </div>
 
-                <div className="sketch-hinge-layer" aria-hidden={hingePinCoords.length === 0}>
-                  {hingePinCoords.map((p) => {
+                <div className="sketch-hinge-layer" aria-hidden={noHandleOnSketch || hingePinCoords.length === 0}>
+                  {!noHandleOnSketch
+                    ? hingePinCoords.map((p) => {
                     const style: CSSProperties =
                       p.variant === 'top'
                         ? { top: 0, left: `${p.pct}%`, transform: 'translateX(-50%)' }
@@ -786,11 +847,13 @@ export function Step7FrameHandleHoles() {
                         </div>
                       </div>
                     )
-                  })}
+                  })
+                    : null}
                 </div>
 
-                <div className="sketch-handle-layer" aria-hidden={handlePinCoords.length === 0}>
-                  {handlePinCoords.map((p) => {
+                <div className="sketch-handle-layer" aria-hidden={noHandleOnSketch || handlePinCoords.length === 0}>
+                  {!noHandleOnSketch
+                    ? handlePinCoords.map((p) => {
                     const style: CSSProperties =
                       p.variant === 'top'
                         ? { top: 0, left: `${p.pct}%`, transform: 'translateX(-50%)' }
@@ -811,11 +874,12 @@ export function Step7FrameHandleHoles() {
                         </div>
                       </div>
                     )
-                  })}
+                  })
+                    : null}
                 </div>
               </div>
 
-              {hingeChainDimsLayout.length > 0 || handleChainDimsLayout.length > 0 ? (
+              {!noHandleOnSketch && (hingeChainDimsLayout.length > 0 || handleChainDimsLayout.length > 0) ? (
                 <div className="frame3-hinge-dim-layer" aria-hidden>
                   {hingeLayout
                     ? hingeChainDimsLayout.map((seg) => {

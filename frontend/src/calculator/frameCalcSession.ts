@@ -14,6 +14,10 @@ export const CALC_LS_HINGE_LAYOUT = 'calc_hinge_layout'
 /** Отверстия под ручку (шаг 7): JSON см. `HandleHolesPersisted`. */
 export const CALC_LS_HANDLE_HOLES = 'calc_handle_holes'
 
+/** Дефолтные габариты шага 3 (мм), если в localStorage пусто (после сброса или первый визит). */
+export const FRAME_DEFAULT_HEIGHT_MM = 500
+export const FRAME_DEFAULT_WIDTH_MM = 200
+
 export type HingeMountSide = 'left' | 'right' | 'top' | 'bottom'
 
 export type HandleOrientation = 'vertical' | 'horizontal'
@@ -47,6 +51,44 @@ const HINGE_POS_MIN_GAP_MM = 1
 export function hingeEdgeLengthMm(side: HingeMountSide, widthMm: number, heightMm: number): number {
   if (side === 'top' || side === 'bottom') return widthMm
   return heightMm
+}
+
+/** Сегменты цепочки размеров вдоль кромки (как шаги 6–7): `t0`/`t1` в долях 0…100 от начала стороны. */
+export type EdgeChainSegmentMm = {
+  key: string
+  t0: number
+  t1: number
+  valueMm: number
+}
+
+/**
+ * Цепочка размеров по отсортированным координатам вдоль длины L (мм):
+ * от края до первой точки, между точками, от последней до края.
+ */
+export function edgeChainSegmentsMm(L: number, sortedPositionsMm: number[]): EdgeChainSegmentMm[] {
+  if (!Number.isFinite(L) || L <= 0) return []
+  const nums = sortedPositionsMm
+  const out: EdgeChainSegmentMm[] = []
+  let prev = 0
+  for (let k = 0; k < nums.length; k++) {
+    const t0 = (prev / L) * 100
+    const t1 = (nums[k] / L) * 100
+    const valueMm = nums[k] - prev
+    if (valueMm > 0.001) {
+      out.push({ key: `edge-seg-${k}`, t0, t1, valueMm })
+    }
+    prev = nums[k]
+  }
+  const tail = L - prev
+  if (tail > 0.001) {
+    out.push({
+      key: 'edge-seg-end',
+      t0: (prev / L) * 100,
+      t1: 100,
+      valueMm: tail,
+    })
+  }
+  return out
 }
 
 /** Индекс «парной» петли: №1 ↔ №n, №2 ↔ №n−1, … */
@@ -313,6 +355,15 @@ export function isFrameStep4Ready(): boolean {
     if (!m) return false
     const mid = Number(m)
     return Number.isFinite(mid) && mid > 0
+  } catch {
+    return false
+  }
+}
+
+/** На шаге 5 выбраны «Присадки под петли» — нужны шаг 6 и раскладка на эскизах/в PDF. */
+export function isFrameMortiseHingeSelected(): boolean {
+  try {
+    return localStorage.getItem(CALC_LS_FRAME_MORTISE) === 'hinge'
   } catch {
     return false
   }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   createCalculatorProfileType,
@@ -11,9 +11,15 @@ import {
 import type { CalculatorProfileType, Material } from '../types'
 import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
-import { notifyFrameCalcSession } from './frameCalcSession'
+import {
+  FRAME_DEFAULT_HEIGHT_MM,
+  FRAME_DEFAULT_WIDTH_MM,
+  notifyFrameCalcSession,
+  readFrameDimsMm,
+  subscribeFrameCalcSession,
+} from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
-import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
+import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 
 function matLabel(m: { name: string; article?: string | null }) {
@@ -498,6 +504,28 @@ export function Step2FrameFacade() {
     return (selectedType.colors ?? []).find((c) => c.color_material_id === selectedColorId) ?? null
   }, [selectedColorId, selectedType])
 
+  // Снимок — примитив (строка), иначе useSyncExternalStore каждый раз видит новый объект и уходит в бесконечный ререндер.
+  const sketchDimsKey = useSyncExternalStore(
+    subscribeFrameCalcSession,
+    () => {
+      const d = readFrameDimsMm()
+      const h = d.h ?? FRAME_DEFAULT_HEIGHT_MM
+      const w = d.w ?? FRAME_DEFAULT_WIDTH_MM
+      return `${h}|${w}`
+    },
+    () => `${FRAME_DEFAULT_HEIGHT_MM}|${FRAME_DEFAULT_WIDTH_MM}`
+  )
+
+  const step2SketchBoxStyle = useMemo(() => {
+    const [hs, ws] = sketchDimsKey.split('|')
+    const h = Number(hs)
+    const w = Number(ws)
+    if (!Number.isFinite(h) || !Number.isFinite(w)) {
+      return facadeSketchBoxStyle(FRAME_DEFAULT_HEIGHT_MM, FRAME_DEFAULT_WIDTH_MM)
+    }
+    return facadeSketchBoxStyle(h, w)
+  }, [sketchDimsKey])
+
   return (
     <>
       <div className="frame2">
@@ -939,7 +967,7 @@ export function Step2FrameFacade() {
 
         <section className="frame2-sketch" aria-label="Эскиз фасада">
           <div className="frame2-sketch-inner">
-            <div className="sketch">
+            <div className="sketch" style={step2SketchBoxStyle}>
               <div className="sketch-frame">
                 <div
                   className="sketch-frame-texture"

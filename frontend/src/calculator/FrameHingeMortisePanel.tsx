@@ -6,6 +6,7 @@ import {
   CALC_LS_HINGE_SOURCE,
   CALC_LS_HINGE_TYPE_ID,
   notifyFrameCalcSession,
+  writeHingeLayout,
 } from './frameCalcSession'
 import { FrameHingeCatalog } from './FrameHingeCatalog'
 
@@ -33,6 +34,7 @@ export function FrameHingeMortisePanel() {
         localStorage.removeItem(CALC_LS_HINGE_SOURCE)
         localStorage.removeItem(CALC_LS_HINGE_TYPE_ID)
         localStorage.removeItem(CALC_LS_HINGE_MATERIAL_ID)
+        writeHingeLayout(null)
         setHingeSource('')
       } else {
         localStorage.setItem(CALC_LS_FRAME_MORTISE, 'hinge')

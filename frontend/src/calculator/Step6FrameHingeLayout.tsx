@@ -11,6 +11,7 @@ import {
   hingeMeasuresFromEdgeStart,
   hingeUserInputsToAbsoluteMm,
   HingeMountSide,
+  isFrameMortiseHingeSelected,
   isFrameStep2Ready,
   isFrameStep4Ready,
   readCalculatorPriceConfigKey,
@@ -173,6 +174,10 @@ export function Step6FrameHingeLayout() {
   useEffect(() => {
     if (!isFrameStep4Ready()) nav(step('frame/filling'), { replace: true })
   }, [nav, step])
+
+  useEffect(() => {
+    if (!isFrameMortiseHingeSelected()) nav(step('frame/handle-holes'), { replace: true })
+  }, [cfgKey, nav, step])
 
   /** Другая сторона — другая ось; старые числа в полях теряют смысл. */
   useEffect(() => {

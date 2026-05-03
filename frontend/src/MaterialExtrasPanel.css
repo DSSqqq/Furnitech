@@ -154,8 +154,27 @@
   margin-bottom: 0.3rem;
 }
 
+/* Одна строка: минимальные ширины для «Цена (…)» и «× фасад», иначе колонка 2rem ломала подпись. */
 .mat-extras-legend-ops {
-  grid-template-columns: 0.85fr 0.85fr 0.45fr 0.5fr 0.48fr 2rem auto;
+  grid-template-columns:
+    minmax(0, 1.1fr)
+    minmax(0, 1.1fr)
+    minmax(2.75rem, 0.36fr)
+    minmax(3.5rem, 0.4fr)
+    minmax(5.5rem, 0.5fr)
+    minmax(3.35rem, max-content)
+    auto;
+}
+
+.mat-extras-legend-ops > span {
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mat-extras-block-ops {
+  overflow-x: auto;
 }
 
 .mat-extras-legend span:last-child,
@@ -189,7 +208,14 @@
 }
 
 .mat-extras-row-ops {
-  grid-template-columns: 0.85fr 0.85fr 0.45fr 0.5fr 0.48fr 2rem auto;
+  grid-template-columns:
+    minmax(0, 1.1fr)
+    minmax(0, 1.1fr)
+    minmax(2.75rem, 0.36fr)
+    minmax(3.5rem, 0.4fr)
+    minmax(5.5rem, 0.5fr)
+    minmax(3.35rem, max-content)
+    auto;
 }
 
 .mat-extras-row:hover,

@@ -70,6 +70,17 @@ function findPathToId(tree: MaterialCategory[], id: number): number[] | null {
   return walk(tree, [])
 }
 
+/** Папка и все вложенные папки (по объекту из дерева). */
+function collectSubtreeCategoryIds(cat: MaterialCategory): Set<number> {
+  const ids = new Set<number>()
+  const walk = (node: MaterialCategory) => {
+    ids.add(node.id)
+    for (const ch of node.children ?? []) walk(ch)
+  }
+  walk(cat)
+  return ids
+}
+
 function mapFromAltPriceRows(
   rows: { currency: string; price: string }[] | undefined
 ): Record<string, string> {
@@ -437,10 +448,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   )
 
   const deleteFolder = useCallback((cat: MaterialCategory) => {
-    if (cat.children && cat.children.length > 0) {
-      setErr('Сначала удалите вложенные папки.')
-      return
-    }
     setFolderDeleteModal(cat)
   }, [])
 
@@ -451,7 +458,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     setErr(null)
     deleteCategory(cat.id)
       .then(() => {
-        if (selected === cat.id) {
+        const removed = collectSubtreeCategoryIds(cat)
+        if (selected != null && removed.has(selected)) {
           setSelected(null)
           setEditing(null)
         }
@@ -536,7 +544,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать или удалить (удаление с подтверждением; папка без вложенных и без материалов). Наведите на строку, чтобы появилась кнопка." />
+              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. Наведите на строку, чтобы появилась кнопка." />
             </div>
             <div className="admin-stack">
               <input
@@ -712,7 +720,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               Удалить папку?
             </h4>
             <p className="admin-modal-text">
-              Папка «{folderDeleteModal.name}» будет удалена безвозвратно. Продолжить?
+              Папка «{folderDeleteModal.name}» будет удалена безвозвратно вместе со всем содержимым: все вложенные
+              папки и все материалы в этой папке и в подпапках. Продолжить?
             </p>
             <div className="admin-modal-actions">
               <button

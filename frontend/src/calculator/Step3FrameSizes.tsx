@@ -3,8 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
-import { isFrameStep2Ready, notifyFrameCalcSession } from './frameCalcSession'
-import { materialTextureLayerStyle } from './sketchFrame'
+import {
+  FRAME_DEFAULT_HEIGHT_MM,
+  FRAME_DEFAULT_WIDTH_MM,
+  isFrameStep2Ready,
+  notifyFrameCalcSession,
+} from './frameCalcSession'
+import { facadeSketchBoxStyle, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -31,17 +36,6 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
-function blendAspect(defaultAspect: number, targetAspect: number, strength: number) {
-  // strength: 0..1 (0 = no change, 1 = full target)
-  const k = clamp(strength, 0, 1)
-  return defaultAspect + (targetAspect - defaultAspect) * k
-}
-
-function blendScale(defaultScale: number, targetScale: number, strength: number) {
-  const k = clamp(strength, 0, 1)
-  return defaultScale + (targetScale - defaultScale) * k
-}
-
 function lsGet(key: string): string | null {
   try {
     return localStorage.getItem(key)
@@ -63,11 +57,11 @@ export function Step3FrameSizes() {
 
   const [heightMm, setHeightMm] = useState(() => {
     const h = lsGet('calc_frame_height_mm')
-    return h != null && h !== '' ? h : '2000'
+    return h != null && h !== '' ? h : String(FRAME_DEFAULT_HEIGHT_MM)
   })
   const [widthMm, setWidthMm] = useState(() => {
     const w = lsGet('calc_frame_width_mm')
-    return w != null && w !== '' ? w : '500'
+    return w != null && w !== '' ? w : String(FRAME_DEFAULT_WIDTH_MM)
   })
   const [qty, setQty] = useState(() => {
     const q = lsGet('calc_frame_qty')
@@ -136,23 +130,10 @@ export function Step3FrameSizes() {
   const heightN = asNum(heightMm)
   const widthN = asNum(widthMm)
 
-  const sketchAspect = useMemo(() => {
+  const sketchBoxStyle = useMemo(() => {
     if (heightN == null || widthN == null || heightN <= 0 || widthN <= 0) return undefined
-    // Соотношение сторон эскиза = W/H. Ограничиваем, чтобы вёрстка не "ломалась" на крайних значениях.
-    const target = widthN / heightN
-    // Дефолт у .sketch: aspect-ratio 3/4.2 (≈ 0.714). Делаем изменение "незначительным":
-    // смешиваем с дефолтом и ограничиваем диапазон.
-    const softened = blendAspect(3 / 4.2, target, 0.28)
-    return clamp(softened, 0.56, 0.92)
+    return facadeSketchBoxStyle(heightN, widthN)
   }, [heightN, widthN])
-
-  const sketchScaleY = useMemo(() => {
-    if (heightN == null || heightN <= 0) return undefined
-    // База: 2000 мм. Увеличиваем/уменьшаем высоту эскиза слегка, чтобы не ломать подписи.
-    const target = heightN / 2000
-    const softened = blendScale(1, target, 0.22)
-    return clamp(softened, 0.9, 1.1)
-  }, [heightN])
 
   const heightOk =
     heightN != null &&
@@ -262,17 +243,7 @@ export function Step3FrameSizes() {
             aria-label={`Чертёж фасада: высота ${heightN ?? '—'} мм, ширина ${widthN ?? '—'} мм`}
           >
             {/* Тот же эскиз, что в шаге 2; цвет/текстура рамки из выбранного материала (localStorage + API). */}
-            <div
-              className="sketch"
-              style={
-                sketchAspect || sketchScaleY
-                  ? ({
-                      aspectRatio: sketchAspect,
-                      ['--sketch-scale-y' as any]: sketchScaleY,
-                    } as any)
-                  : undefined
-              }
-            >
+            <div className="sketch" style={sketchBoxStyle}>
               <div className="sketch-frame">
                 <div className="sketch-frame-texture" style={sketchFrameStyle} />
               </div>

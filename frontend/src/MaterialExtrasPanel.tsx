@@ -422,7 +422,7 @@ export function MaterialExtrasPanel({
           </div>
           <div className="mat-extras-legend mat-extras-legend-ops" role="row">
             <span>Операция</span>
-            <span>Параметр с модели</span>
+            <span>Описание</span>
             <span>Кол-во</span>
             <span>Ед. изм.</span>
             <span>Цена ({BASE_CURRENCY})</span>

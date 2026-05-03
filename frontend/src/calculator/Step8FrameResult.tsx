@@ -8,6 +8,8 @@ import { useCalcPaths } from './calcPathsContext'
 import { collectCurrencies, computeFramePriceBreakdown } from './framePriceEstimate'
 import {
   type HingeMountSide,
+  FRAME_DEFAULT_HEIGHT_MM,
+  FRAME_DEFAULT_WIDTH_MM,
   isFrameStep2Ready,
   isFrameStep4Ready,
   readCalculatorPriceConfigKey,
@@ -81,8 +83,8 @@ export function Step8FrameResult() {
     const hingeMatId = hmRaw ? Number(hmRaw) : null
     return {
       colorId: colorId && Number.isFinite(colorId) && colorId > 0 ? colorId : null,
-      heightMm: asPositiveMm(h, 2000),
-      widthMm: asPositiveMm(w, 500),
+      heightMm: asPositiveMm(h, FRAME_DEFAULT_HEIGHT_MM),
+      widthMm: asPositiveMm(w, FRAME_DEFAULT_WIDTH_MM),
       facadeCount: qty,
       fillMatId: fillMatId && Number.isFinite(fillMatId) && fillMatId > 0 ? fillMatId : null,
       mortiseMode,
@@ -94,7 +96,7 @@ export function Step8FrameResult() {
     }
   }, [cfgKey])
 
-  const hingeLayout = useMemo(() => readHingeLayout(), [cfgKey])
+  const hingeLayout = useMemo(() => (parsed.mortiseMode === 'hinge' ? readHingeLayout() : null), [cfgKey, parsed.mortiseMode])
   const handleHoles = useMemo(() => readHandleHoles(), [cfgKey])
 
   const [frameTypeName, setFrameTypeName] = useState('—')
@@ -222,9 +224,10 @@ export function Step8FrameResult() {
   const currencyMismatch = currencies.length > 1
 
   const hingeLayoutLine = useMemo(() => {
+    if (parsed.mortiseMode !== 'hinge') return '—'
     if (!hingeLayout) return '—'
     return `${sideLabel(hingeLayout.side)}, ${hingeLayout.count} отв.`
-  }, [hingeLayout])
+  }, [hingeLayout, parsed.mortiseMode])
 
   const handleLine = useMemo(() => {
     if (!handleHoles) return 'Не заданы (шаг пропущен)'
@@ -241,7 +244,7 @@ export function Step8FrameResult() {
       `Габариты: ${parsed.heightMm} × ${parsed.widthMm} мм, ${parsed.facadeCount} шт.`,
       `Наполнение: ${fillingMaterial?.name ?? '—'}`,
       `Присадка / петли: ${mortiseLine}`,
-      `Раскладка петель: ${hingeLayoutLine}`,
+      ...(parsed.mortiseMode === 'hinge' ? [`Раскладка петель: ${hingeLayoutLine}`] : []),
       `Ручка: ${handleLine}`,
       '',
       `Итого: ${formatSum(breakdown.total)} ${currency}`,
@@ -299,6 +302,9 @@ export function Step8FrameResult() {
       },
       currency,
       currencyMismatch,
+      hingeLayout,
+      includeHingeLayoutRow: parsed.mortiseMode === 'hinge',
+      handleHoles,
     }
   }
 
@@ -447,10 +453,12 @@ export function Step8FrameResult() {
               <span className="step8-kv__k">Присадка / петли</span>
               <span className="step8-kv__v">{mortiseLine}</span>
             </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Петли (сторона, число отверстий)</span>
-              <span className="step8-kv__v">{hingeLayoutLine}</span>
-            </div>
+            {parsed.mortiseMode === 'hinge' ? (
+              <div className="step8-kv__row">
+                <span className="step8-kv__k">Петли (сторона, число отверстий)</span>
+                <span className="step8-kv__v">{hingeLayoutLine}</span>
+              </div>
+            ) : null}
             <div className="step8-kv__row">
               <span className="step8-kv__k">Ручка</span>
               <span className="step8-kv__v">{handleLine}</span>

@@ -10,6 +10,8 @@ import {
 } from './framePriceEstimate'
 import { formatNumberForUi } from '../floatInput'
 import {
+  FRAME_DEFAULT_HEIGHT_MM,
+  FRAME_DEFAULT_WIDTH_MM,
   readCalculatorPriceConfigKey,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
@@ -62,8 +64,8 @@ function CalcPriceTotalsActive() {
     const parts = cfgKey.split('|')
     const colorIdRaw = parts[0]?.trim() ?? ''
     const colorId = colorIdRaw ? Number(colorIdRaw) : null
-    const h = asPositiveMm(parts[1] ?? null, 2000)
-    const w = asPositiveMm(parts[2] ?? null, 500)
+    const h = asPositiveMm(parts[1] ?? null, FRAME_DEFAULT_HEIGHT_MM)
+    const w = asPositiveMm(parts[2] ?? null, FRAME_DEFAULT_WIDTH_MM)
     const qty = asPositiveInt(parts[3] ?? null, 1)
     const fillIdRaw = parts[4]?.trim() ?? ''
     const fillMatId = fillIdRaw ? Number(fillIdRaw) : null

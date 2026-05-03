@@ -203,7 +203,13 @@ export function Step5FrameSummary() {
           <button type="button" className="admin-secondary" onClick={() => nav(step('frame/filling'))}>
             ← Предыдущий шаг
           </button>
-          <button type="button" className="admin-primary" onClick={() => nav(step('frame/hinge-layout'))}>
+          <button
+            type="button"
+            className="admin-primary"
+            onClick={() =>
+              nav(step(parsed.mortiseMode === 'hinge' ? 'frame/hinge-layout' : 'frame/handle-holes'))
+            }
+          >
             Следующий шаг →
           </button>
         </div>

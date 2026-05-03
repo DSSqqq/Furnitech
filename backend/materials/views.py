@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import filters, viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import (
@@ -44,28 +45,33 @@ class UnitOfMeasureViewSet(viewsets.ModelViewSet):
     permission_classes = [DjangoModelPermissions]
 
 
+def _material_category_subtree_ids(root_id: int) -> list[int]:
+    """Все id категории и потомков (BFS)."""
+    ids: list[int] = [root_id]
+    frontier: list[int] = [root_id]
+    while frontier:
+        children = list(
+            MaterialCategory.objects.filter(parent_id__in=frontier).values_list(
+                "id", flat=True
+            )
+        )
+        frontier = children
+        ids.extend(children)
+    return ids
+
+
 class MaterialCategoryViewSet(viewsets.ModelViewSet):
     queryset = MaterialCategory.objects.all()
     serializer_class = MaterialCategorySerializer
     permission_classes = [DjangoModelPermissions]
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if MaterialCategory.objects.filter(parent=instance).exists():
-            return Response(
-                {
-                    "detail": "Сначала удалите или перенесите вложенные папки.",
-                },
-                status=400,
-            )
-        if Material.objects.filter(category=instance).exists():
-            return Response(
-                {
-                    "detail": "В папке есть материалы. Перенесите или удалите их.",
-                },
-                status=400,
-            )
-        return super().destroy(request, *args, **kwargs)
+        subtree_ids = _material_category_subtree_ids(instance.pk)
+        Material.objects.filter(category_id__in=subtree_ids).delete()
+        instance.delete()
+        return Response(status=204)
 
     @staticmethod
     def _build_tree(categories: list, parent_id: int | None) -> list:

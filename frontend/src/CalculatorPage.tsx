@@ -9,6 +9,7 @@ import {
 } from './calculator/calcPathsContext'
 import {
   clearFrameCalculatorStorage,
+  isFrameMortiseHingeSelected,
   isFrameStep2Ready,
   isFrameStep4Ready,
   notifyFrameCalcSession,
@@ -71,10 +72,15 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
 
   const frameStep2Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep2Ready, isFrameStep2Ready)
   const frameStep4Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep4Ready, isFrameStep4Ready)
+  const frameMortiseHinge = useSyncExternalStore(
+    subscribeFrameCalcSession,
+    isFrameMortiseHingeSelected,
+    isFrameMortiseHingeSelected,
+  )
   const canOpenFrameStep3 = facade === 'frame' && frameStep2Ready
   const canOpenFrameStep4 = facade === 'frame' && frameStep2Ready
   const canOpenFrameStep5 = facade === 'frame' && frameStep4Ready
-  const canOpenFrameStep6 = facade === 'frame' && frameStep4Ready
+  const canOpenFrameStep6 = facade === 'frame' && frameStep4Ready && frameMortiseHinge
   const canOpenFrameStep7 = facade === 'frame' && frameStep4Ready
   const canOpenFrameStep8 = facade === 'frame' && frameStep4Ready
 
@@ -213,7 +219,9 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     ? 'Сначала на шаге 2 выберите тип профиля и цвет'
                     : !frameStep4Ready
                       ? 'Сначала на шаге 4 выберите наполнение'
-                      : undefined
+                      : !frameMortiseHinge
+                        ? 'Шаг 6 только при присадке под петли (шаг 5)'
+                        : undefined
             }
           >
             Шаг 6
