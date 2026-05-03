@@ -16,5 +16,6 @@ router.register(
     views.CalculatorHandleHoleDiameterViewSet,
     basename="calculator-handle-hole-diameter",
 )
+router.register(r"facade-orders", views.FacadeOrderViewSet, basename="facade-order")
 
 urlpatterns = router.urls

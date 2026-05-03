@@ -50,6 +50,15 @@
   min-height: 0;
 }
 
+/* На десктопе #root с overflow:hidden — прокрутка длинных страниц (шаг 8 калькулятора и др.) */
+.public-shell__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
 .public-shell__header {
   display: flex;
   align-items: center;
@@ -80,6 +89,41 @@
   gap: 0.75rem;
 }
 
+/* Как в шапке админки: подпись пользователя и кнопка выхода */
+.public-shell__user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.public-shell__user-name {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  max-width: min(220px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ft-text);
+}
+
+.public-shell__logout {
+  flex-shrink: 0;
+  background: rgba(203, 176, 121, 0.08);
+  color: var(--ft-accent-2);
+  border: 1px solid rgba(203, 176, 121, 0.32);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.public-shell__logout:hover {
+  background: rgba(203, 176, 121, 0.14);
+  border-color: rgba(203, 176, 121, 0.42);
+}
+
 .public-shell__link {
   font-size: 0.9rem;
   color: var(--ft-accent);
@@ -93,4 +137,48 @@
 .public-shell__link:hover {
   background: rgba(203, 176, 121, 0.14);
   border-color: rgba(203, 176, 121, 0.42);
+}
+
+.public-shell__link--button {
+  cursor: pointer;
+  font: inherit;
+}
+
+.public-shell__link--button:hover {
+  color: var(--ft-accent);
+}
+
+.public-shell__section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-bottom: 1px solid var(--ft-border);
+  background: rgba(7, 7, 8, 0.55);
+  flex-shrink: 0;
+}
+
+.public-shell__section-tab {
+  font-size: 0.88rem;
+  color: var(--ft-muted);
+  text-decoration: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.public-shell__section-tab:hover {
+  color: var(--ft-accent);
+  background: rgba(203, 176, 121, 0.08);
+}
+
+.public-shell__section-tab--active {
+  color: var(--ft-accent-2);
+  border-color: rgba(203, 176, 121, 0.38);
+  background: rgba(203, 176, 121, 0.12);
 }

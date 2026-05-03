@@ -10,6 +10,7 @@ class MeView(APIView):
         u = request.user
         return Response(
             {
+                "id": u.pk,
                 "username": u.username,
                 "email": u.email,
                 "is_superuser": u.is_superuser,

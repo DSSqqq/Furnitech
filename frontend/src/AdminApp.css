@@ -19,20 +19,23 @@
 }
 
 .admin-header {
-  padding: 1rem 1.5rem;
-  background: linear-gradient(180deg, rgba(7, 7, 8, 0.98), rgba(7, 7, 8, 0.78));
+  padding: 0;
+  background: transparent;
   color: var(--ft-text);
-  border-bottom: 1px solid var(--ft-border);
-  backdrop-filter: blur(10px);
+  border-bottom: none;
   flex-shrink: 0;
 }
 
-.admin-header-row {
+/* Верхняя полоса — как public-shell__header */
+.admin-header-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--ft-border);
+  background: linear-gradient(180deg, rgba(7, 7, 8, 0.94), rgba(7, 7, 8, 0.78));
+  backdrop-filter: blur(10px);
 }
 
 .admin-user {
@@ -73,6 +76,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ft-accent-2);
+  line-height: 1.2;
 }
 
 .admin-sub {
@@ -81,44 +85,50 @@
   margin-top: 0.25rem;
 }
 
-.admin-tabs {
-  margin-top: 0.55rem;
-  display: inline-flex;
+/* Полоса разделов — как public-shell__section-tabs */
+.admin-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--ft-border);
+  gap: 0.35rem 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-bottom: 1px solid var(--ft-border);
+  background: rgba(7, 7, 8, 0.55);
+  flex-shrink: 0;
 }
 
-.admin-tab {
+.admin-section-tab {
   appearance: none;
+  font-size: 0.88rem;
+  color: var(--ft-muted);
+  text-decoration: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(255, 255, 255, 0.82);
-  padding: 0.38rem 0.7rem;
-  border-radius: 8px;
   font: inherit;
-  font-size: 0.85rem;
   cursor: pointer;
-  line-height: 1.1;
+  line-height: 1.2;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.admin-tab:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: var(--ft-text);
+.admin-section-tab:hover {
+  color: var(--ft-accent);
+  background: rgba(203, 176, 121, 0.08);
 }
 
-.admin-tab:focus-visible {
+.admin-section-tab:focus-visible {
   outline: 2px solid rgba(203, 176, 121, 0.7);
   outline-offset: 2px;
 }
 
-.admin-tab--active {
-  background: rgba(203, 176, 121, 0.18);
+.admin-section-tab--active {
   color: var(--ft-accent-2);
-  border-color: rgba(203, 176, 121, 0.32);
+  border-color: rgba(203, 176, 121, 0.38);
+  background: rgba(203, 176, 121, 0.12);
 }
 
 .admin-orders-placeholder {
@@ -129,6 +139,162 @@
   box-shadow: var(--ft-shadow-1);
   border: 1px solid var(--ft-border);
   min-height: 0;
+}
+
+.admin-orders-placeholder--filled {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-orders-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.admin-orders-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-orders-table-wrap {
+  overflow: auto;
+  max-height: min(70dvh, 920px);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-radius-md);
+}
+
+.admin-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.admin-orders-table th,
+.admin-orders-table td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--ft-border);
+  vertical-align: top;
+}
+
+.admin-orders-table th {
+  color: var(--ft-muted);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--ft-surface-2);
+  z-index: 1;
+}
+
+.admin-orders-mono {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ft-accent-2);
+}
+
+.admin-orders-cell-strong {
+  display: block;
+  font-weight: 600;
+}
+
+.admin-orders-cell-sub {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--ft-muted);
+}
+
+.admin-orders-contacts {
+  max-width: 14rem;
+}
+
+.admin-orders-status-cell {
+  min-width: 13rem;
+}
+
+.admin-orders-status-ft.ft-select {
+  min-width: 12rem;
+}
+
+.admin-orders-pdf-link {
+  color: var(--ft-accent, #e8a23e);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.admin-error--compact {
+  margin: 0 0 0.75rem;
+}
+
+.admin-users-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-users-table th,
+.admin-users-table td {
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--ft-border);
+  vertical-align: middle;
+}
+
+.admin-users-table th {
+  color: var(--ft-muted);
+  font-weight: 600;
+}
+
+.admin-users-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.12rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(203, 176, 121, 0.2);
+  color: var(--ft-accent-2);
+  vertical-align: middle;
+}
+
+.admin-users-email {
+  color: var(--ft-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Роль: FtSelect с portal — список в body, поверх секции (не обрезается overflow) */
+.admin-users-role-cell {
+  vertical-align: middle;
+}
+
+.admin-users-role-ft.ft-select {
+  min-width: 12rem;
+  max-width: 18rem;
+}
+
+.admin-users-actions-th {
+  text-align: right;
+  font-weight: 600;
+}
+
+.admin-users-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 
 /* Вкладка «Калькулятор»: шаг (в т.ч. итог) не вылезает за панель — прокрутка внутри */

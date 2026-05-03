@@ -20,6 +20,7 @@ export function clearTokens() {
 }
 
 export type Me = {
+  id: number
   username: string
   email: string
   is_superuser: boolean

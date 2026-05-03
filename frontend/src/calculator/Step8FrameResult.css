@@ -56,6 +56,11 @@
   margin-bottom: 0.15rem;
 }
 
+.step8-form__req {
+  color: var(--ft-accent, #e8a23e);
+  font-weight: 700;
+}
+
 .step8-form__textarea {
   resize: vertical;
   min-height: 5.5rem;

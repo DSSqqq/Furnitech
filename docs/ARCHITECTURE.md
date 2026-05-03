@@ -31,7 +31,7 @@ Furnitech/
 | Префикс | Назначение |
 |---------|------------|
 | `/admin/django/` | Django admin (staff) |
-| `/api/auth/token/`, `token/refresh/`, `me/` | JWT |
+| `/api/auth/token/`, `token/refresh/`, `me/`, **`register/`**, **`admin-users/`**, **`admin-users/<id>/`** | JWT; публичная регистрация; для сотрудника SPA: список пользователей, PATCH `is_staff`, DELETE учётной записи (см. `materials/user_admin_views.py`) |
 | `/api/` | DRF router — см. ниже |
 | `/media/` | Файлы (dev): текстуры материалов (`DEBUG=1`) |
 
@@ -46,9 +46,12 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `/` | Калькулятор для посетителя: **`CalculatorPage variant="public"`**, шаг 1 (выбор фасада) |
 | `/frame`, `/frame/size`, `/frame/filling`, `/frame/summary`, `/frame/hinge-layout`, `/frame/handle-holes`, **`/frame/result`** | Шаги 2–8 для **рамочного** фасада (те же компоненты, что в админке, с `readOnly`) |
 | `/mdf`, `/pvc` | Шаг 2 для МДФ / ПВХ (заглушки) |
-| `/login` | Вход сотрудника; после успеха — возврат на `state.from` или `/materials` |
+| **`/my-orders`** | **«Мои заказы»** — **`ClientMyOrdersPage`** (`PublicClientPages.tsx`): **`GET /api/facade-orders/`**; гостю — предложение войти (**`state.from: '/my-orders'`**); у клиента — карточки заказов (**`order_number`** вида **`З-000001`**, краткий статус, **`HintButton`** с длинным пояснением, ссылка на PDF) |
+| **`/guide`** | Редирект на **`/`** (резерв; ранее планировалась видеовкладка) |
+| `/login` | Вход; при уже активной сессии — редирект (сотрудник → цель или **`/materials`**, клиент → **`/`**). После успеха: **`LoginRoute`** использует **`safePostLoginTarget(state.from, isStaff)`** — только относительные пути без `//` (open redirect); **клиент** может вернуться на калькулятор или **`/my-orders`**; **сотрудник** — ещё на **`/materials`**, **`/calculator`**, **`/orders`**, **`/users`** и т.д. |
+| `/register` | Публичная регистрация (`POST /api/auth/register/`), затем переход на **`/login`** с пробросом **`state.from`** (и в ссылке «Уже есть аккаунт») |
 
-Компонент **`PublicShell`** (`App.tsx` + `App.css`): шапка с брендом и ссылкой «Вход для сотрудников» / «Админка».
+Компонент **`PublicShell`** (`App.tsx` + `App.css`): верхняя шапка (бренд; «Вход» / «Регистрация» или подпись **email/логин** + «Админка» / «Выйти»); полоса **`public-shell__section-tabs`** — **«Калькулятор»**, **«Мои заказы»** (пилюли в стиле админских **`admin-section-tab`**); контент — **`<Outlet />`** внутри **`public-shell__main`** (**`overflow-y: auto`**, **`min-height: 0`**) — на десктопе при **`#root { overflow: hidden }`** прокручивается длинный шаг 8 и прочие страницы.
 
 ### Только после входа (`AdminApp`)
 
@@ -56,7 +59,8 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 |-----|------------|
 | `/materials`, `/materials/…` | Материалы: дерево, список, карточка |
 | `/calculator`, `/calculator/frame`, … | Калькулятор **`variant="admin"`** (префикс `/calculator/…`, полный CRUD на шагах 2 и 4) |
-| `/orders`, `/orders/…` | Заказы (заглушка) |
+| `/orders`, `/orders/…` | **«Заказы»** — **`AdminOrdersPanel`**: таблица **`/api/facade-orders/`**, смена статуса (**`FtSelect`**), PDF (поле **`snapshot`** в ответе API и в Django admin, в таблице SPA не показывается) |
+| `/users`, `/users/…` | **Пользователи:** список (`GET /api/auth/admin-users/`), роль **`FtSelect`** (пользователь / админ → `is_staff`), **`DELETE`** учётной записи (ограничения на бэкенде); не путать с `/admin/django/` |
 
 Детализация шагов калькулятора (одинаковая логика для гостя и админа, различаются **префикс URL** и **readOnly**):
 
@@ -67,7 +71,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 - **Шаг 5 (только рамочный):** итоговый эскиз и присадка под петли — `…/frame/summary` (`Step5FrameSummary`, **`FrameHingeMortisePanel`**, **`FrameHingeCatalog`**)
 - **Шаг 6 (только рамочный):** раскладка петель (сторона, число отверстий, расстояния в мм) — `…/frame/hinge-layout` (`Step6FrameHingeLayout`). Доступен, только если на шаге 5 выбраны **«Присадки под петли»** (`**isFrameMortiseHingeSelected()`**); иначе вкладка **неактивна**, маршрут с шага 5 ведёт на шаг 7, прямой заход на URL шага 6 — редирект на ручку.
 - **Шаг 7 (только рамочный):** отверстия под ручку (число **0…10**, по умолчанию **0** — ручка не задана; поле можно очистить при вводе, **blur** восстанавливает **0**), диаметр, ориентация, сторона, межосевые — `…/frame/handle-holes` (`Step7FrameHandleHoles`); при **вертикальной** ручке сторона **слева/справа** не может совпадать со стороной петель из шага 6; при **горизонтальной** — то же для **сверху/снизу**. Данные: **`calc_handle_holes`** (см. `frameCalcSession.ts`). При **0** отверстий эскиз показывает только общие габариты (**как шаг 5**: размеры сверху и слева, без цепочек и маркеров петель/ручки).
-- **Шаг 8 «Итог» (только рамочный):** сводка конфигурации, контактная форма (mailto), таблица ориентировочной стоимости, **выгрузка PDF для клиента** (первая страница — сводка и таблицы; далее **по одной странице на фасад** с эскизом и размерами) — `…/frame/result` (`Step8FrameResult`, модуль **`frameClientPdf.ts`**).
+- **Шаг 8 «Итог» (только рамочный):** сводка, контакты, таблица ориентировочной стоимости, **PDF** — `…/frame/result` (`Step8FrameResult`, **`frameClientPdf.ts`**). **Гость** при «Отправить менеджеру» — модалка (**`admin-modal-*`**, **`createPortal`**) «Войти / Зарегистрироваться» с **`state.from`** на текущий шаг. **Клиент (JWT, не staff):** обязательные имя/телефон/email на публичном калькуляторе (**`readOnly`**, **`step8-form__req`**); **`POST /api/facade-orders/`** (multipart: **`pdf_file`**, **`snapshot`** JSON, контакты), затем **`/my-orders`** (`replace`). **Сотрудник** — по-прежнему **mailto** с текстом заявки.
 
 Префиксы маршрутов внутри калькулятора задаются **`calculator/calcPathsContext.tsx`** (`CalcPathsProvider`, хук **`useCalcPaths()`**: `step('frame/size')`, `step('frame/hinge-layout')`, `home`, `readOnly`).
 
@@ -89,7 +93,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | Чертёжные размеры (шаг 3) | Блок **`frame3-drawing`** обнимает `.sketch`; **`frame3-dim-drawing`**: выносные пунктирные линии, размерная линия со стрелками, подписи мм; `z-index` выше листа эскиза. Модификаторы **`--right`** / **`--bottom`** задают расположение основного габарита **напротив** стороны с петлями, чтобы линии не накладывались. |
 | Петли на эскизе (шаг 5–6) | Маркеры у **внешнего** края: класс **`sketch--hinge-markers`**, `overflow: visible` для слоя маркеров. Цепочка выносных размеров вдоль стороны петель: **`.hinge-chain-dim`** (вариант **`--narrow`** для коротких сегментов — сплошная линия без стрелок по краям сегмента), слой **`frame3-hinge-dim-layer`**, ядро **`frame3-drawing-core`** (**`Step3FrameSizes.css`**). Подписи сегментов цепочки: поворот **−90°** слева от стороны петель и **+90°** справа; смещается **только текст** подписи. Вертикальный габарит справа: стрелки на всю высоту, подпись по центру. |
 | Левая панель формы | Класс **`.calc-side-panel`** (`CalculatorPage.css`): фиксированная высота от `100dvh`, вертикальная прокрутка при переполнении. Используется на шаге 1 (обёртка сетки фасадов), **`frame2-card`**, **`frame3-left`**, заглушках МДФ/ПВХ. Шаг 1: ограничение ширины **`#calc-step-panel-1 .calc-card`** под первую колонку сетки рамочного шага. На шаге 8 у блока контактов **`calc-side-panel` не используется**, чтобы не фиксировать высоту колонки. |
-| Шаг 8 «Итог» (вёрстка) | В админке контент вкладки калькулятора ограничен **`#admin-panel-calculator`** (**`AdminApp.css`**): без выхода за область заказов. Обёртка маршрутов с **`calc-routes-wrap--step8`**; внутри **`Step8FrameResult`** блок **`step8-result__scroll-pack`** объединяет прокрутку двух правых панелей и нижних действий (**`Step8FrameResult.css`**). |
+| Шаг 8 «Итог» (вёрстка) | В админке контент вкладки калькулятора ограничен **`#admin-panel-calculator`** (**`AdminApp.css`**): без выхода за область заказов. Обёртка маршрутов с **`calc-routes-wrap--step8`**; внутри **`Step8FrameResult`** блок **`step8-result__scroll-pack`** объединяет прокрутку двух правых панелей и нижних действий (**`Step8FrameResult.css`**). На **публичном** сайте дополнительно вся колонка калькулятора может прокручиваться в **`public-shell__main`** (см. **`App.css`**). |
 | Ориентировочная цена | Панель **`CalcPriceTotals`** справа (`CalculatorPage.tsx` + **`CalculatorPage.css`**: `.calc-body-with-totals`, `.calc-totals-*`). На **шагах 1–2** только подсказка, суммы нет (цена появляется с шага 3 после ввода габаритов). Подписка на **`calc-frame-session`** и `storage`, снимок ключей через **`readCalculatorPriceConfigKey`** (`frameCalcSession.ts`). Данные: `fetchMaterial` по `calc_frame_color_id` и при необходимости `calc_filling_material_id`. При выборе типа фасада на шаге 1 вызывается **`clearFrameCalculatorStorage()`**, чтобы не подтягивать прошлую конфигурацию. |
 | Расчёт суммы | Модуль **`calculator/framePriceEstimate.ts`**. Ед. изм. по `uom.code` (`m2`, `m`/`mp`, `pc`), при пустом `code` — эвристика (**`resolvePricingUomCode`**). **Объём на все фасады** \(N\) — как раньше: м², м.п. периметра, шт. **Профиль:** `base_price × geomColor`. **Сопутствующие** (и у цвета профиля, и у наполнения): **поштучно** по полю **`quantity_scale`** строки (`follow_parent` — × тот же множитель, что у «родителя» строки: у профиля это `geomColor`, у наполнения — `geomFill`; `per_facade` — только × \(N\); `use_related_uom` — × объём по ед. изм. **сопутствующего** материала и габаритам). См. **`relatedItemsCalculatorCost`**. **Операции:** сумма `price`; если у строки **`price_per_facade`** — умножить на \(N\), иначе один раз на конфигурацию. **Наполнение:** `base_price × geomFill` + сопутствующие наполнения той же поштучной логикой. **Стекло:** у материала наполнения должна быть ед. изм. м² (код или подпись), иначе площадь шага 3 не войдёт в цену. |
 
@@ -121,6 +125,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `/api/calculator-filling-types/`, `/{id}/` | CRUD | Типы наполнения + материалы внутри типа (шаг 4 калькулятора). **GET — анонимно; запись — JWT + model perms.** |
 | `/api/calculator-hinge-types/`, `/{id}/` | CRUD | Типы петель + материалы внутри типа (каталог петель на шагах 5–6). **GET — анонимно; запись — JWT + model perms.** |
 | `/api/calculator-handle-hole-diameters/`, `/{id}/` | CRUD | Диаметры отверстий под ручку (шаг 7): **`client_visible`**, сортировка. **GET — анонимно**, в ответе только строки с **`client_visible=true`**; полный список и **`catalog_scope":"full"`** — при JWT и праве **`change_calculatorhandleholediameter`** (у группы **«Редактор материалов»** права на всё приложение `materials` обновляются миграциями вроде **`0028_editor_perms_handle_hole_diameter`**). **PATCH** — JWT + model perms. |
+| `/api/facade-orders/`, `/{id}/` | GET, POST, PATCH | Заказы калькулятора (**`FacadeOrder`**, миграция **`0029_facade_orders`**). **POST** — **JWT**, multipart (**`pdf_file`**, **`snapshot`** строка JSON, контакты); создавать могут только **не staff / не superuser** (валидация в **`FacadeOrderCreateSerializer`**). **GET** list/retrieve — **JWT**; queryset: **свои** заказы у клиента, **все** у staff. **PATCH** — только **`IsAdminUser`**, поле **`status`** (`not_confirmed`, `confirmed`, `in_production`, `ready`, **`completed`**). В ответе: **`order_number`**, **`pdf_url`**, **`status_display`**, **`snapshot`**, **`client_username` / `client_email`** (для админки). |
 
 **Пагинация list:** `count`, `next`, `previous`, `results`. Для **`calculator-handle-hole-diameters`** в теле ответа также может быть **`catalog_scope`**: `full` \| `client`.
 
@@ -175,12 +180,18 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 - `AuthReadModelPermsWrite` — **только авторизованным** на чтение; запись по model permissions — используется для **`CalculatorProfileViewSet`**.
 - `MaterialViewSet` — `select_related`/`prefetch_related`; поиск `SearchFilter` по `name`, `article`, `fnp_name`.
 - `MaterialCategoryViewSet` — кастомный `list` для `?tree=1` и **`destroy`** с **каскадным** удалением материалов и поддерева категорий.
+- **`RegisterView`** (`user_admin_views.py`) — публичная регистрация: **`create_user(..., is_staff=False, is_superuser=False)`**; попытка передать **`is_staff`** или **`is_superuser`** как **`true`** в теле запроса → **400**; после создания при необходимости принудительный сброс флагов.
 - `MaterialSerializer` — `validate_article`, замена `related_items`/`operation_lines` в `create`/`update`, обработка `IntegrityError` по артикулу.
 - `CalculatorProfileViewSet` — профили калькулятора (профиль = `Material`) + «цвета профиля» (материалы).
 - `CalculatorProfileTypeViewSet` — типы профилей + цвета (материалы) + флаги и картинка; JSON и multipart/form-data.
 - `CalculatorFillingTypeViewSet` — типы наполнения + связанные материалы (шаг 4).
 - `CalculatorHingeTypeViewSet` — типы петель + связанные материалы (шаги 5–6); модели **`CalculatorHingeType`** / **`CalculatorHingeTypeMaterial`** (миграция **`0026_calculator_hinge_types`**, см. [PROGRESS](PROGRESS.md)).
 - `CalculatorHandleHoleDiameterViewSet` — справочник диаметров для шага 7; модель **`CalculatorHandleHoleDiameter`** (миграции **`0027_calculator_handle_hole_diameters`**, **`0028_editor_perms_handle_hole_diameter`**); в сериализаторе **`diameter_mm`** задаётся только при **создании**.
+- **`FacadeOrderViewSet`** — заказы шага 8: **`IsAuthenticated`** на list/create/retrieve; **`get_queryset`** фильтрует по **`user`** для не‑staff; **`partial_update`** — **`IsAdminUser`** + **`FacadeOrderStaffUpdateSerializer`** (**`status`**); **`create`** — **`FacadeOrderCreateSerializer`** (статус по умолчанию не подтверждён). Парсеры: multipart + JSON.
+
+### Модель `FacadeOrder` (кратко)
+
+- Поля: **`user`**, **`status`** (`TextChoices`: не подтверждён / подтверждён / в процессе сборки / готов к выдаче / **завершён**), контакты формы (**`contact_*`**), **`snapshot`** (JSONField), **`pdf_file`** (`FileField`, `facade_orders/pdf/%Y/%m/`), **`created_at` / `updated_at`**. Зарегистрирована в **`/admin/django/`**.
 
 ---
 
@@ -188,10 +199,12 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 | Модуль | Роль |
 |--------|------|
-| `App.tsx` | Маршруты: `/login`; защищённые `AdminApp` на `/materials/*`, `/calculator/*`, `/orders/*`; публичный **`/*`** → `PublicShell` + **`CalculatorPage variant="public"`**. |
-| `AdminApp.tsx` | Сетка материалов; калькулятор: **`CalculatorPage variant="admin"`**; вкладки по `useLocation`. |
+| `App.tsx` | `/login` (**`LoginRoute`**, **`safePostLoginTarget`**); **`AdminApp`** на `/materials/*`, `/calculator/*`, `/orders/*`, `/users/*` (**`AdminRoute`**); родитель **`/`** — **`PublicShell`** с вложенными маршрутами: индекс и **`*`** — **`CalculatorPage variant="public"`**, **`my-orders`**, **`guide`** → **`/`**. |
+| `PublicClientPages.tsx` | **`ClientMyOrdersPage`** (**`fetchFacadeOrders`**, статусы + **`HintButton`**), **`isPublicCalculatorRoute`**, **`PublicShellOutletContext`**. |
+| `AdminApp.tsx` | Шапка: **`admin-header-top`** + **`admin-section-tabs`**. Сетка материалов; калькулятор **`variant="admin"`**; вкладка **«Заказы»** — **`AdminOrdersPanel`**. |
+| `AdminOrdersPanel.tsx` | Таблица заказов и **`FtSelect`** статусов (**в т.ч. «Завершён»**), PDF; без колонки просмотра **`snapshot`**. |
 | `MaterialExtrasPanel.tsx` + **`MaterialExtrasPanel.css`** | Сопутствующие (колонка **«Масштаб»**: `quantity_scale`), операции: легенда **«Описание»** для `model_parameter`, чекбокс **«× фасад»** = `price_per_facade`, сетка колонок (в т.ч. узкая колонка «× фасад», `overflow-x`); предпросмотр без габаритов + текстовые подсказки к калькулятору. |
-| `api.ts` | `apiFetch` (Bearer при наличии токена) + методы API, в т.ч. CRUD helper’ы для **`calculator-handle-hole-diameters`**. |
+| `api.ts` | `apiFetch` (Bearer при наличии токена) + калькулятор и **`facade-orders`**: **`createFacadeOrder`**, **`fetchFacadeOrders`**, **`patchFacadeOrderStatus`**. |
 | `CalculatorPage.tsx` | Калькулятор: **`variant`**, **`CalcPathsProvider`**, маршруты шагов 1–8 (рамочный), вкладки, `frameCalcSession`; шаг **6** активен при **`isFrameStep4Ready()`** и **`isFrameMortiseHingeSelected()`**; сетка **`calc-body-with-totals`** + **`CalcPriceTotals`**; при выборе фасада на шаге 1 — **`clearFrameCalculatorStorage`**. На шаге 8 — класс **`calc-routes-wrap--step8`** на обёртке маршрутов. |
 | `calculator/calcPathsContext.tsx` | `step`, `home`, `readOnly`; нормализация пути для вкладок. |
 | `CalculatorPage.css` | Вкладки `.calc-step-tab`; **`.calc-side-panel`**; ширина карточки шага 1; **`.calc-body-with-totals`**, **`.calc-totals-*`** (панель итога). |
@@ -210,10 +223,10 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `calculator/Step6FrameHingeLayout.tsx` | Шаг 6: сторона, **до 10** отверстий, ввод расстояний **парами** (зеркально), дефолты **`defaultHingeAbsPositionsMm`** (равномерно по **L**), сброс **`writeHingeLayout(null)`** при смене стороны; превью с маркерами и цепочками **`.hinge-chain-dim`**; редирект на шаг 7, если **`!isFrameMortiseHingeSelected()`**. |
 | `calculator/Step7FrameHandleHoles.tsx` | Шаг 7: количество **0…10** (строка **`countStr`**, default **0**, blur на пустом → **0**); в админке при **`catalog_scope === 'full'`** — **`HandleHoleDiameterAdminSelect`**, иначе **`FtSelect`**; ориентация и сторона, межосевые; эскиз петель + **`.sketch-handle-pin`**; при **0** отверстий — габариты на эскизе как шаг 5 (**`useLayoutEffect`** для гидрации). |
 | `calculator/HandleHoleDiameterAdminSelect.tsx` | Админ: справочник диаметров (API **`calculator-handle-hole-diameters`**) — видимость для клиента, добавление/удаление размера. |
-| `calculator/Step8FrameResult.tsx` | Шаг 8 «Итог»: сводка, контакты (mailto), цена; парсинг габаритов с fallback **`FRAME_DEFAULT_*`**; блок раскладки петель в KV и mailto — только при присадке под петли; **«Открыть PDF…»** — **`buildFrameClientPdfBlob`** (в т.ч. **`includeHingeLayoutRow`**), открытие во вкладке через **`window.open('about:blank')`** и **`URL.createObjectURL`**; **`preloadFramePdfFont`** при монтировании. |
+| `calculator/Step8FrameResult.tsx` | Шаг 8: сводка, контакты, цена; **клиент** — **`createFacadeOrder`**, модалка для гостя, редирект **`/my-orders`**; **staff** — mailto; PDF — **`buildFrameClientPdfBlob`**; **`preloadFramePdfFont`**. |
 | `calculator/frameClientPdf.ts` | Многостраничный PDF (**jspdf**, **jspdf-autotable**); первая страница: строка «Раскладка петель» только если **`includeHingeLayoutRow`**; Noto Sans TTF — кэш base64 + **`addFileToVFS`** / **`addFont`** на каждый **`jsPDF`**; загрузка с **`/fonts/NotoSans-Regular.ttf`** или CDN. |
 | `calculator/Step2MdfFacade.tsx` / `Step2PvcFacade.tsx` | Заглушки шага 2 для МДФ/ПВХ. |
-| `index.css` / `App.css` / `AdminApp.css` | На **десктопе** (широкий экран) у `html/body` при админке — **без** вертикального скролла документа, скролл **внутри** колонок; центральная колонка — `flex` + скролл списка, низ с панелью **сопутствующих** у нижнего края. Для **`#admin-panel-calculator`** — высота/overflow вкладки калькулятора; на шаге 8 — прокрутка **`step8-result__scroll-pack`** в **`Step8FrameResult`**. |
+| `index.css` / `App.css` / `AdminApp.css` | На **десктопе** (≥1025px) у `html`/`body`/`#root` — **`overflow: hidden`**, **`max-height: 100dvh`**: скролл **внутри** колонок админки или в **`public-shell__main`** на клиентском сайте. Для **`#admin-panel-calculator`** — высота/overflow вкладки калькулятора; на шаге 8 в админке — **`step8-result__scroll-pack`**. |
 
 ### Папки (левая колонка)
 
@@ -274,7 +287,8 @@ Vite: прокси `/api` → `http://127.0.0.1:8000`.
 
 ## Стили (основные CSS-файлы)
 
-- `AdminApp.css` — сетка админки, дерево, `tree-gear-*`, `admin-modal-*`, список материалов, форма.
+- `AdminApp.css` — сетка админки, **`admin-header-top`**, **`admin-section-tabs`**, дерево, `tree-gear-*`, `admin-modal-*`, список материалов, форма, **`admin-orders-*`** (панель заказов).
+- `App.css` — **`public-shell__main`**, **`public-shell__section-tabs`**, шапка публичного сайта.
 - `CalculatorPage.css` — калькулятор: шаги-вкладки, **`.calc-side-panel`**, ширина шага 1, панель **`.calc-totals-*`**, модификатор **`calc-routes-wrap--step8`**.
 - `calculator/Step8FrameResult.css` — шаг 8: **`step8-result__scroll-pack`**, печать (`@media print`).
 - `calculator/Step2FrameFacade.css` — шаг 2 (рамочный): `frame2`, эскиз `.sketch*`, модалка.

@@ -8,14 +8,19 @@ import {
   deleteCategory,
   deleteMaterial,
   deleteMaterialClass,
+  deleteAdminUser,
+  fetchAdminUsers,
   fetchMaterial,
   fetchCategoryTree,
   fetchMaterialClasses,
   fetchMaterials,
   fetchUom,
+  patchAdminUserStaff,
   updateCategory,
   updateMaterial,
+  type AdminUserRow,
 } from './api'
+import { AdminOrdersPanel } from './AdminOrdersPanel'
 import type { Me } from './auth'
 import { ALTERNATIVE_CURRENCIES, BASE_CURRENCY } from './currencies'
 import {
@@ -28,7 +33,7 @@ import {
   normalizeDecimalForInput,
   normalizeDecimalOnBlur,
 } from './floatInput'
-import { FtSelect } from './FtSelect'
+import { FtSelect, type FtSelectOption } from './FtSelect'
 import { HintButton } from './HintButton'
 import { sortUomForSelect } from './uomSelectOrder'
 import {
@@ -321,6 +326,13 @@ const MAT_LIST_COLUMNS = [
   'Коэф',
 ] as const
 
+const ADMIN_USER_ROLE_OPTIONS: FtSelectOption[] = [
+  { value: 'user', label: 'Пользователь' },
+  { value: 'admin', label: 'Админ' },
+]
+
+const ADMIN_SUPERUSER_ROLE_OPTIONS: FtSelectOption[] = [{ value: 'super', label: 'Суперпользователь' }]
+
 function dashIfEmpty(s: string | undefined | null) {
   const t = (s ?? '').trim()
   return t ? t : '—'
@@ -339,10 +351,11 @@ function materialListCoeffPlaceholder() {
 export function AdminApp({ user, onLogout }: AdminProps) {
   const nav = useNavigate()
   const loc = useLocation()
-  const section: 'materials' | 'orders' | 'calculator' = (() => {
+  const section: 'materials' | 'orders' | 'calculator' | 'users' = (() => {
     const p = (loc.pathname || '/materials').toLowerCase()
     if (p.startsWith('/calculator')) return 'calculator'
     if (p.startsWith('/orders')) return 'orders'
+    if (p.startsWith('/users')) return 'users'
     return 'materials'
   })()
   const [tree, setTree] = useState<MaterialCategory[]>([])
@@ -357,6 +370,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [matExtraHost, setMatExtraHost] = useState<HTMLDivElement | null>(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [folderDeleteModal, setFolderDeleteModal] = useState<MaterialCategory | null>(null)
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false)
+  const [adminUsersErr, setAdminUsersErr] = useState<string | null>(null)
+  const [staffTogglePending, setStaffTogglePending] = useState<number | null>(null)
+  const [userDeleteModal, setUserDeleteModal] = useState<AdminUserRow | null>(null)
 
   const reloadTree = useCallback(() => {
     return fetchCategoryTree()
@@ -484,49 +502,71 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     return () => document.removeEventListener('keydown', onKey)
   }, [folderDeleteModal])
 
+  useEffect(() => {
+    if (section !== 'users') return
+    let cancelled = false
+    setAdminUsersLoading(true)
+    setAdminUsersErr(null)
+    fetchAdminUsers()
+      .then((rows) => {
+        if (!cancelled) setAdminUsers(rows)
+      })
+      .catch((e) => {
+        if (!cancelled) setAdminUsersErr(String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setAdminUsersLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [section])
+
+  const setStaffFlag = useCallback((id: number, next: boolean) => {
+    setAdminUsersErr(null)
+    setStaffTogglePending(id)
+    patchAdminUserStaff(id, next)
+      .then((row) => {
+        setAdminUsers((prev) => prev.map((u) => (u.id === row.id ? row : u)))
+      })
+      .catch((e) => setAdminUsersErr(String(e)))
+      .finally(() => setStaffTogglePending(null))
+  }, [])
+
+  const cancelDeleteUser = useCallback(() => {
+    setUserDeleteModal(null)
+  }, [])
+
+  const confirmDeleteUser = useCallback(() => {
+    const row = userDeleteModal
+    if (!row) return
+    setUserDeleteModal(null)
+    setAdminUsersErr(null)
+    deleteAdminUser(row.id)
+      .then(() => {
+        setAdminUsers((prev) => prev.filter((u) => u.id !== row.id))
+      })
+      .catch((e) => setAdminUsersErr(String(e)))
+  }, [userDeleteModal])
+
+  useEffect(() => {
+    if (!userDeleteModal) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setUserDeleteModal(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [userDeleteModal])
+
   return (
     <>
     <div className="admin">
       <header className="admin-header">
-        <div className="admin-header-row">
-          <div>
-            <div className="admin-brand">Фурнитех</div>
-            <div className="admin-tabs" role="tablist" aria-label="Разделы админки">
-              <button
-                type="button"
-                role="tab"
-                className={section === 'materials' ? 'admin-tab admin-tab--active' : 'admin-tab'}
-                aria-selected={section === 'materials'}
-                aria-controls="admin-panel-materials"
-                id="admin-tab-materials"
-                onClick={() => nav('/materials')}
-              >
-                Материалы
-              </button>
-              <button
-                type="button"
-                role="tab"
-                className={section === 'calculator' ? 'admin-tab admin-tab--active' : 'admin-tab'}
-                aria-selected={section === 'calculator'}
-                aria-controls="admin-panel-calculator"
-                id="admin-tab-calculator"
-                onClick={() => nav('/calculator')}
-              >
-                Калькулятор
-              </button>
-              <button
-                type="button"
-                role="tab"
-                className={section === 'orders' ? 'admin-tab admin-tab--active' : 'admin-tab'}
-                aria-selected={section === 'orders'}
-                aria-controls="admin-panel-orders"
-                id="admin-tab-orders"
-                onClick={() => nav('/orders')}
-              >
-                Заказы
-              </button>
-            </div>
-          </div>
+        <div className="admin-header-top">
+          <div className="admin-brand">Фурнитех</div>
           <div className="admin-user">
             <span className="admin-user-email" title={user.username}>
               {user.email || user.username}
@@ -536,6 +576,56 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             </button>
           </div>
         </div>
+        <nav className="admin-section-tabs" role="tablist" aria-label="Разделы админки">
+          <button
+            type="button"
+            role="tab"
+            className={
+              section === 'materials' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
+            }
+            aria-selected={section === 'materials'}
+            aria-controls="admin-panel-materials"
+            id="admin-tab-materials"
+            onClick={() => nav('/materials')}
+          >
+            Материалы
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={
+              section === 'calculator' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
+            }
+            aria-selected={section === 'calculator'}
+            aria-controls="admin-panel-calculator"
+            id="admin-tab-calculator"
+            onClick={() => nav('/calculator')}
+          >
+            Калькулятор
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={section === 'orders' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
+            aria-selected={section === 'orders'}
+            aria-controls="admin-panel-orders"
+            id="admin-tab-orders"
+            onClick={() => nav('/orders')}
+          >
+            Заказы
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={section === 'users' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
+            aria-selected={section === 'users'}
+            aria-controls="admin-panel-users"
+            id="admin-tab-users"
+            onClick={() => nav('/users')}
+          >
+            Пользователи
+          </button>
+        </nav>
       </header>
       {err && <div className="admin-error">{err}</div>}
       {loading && <p className="admin-muted admin-initial-state">Загрузка…</p>}
@@ -686,16 +776,87 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             <CalculatorPage variant="admin" />
           </div>
         </div>
-      ) : (
+      ) : section === 'orders' ? (
         <div className="admin-body" id="admin-panel-orders" role="tabpanel" aria-labelledby="admin-tab-orders">
-          <div className="admin-orders-placeholder">
+          <div className="admin-orders-placeholder admin-orders-placeholder--filled">
+            <AdminOrdersPanel />
+          </div>
+        </div>
+      ) : (
+        <div className="admin-body" id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users">
+          <div className="admin-orders-placeholder admin-users-page">
             <div className="admin-heading-row">
-              <h2 className="admin-h2">Заказы</h2>
-              <HintButton text="Здесь будут будущие заказы от клиентов, собранные в калькуляторе. Раздел пока в разработке." />
+              <h2 className="admin-h2">Пользователи</h2>
+              <HintButton text="В колонке «Роль» — «Пользователь» или «Админ». «Удалить» убирает учётную запись (нельзя удалить себя или суперпользователя)." />
             </div>
-            <p className="admin-muted">
-              Раздел «Заказы» пока не реализован. Здесь появится список заказов, статусы и детали заказа.
-            </p>
+            {adminUsersErr && <div className="admin-error admin-error--compact">{adminUsersErr}</div>}
+            {adminUsersLoading ? (
+              <p className="admin-muted">Загрузка списка пользователей…</p>
+            ) : (
+              <div className="admin-users-table-wrap">
+                <table className="admin-users-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Логин</th>
+                      <th scope="col">Email</th>
+                      <th scope="col">Роль</th>
+                      <th scope="col" className="admin-users-actions-th">
+                        Действия
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td>
+                          {u.username}
+                          {u.is_superuser ? (
+                            <span className="admin-users-badge" title="Суперпользователь (сервер)">
+                              супер
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="admin-users-email">{u.email || '—'}</td>
+                        <td className="admin-users-role-cell">
+                          {u.is_superuser ? (
+                            <FtSelect
+                              className="admin-users-role-ft"
+                              value="super"
+                              onChange={() => {}}
+                              options={ADMIN_SUPERUSER_ROLE_OPTIONS}
+                              disabled
+                              aria-label={`Роль ${u.username}: суперпользователь`}
+                            />
+                          ) : (
+                            <FtSelect
+                              className="admin-users-role-ft"
+                              value={u.is_staff ? 'admin' : 'user'}
+                              onChange={(v) => setStaffFlag(u.id, v === 'admin')}
+                              options={ADMIN_USER_ROLE_OPTIONS}
+                              disabled={staffTogglePending === u.id}
+                              aria-label={`Роль для ${u.username}`}
+                            />
+                          )}
+                        </td>
+                        <td className="admin-users-actions-cell">
+                          {u.is_superuser || u.id === user.id ? (
+                            <span className="admin-muted">—</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="admin-secondary admin-secondary--sm admin-danger"
+                              onClick={() => setUserDeleteModal(u)}
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -736,6 +897,36 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 className="admin-primary admin-modal-confirm"
                 onClick={confirmDeleteFolder}
               >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    {userDeleteModal &&
+      createPortal(
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-delete-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancelDeleteUser()
+          }}
+        >
+          <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+            <h4 id="user-delete-title" className="admin-modal-title">
+              Удалить пользователя?
+            </h4>
+            <p className="admin-modal-text">
+              Учётная запись «{userDeleteModal.username}» будет удалена безвозвратно. Продолжить?
+            </p>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-secondary" onClick={cancelDeleteUser}>
+                Отмена
+              </button>
+              <button type="button" className="admin-primary admin-modal-confirm" onClick={confirmDeleteUser}>
                 Удалить
               </button>
             </div>

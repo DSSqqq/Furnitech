@@ -14,6 +14,7 @@ from .models import (
     CalculatorProfileColor,
     CalculatorProfileType,
     CalculatorProfileTypeColor,
+    FacadeOrder,
     Material,
     MaterialAlternativePrice,
     MaterialCategory,
@@ -770,3 +771,86 @@ class CalculatorHandleHoleDiameterSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop("diameter_mm", None)
         return super().update(instance, validated_data)
+
+
+class FacadeOrderSerializer(serializers.ModelSerializer):
+    order_number = serializers.SerializerMethodField()
+    client_username = serializers.CharField(source="user.username", read_only=True)
+    client_email = serializers.SerializerMethodField()
+    pdf_url = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = FacadeOrder
+        fields = (
+            "id",
+            "order_number",
+            "status",
+            "status_display",
+            "client_username",
+            "client_email",
+            "contact_name",
+            "contact_phone",
+            "contact_email",
+            "contact_comment",
+            "snapshot",
+            "pdf_url",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_order_number(self, obj: FacadeOrder) -> str:
+        return f"З-{obj.pk:06d}"
+
+    def get_client_email(self, obj: FacadeOrder) -> str:
+        return (obj.user.email or "").strip()
+
+    def get_pdf_url(self, obj: FacadeOrder) -> str | None:
+        request = self.context.get("request")
+        if obj.pdf_file and request:
+            return request.build_absolute_uri(obj.pdf_file.url)
+        return None
+
+
+class FacadeOrderCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FacadeOrder
+        fields = (
+            "contact_name",
+            "contact_phone",
+            "contact_email",
+            "contact_comment",
+            "snapshot",
+            "pdf_file",
+        )
+
+    def validate(self, attrs):
+        req = self.context["request"]
+        if not req.user.is_authenticated:
+            raise serializers.ValidationError("Требуется вход.")
+        if req.user.is_staff or req.user.is_superuser:
+            raise serializers.ValidationError(
+                {
+                    "detail": "Оформление заказа доступно клиентским учётным записям. "
+                    "Отправьте заявку с сайта под логином клиента или воспользуйтесь почтой из админского калькулятора."
+                }
+            )
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["user"] = self.context["request"].user
+        validated_data["status"] = FacadeOrder.Status.NOT_CONFIRMED
+        return super().create(validated_data)
+
+
+class FacadeOrderStaffUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FacadeOrder
+        fields = ("status",)
+
+    def validate_status(self, value: str) -> str:
+        valid = {c.value for c in FacadeOrder.Status}
+        if value not in valid:
+            raise serializers.ValidationError("Недопустимый статус.")
+        return value

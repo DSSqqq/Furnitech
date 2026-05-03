@@ -6,6 +6,7 @@ from .models import (
     CalculatorHandleHoleDiameter,
     CalculatorHingeType,
     CalculatorHingeTypeMaterial,
+    FacadeOrder,
     Material,
     MaterialAlternativePrice,
     MaterialCategory,
@@ -101,3 +102,12 @@ class CalculatorHandleHoleDiameterAdmin(admin.ModelAdmin):
     list_display = ("diameter_mm", "client_visible", "sort_order")
     list_filter = ("client_visible",)
     ordering = ("sort_order", "diameter_mm")
+
+
+@admin.register(FacadeOrder)
+class FacadeOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "status", "contact_phone", "contact_email", "created_at")
+    list_filter = ("status",)
+    search_fields = ("contact_name", "contact_phone", "contact_email", "user__username")
+    raw_id_fields = ("user",)
+    readonly_fields = ("created_at", "updated_at")

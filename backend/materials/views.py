@@ -5,6 +5,7 @@ from rest_framework.permissions import (
     SAFE_METHODS,
     BasePermission,
     DjangoModelPermissions,
+    IsAdminUser,
     IsAuthenticated,
 )
 from rest_framework.response import Response
@@ -15,6 +16,7 @@ from .models import (
     CalculatorHingeType,
     CalculatorProfile,
     CalculatorProfileType,
+    FacadeOrder,
     Material,
     MaterialCategory,
     MaterialClass,
@@ -26,6 +28,9 @@ from .serializers import (
     CalculatorHingeTypeSerializer,
     CalculatorProfileSerializer,
     CalculatorProfileTypeSerializer,
+    FacadeOrderCreateSerializer,
+    FacadeOrderSerializer,
+    FacadeOrderStaffUpdateSerializer,
     MaterialCategorySerializer,
     MaterialClassSerializer,
     MaterialSerializer,
@@ -201,3 +206,47 @@ class CalculatorHandleHoleDiameterViewSet(viewsets.ModelViewSet):
             else:
                 data["catalog_scope"] = "client"
         return response
+
+
+class FacadeOrderViewSet(viewsets.ModelViewSet):
+    """Заказы калькулятора: создаёт клиент (multipart PDF + snapshot); список — свои; сотрудник — все; PATCH статуса — только staff."""
+
+    queryset = FacadeOrder.objects.all().select_related("user").order_by("-created_at")
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.action in ("partial_update", "update"):
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        u = self.request.user
+        if u.is_staff or u.is_superuser:
+            return qs
+        return qs.filter(user=u)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return FacadeOrderCreateSerializer
+        return FacadeOrderSerializer
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        ser = FacadeOrderStaffUpdateSerializer(
+            instance,
+            data=request.data,
+            partial=True,
+            context=self.get_serializer_context(),
+        )
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        instance.refresh_from_db()
+        return Response(FacadeOrderSerializer(instance, context=self.get_serializer_context()).data)

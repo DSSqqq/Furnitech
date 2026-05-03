@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from materials.auth_views import MeView
+from materials.user_admin_views import AdminUserListView, AdminUserStaffView, RegisterView
 
 urlpatterns = [
     path("admin/django/", admin.site.urls),
@@ -20,6 +21,9 @@ urlpatterns = [
         name="token_refresh",
     ),
     path("api/auth/me/", MeView.as_view(), name="auth_me"),
+    path("api/auth/register/", RegisterView.as_view(), name="auth_register"),
+    path("api/auth/admin-users/", AdminUserListView.as_view(), name="auth_admin_users"),
+    path("api/auth/admin-users/<int:pk>/", AdminUserStaffView.as_view(), name="auth_admin_user_staff"),
     path("api/", include("materials.urls")),
 ]
 

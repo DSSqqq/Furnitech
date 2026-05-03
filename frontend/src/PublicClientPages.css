@@ -1,0 +1,133 @@
+.public-page {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 1.25rem 1.25rem 2rem;
+  color: var(--ft-text);
+}
+
+.public-page__inner {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+.public-page__title {
+  font-family: var(--ft-font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--ft-accent-2);
+}
+
+.public-page__lead {
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+  opacity: 0.92;
+  max-width: 40rem;
+}
+
+.public-page__muted {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.public-page__cta {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--ft-accent-2);
+  border: 1px solid rgba(203, 176, 121, 0.4);
+  background: rgba(203, 176, 121, 0.1);
+}
+
+.public-page__cta:hover {
+  background: rgba(203, 176, 121, 0.16);
+}
+
+.public-page__cta--secondary {
+  margin-top: 0.75rem;
+}
+
+.public-orders-error {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.9rem;
+}
+
+.public-orders-list {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.public-orders-card {
+  padding: 1rem 1.1rem;
+  border-radius: var(--ft-radius-md, 12px);
+  border: 1px solid var(--ft-border);
+  background: var(--ft-surface, rgba(12, 12, 14, 0.72));
+  box-shadow: var(--ft-shadow-1, 0 4px 24px rgba(0, 0, 0, 0.2));
+}
+
+.public-orders-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.public-orders-card__num {
+  font-family: var(--ft-font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ft-accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.public-orders-card__status-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: min(22rem, 100%);
+}
+
+.public-orders-card__status {
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--ft-text);
+  opacity: 0.95;
+  text-align: right;
+}
+
+.public-orders-card__date {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 0.82rem;
+  color: var(--ft-muted);
+}
+
+.public-orders-card__pdf {
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ft-accent, #e8a23e);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.public-orders-card__pdf:hover {
+  opacity: 0.92;
+}

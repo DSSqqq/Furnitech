@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { createFacadeOrder, fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import { fetchMe, hasValidSession } from '../auth'
 import { BASE_CURRENCY } from '../currencies'
 import type { Material } from '../types'
 import { formatNumberForUi } from '../floatInput'
@@ -49,9 +51,16 @@ function sideLabel(s: HingeMountSide): string {
   return m[s] ?? s
 }
 
+function isValidClientEmail(raw: string): boolean {
+  const t = raw.trim()
+  if (!t.includes('@')) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)
+}
+
 export function Step8FrameResult() {
   const nav = useNavigate()
-  const { step, home } = useCalcPaths()
+  const loc = useLocation()
+  const { step, home, readOnly } = useCalcPaths()
 
   useEffect(() => {
     if (!isFrameStep2Ready()) nav(step('frame'), { replace: true })
@@ -108,7 +117,42 @@ export function Step8FrameResult() {
   const [contactEmail, setContactEmail] = useState('')
   const [contactComment, setContactComment] = useState('')
   const [sendHint, setSendHint] = useState<string | null>(null)
+  const [authWallModalOpen, setAuthWallModalOpen] = useState(false)
+  const [submitBusy, setSubmitBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  /** На публичном сайте сотрудник может отправить почту без обязательных полей клиента. */
+  const [staffOnSession, setStaffOnSession] = useState(false)
+
+  const returnAfterAuthPath = `${loc.pathname}${loc.search}`
+
+  const clientContactComplete = useMemo(() => {
+    const name = contactName.trim()
+    const phone = contactPhone.trim()
+    const email = contactEmail.trim()
+    return Boolean(name && phone && isValidClientEmail(email))
+  }, [contactName, contactPhone, contactEmail])
+
+  const submitToManagerDisabled =
+    submitBusy || (readOnly && !staffOnSession && !clientContactComplete)
+
+  useEffect(() => {
+    let cancel = false
+    void fetchMe().then((m) => {
+      if (!cancel && m) setStaffOnSession(m.is_staff || m.is_superuser)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authWallModalOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAuthWallModalOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [authWallModalOpen])
 
   useEffect(() => {
     void preloadFramePdfFont()
@@ -252,28 +296,68 @@ export function Step8FrameResult() {
     return lines.join('\n')
   }
 
-  function onSubmitManager(e: FormEvent) {
+  async function onSubmitManager(e: FormEvent) {
     e.preventDefault()
     setSendHint(null)
-    const subject = encodeURIComponent('Заявка по калькулятору фасада')
-    const body = encodeURIComponent(
-      [
-        `Имя: ${contactName.trim() || '—'}`,
-        `Телефон: ${contactPhone.trim() || '—'}`,
-        `Email: ${contactEmail.trim() || '—'}`,
-        '',
-        contactComment.trim() || '—',
-        '',
-        '---',
-        buildPlainSummary(),
-      ].join('\n'),
-    )
-    const mail = contactEmail.trim()
-    const href = mail.includes('@')
-      ? `mailto:${mail}?subject=${subject}&body=${body}`
-      : `mailto:?subject=${subject}&body=${body}`
-    window.location.href = href
-    setSendHint('Если почтовый клиент не открылся, скопируйте текст заявки вручную.')
+    setAuthWallModalOpen(false)
+    const sessionOk = await hasValidSession()
+    if (!sessionOk) {
+      setAuthWallModalOpen(true)
+      return
+    }
+    const me = await fetchMe()
+    if (!me) {
+      setAuthWallModalOpen(true)
+      return
+    }
+    if (me.is_staff || me.is_superuser) {
+      const subject = encodeURIComponent('Заявка по калькулятору фасада')
+      const body = encodeURIComponent(
+        [
+          `Имя: ${contactName.trim() || '—'}`,
+          `Телефон: ${contactPhone.trim() || '—'}`,
+          `Email: ${contactEmail.trim() || '—'}`,
+          '',
+          contactComment.trim() || '—',
+          '',
+          '---',
+          buildPlainSummary(),
+        ].join('\n'),
+      )
+      const mail = contactEmail.trim()
+      const href = mail.includes('@')
+        ? `mailto:${mail}?subject=${subject}&body=${body}`
+        : `mailto:?subject=${subject}&body=${body}`
+      window.location.href = href
+      setSendHint('Если почтовый клиент не открылся, скопируйте текст заявки вручную.')
+      return
+    }
+
+    if (!clientContactComplete) {
+      setSendHint('Укажите имя, телефон и email — без них заявку нельзя отправить менеджеру.')
+      return
+    }
+
+    setSubmitBusy(true)
+    try {
+      const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
+      const fd = new FormData()
+      fd.append(
+        'pdf_file',
+        new File([blob], 'furnitech-raschet.pdf', { type: 'application/pdf' }),
+      )
+      fd.append('contact_name', contactName.trim())
+      fd.append('contact_phone', contactPhone.trim())
+      fd.append('contact_email', contactEmail.trim())
+      fd.append('contact_comment', contactComment.trim())
+      fd.append('snapshot', JSON.stringify(buildOrderSnapshot()))
+      await createFacadeOrder(fd)
+      nav('/my-orders', { replace: true })
+    } catch (err) {
+      setSendHint(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSubmitBusy(false)
+    }
   }
 
   function pdfInputPayload() {
@@ -305,6 +389,41 @@ export function Step8FrameResult() {
       hingeLayout,
       includeHingeLayoutRow: parsed.mortiseMode === 'hinge',
       handleHoles,
+    }
+  }
+
+  function buildOrderSnapshot(): Record<string, unknown> {
+    const p = pdfInputPayload()
+    return {
+      contact: p.contact,
+      frameTypeName: p.frameTypeName,
+      colorMaterial: p.colorMaterial
+        ? {
+            id: p.colorMaterial.id,
+            name: p.colorMaterial.name,
+            article: p.colorMaterial.article,
+          }
+        : null,
+      fillingMaterial: p.fillingMaterial
+        ? {
+            id: p.fillingMaterial.id,
+            name: p.fillingMaterial.name,
+            article: p.fillingMaterial.article,
+          }
+        : null,
+      heightMm: p.heightMm,
+      widthMm: p.widthMm,
+      facadeCount: p.facadeCount,
+      mortiseLine: p.mortiseLine,
+      hingeLayoutLine: p.hingeLayoutLine,
+      handleLine: p.handleLine,
+      breakdown: p.breakdown,
+      currency: p.currency,
+      currencyMismatch: p.currencyMismatch,
+      hingeLayout: p.hingeLayout,
+      includeHingeLayoutRow: p.includeHingeLayoutRow,
+      handleHoles: p.handleHoles,
+      plainSummary: buildPlainSummary(),
     }
   }
 
@@ -348,7 +467,12 @@ export function Step8FrameResult() {
     nav(home, { replace: true })
   }
 
+  function closeAuthWallModal() {
+    setAuthWallModalOpen(false)
+  }
+
   return (
+    <>
     <div className="frame2 step8-result">
       <section className="step8-result__contact frame2-card">
         <p className="frame3-step-kicker step8-result__kicker">Шаг 8</p>
@@ -360,16 +484,23 @@ export function Step8FrameResult() {
         <form className="step8-form" onSubmit={onSubmitManager}>
           <div className="step8-form__head">Контактные данные</div>
           <label className="frame3-field">
-            <span className="frame3-label">Ваше имя</span>
+            <span className="frame3-label">
+              Ваше имя
+              {readOnly && !staffOnSession ? <span className="step8-form__req"> *</span> : null}
+            </span>
             <input
               className="admin-input"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
               autoComplete="name"
+              required={readOnly && !staffOnSession}
             />
           </label>
           <label className="frame3-field">
-            <span className="frame3-label">Телефон</span>
+            <span className="frame3-label">
+              Телефон
+              {readOnly && !staffOnSession ? <span className="step8-form__req"> *</span> : null}
+            </span>
             <input
               className="admin-input"
               value={contactPhone}
@@ -377,10 +508,14 @@ export function Step8FrameResult() {
               placeholder="+7 (___) ___-__-__"
               inputMode="tel"
               autoComplete="tel"
+              required={readOnly && !staffOnSession}
             />
           </label>
           <label className="frame3-field">
-            <span className="frame3-label">Email</span>
+            <span className="frame3-label">
+              Email
+              {readOnly && !staffOnSession ? <span className="step8-form__req"> *</span> : null}
+            </span>
             <input
               className="admin-input"
               type="email"
@@ -388,6 +523,7 @@ export function Step8FrameResult() {
               onChange={(e) => setContactEmail(e.target.value)}
               placeholder="primer@gmail.com"
               autoComplete="email"
+              required={readOnly && !staffOnSession}
             />
           </label>
           <label className="frame3-field frame3-field--wide">
@@ -401,8 +537,12 @@ export function Step8FrameResult() {
           </label>
           {sendHint ? <p className="step8-form__hint">{sendHint}</p> : null}
           <div className="step8-form__actions">
-            <button type="submit" className="admin-primary step8-form__submit">
-              Отправить менеджеру
+            <button
+              type="submit"
+              className="admin-primary step8-form__submit"
+              disabled={submitToManagerDisabled}
+            >
+              {submitBusy ? 'Отправка…' : 'Отправить менеджеру'}
             </button>
             <button
               type="button"
@@ -521,6 +661,57 @@ export function Step8FrameResult() {
         </div>
       </section>
     </div>
+    {authWallModalOpen
+      ? createPortal(
+          <div
+            className="admin-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="step8-auth-wall-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeAuthWallModal()
+            }}
+          >
+            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+              <h4 id="step8-auth-wall-title" className="admin-modal-title">
+                Войти или зарегистрироваться
+              </h4>
+              <p className="admin-modal-text">
+                Чтобы отправить заявку менеджеру и получить заказ в «Мои заказы», нужен аккаунт клиента.
+                Войдите или зарегистрируйтесь — после входа вернитесь к этому шагу и нажмите «Отправить
+                менеджеру» снова.
+              </p>
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-secondary" onClick={closeAuthWallModal}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={() => {
+                    closeAuthWallModal()
+                    nav('/register', { state: { from: returnAfterAuthPath } })
+                  }}
+                >
+                  Регистрация
+                </button>
+                <button
+                  type="button"
+                  className="admin-primary"
+                  onClick={() => {
+                    closeAuthWallModal()
+                    nav('/login', { state: { from: returnAfterAuthPath } })
+                  }}
+                >
+                  Войти
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
+    </>
   )
 }
 

@@ -396,3 +396,81 @@ export function deleteCalculatorHingeType(id: number) {
     if (!r.ok) await parseJsonError(r)
   })
 }
+
+export type AdminUserRow = {
+  id: number
+  username: string
+  email: string
+  is_staff: boolean
+  is_superuser: boolean
+}
+
+export function fetchAdminUsers() {
+  return apiFetch('/api/auth/admin-users/').then((r) => json<AdminUserRow[]>(r))
+}
+
+export function patchAdminUserStaff(id: number, is_staff: boolean) {
+  return apiFetch(`/api/auth/admin-users/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_staff }),
+  }).then((r) => json<AdminUserRow>(r))
+}
+
+export function deleteAdminUser(id: number) {
+  return apiFetch(`/api/auth/admin-users/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+export type FacadeOrderStatus =
+  | 'not_confirmed'
+  | 'confirmed'
+  | 'in_production'
+  | 'ready'
+  | 'completed'
+
+export type FacadeOrder = {
+  id: number
+  order_number: string
+  status: FacadeOrderStatus
+  status_display: string
+  client_username: string
+  client_email: string
+  contact_name: string
+  contact_phone: string
+  contact_email: string
+  contact_comment: string
+  snapshot: Record<string, unknown>
+  pdf_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export function fetchFacadeOrders() {
+  return apiFetch('/api/facade-orders/').then((r) => json<{ results: FacadeOrder[] }>(r))
+}
+
+export function createFacadeOrder(formData: FormData) {
+  return apiFetch('/api/facade-orders/', {
+    method: 'POST',
+    body: formData,
+  }).then((r) => json<FacadeOrder>(r))
+}
+
+export function patchFacadeOrderStatus(id: number, status: FacadeOrderStatus) {
+  return apiFetch(`/api/facade-orders/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }).then((r) => json<FacadeOrder>(r))
+}
+
+/** Публичная регистрация (без JWT). */
+export async function registerAccount(body: { username: string; password: string; email?: string }) {
+  const r = await fetch('/api/auth/register/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) await parseJsonError(r)
+  return (await r.json()) as { detail?: string }
+}

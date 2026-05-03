@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -714,3 +715,47 @@ class CalculatorHandleHoleDiameter(models.Model):
 
     def __str__(self) -> str:
         return f"{self.diameter_mm} мм"
+
+
+class FacadeOrder(models.Model):
+    """Заказ из калькулятора рамочного фасада: контакты, снимок расчёта, PDF, статус для менеджера."""
+
+    class Status(models.TextChoices):
+        NOT_CONFIRMED = (
+            "not_confirmed",
+            "Не подтверждён (менеджер свяжется с клиентом)",
+        )
+        CONFIRMED = "confirmed", "Подтверждён"
+        IN_PRODUCTION = "in_production", "В процессе сборки"
+        READY = "ready", "Готов к выдаче"
+        COMPLETED = "completed", "Завершён"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="facade_orders",
+        verbose_name="Клиент",
+    )
+    status = models.CharField(
+        "Статус",
+        max_length=32,
+        choices=Status.choices,
+        default=Status.NOT_CONFIRMED,
+        db_index=True,
+    )
+    contact_name = models.CharField("Имя в заявке", max_length=255, blank=True)
+    contact_phone = models.CharField("Телефон", max_length=64, blank=True)
+    contact_email = models.EmailField("Email в заявке", blank=True)
+    contact_comment = models.TextField("Комментарий", blank=True)
+    snapshot = models.JSONField("Снимок калькулятора", default=dict)
+    pdf_file = models.FileField("PDF расчёта", upload_to="facade_orders/pdf/%Y/%m/")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Заказ (фасад, калькулятор)"
+        verbose_name_plural = "Заказы (фасады, калькулятор)"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Заказ #{self.pk} — {self.user_id}"
