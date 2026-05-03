@@ -225,9 +225,12 @@ function CalcPriceTotalsActive() {
 type Props = {
   /** Не показывать расчёт на ранних шагах (например, шаг 1 и 2). */
   hideTotals: boolean
+  /** Полностью скрыть колонку (например, шаг «Итог» со своей таблицей цен). */
+  blankAside?: boolean
 }
 
-export function CalcPriceTotals({ hideTotals }: Props) {
+export function CalcPriceTotals({ hideTotals, blankAside }: Props) {
+  if (blankAside) return null
   if (hideTotals) {
     return (
       <aside className="calc-totals-aside" aria-label="Итого по калькулятору">

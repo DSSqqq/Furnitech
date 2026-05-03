@@ -131,6 +131,120 @@
   min-height: 0;
 }
 
+/* Вкладка «Калькулятор»: шаг (в т.ч. итог) не вылезает за панель — прокрутка внутри */
+@media (min-width: 1025px) {
+  #admin-panel-calculator .admin-orders-placeholder {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #admin-panel-calculator .calc {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #admin-panel-calculator .calc-head {
+    flex-shrink: 0;
+  }
+
+  #admin-panel-calculator .calc-body-with-totals {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  #admin-panel-calculator .calc-main-column {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #admin-panel-calculator .calc-totals-aside {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  #admin-panel-calculator .calc-routes-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* Шаг 8: без прокрутки всей области маршрута — скролл только в правой колонке Step8 */
+  /* Шаг 8: без прокрутки всего маршрута — высота задаётся цепочкой flex, скролл в Step8 */
+  #admin-panel-calculator .calc-routes-wrap--step8 {
+    overflow: hidden;
+    overscroll-behavior: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #admin-panel-calculator .calc-routes-wrap--step8 .calc-routes-inner,
+  #admin-panel-calculator .calc-routes-wrap--step8 .calc-routes-step {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8.calc-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .calc-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .calc-card > .calc-card-title-row {
+    flex-shrink: 0;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .frame2.step8-result {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .step8-result__contact {
+    max-height: none;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .step8-result__details {
+    max-height: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  #admin-panel-calculator #calc-step-panel-8 .step8-result__scroll-pack {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+}
+
 .admin-error {
   margin: 0.75rem 1.5rem;
   padding: 0.6rem 0.75rem;

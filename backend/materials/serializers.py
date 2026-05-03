@@ -7,6 +7,9 @@ from rest_framework import serializers
 from .models import (
     CalculatorFillingType,
     CalculatorFillingTypeMaterial,
+    CalculatorHandleHoleDiameter,
+    CalculatorHingeType,
+    CalculatorHingeTypeMaterial,
     CalculatorProfile,
     CalculatorProfileColor,
     CalculatorProfileType,
@@ -678,3 +681,92 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
         if materials is not None:
             self._replace_materials(filling_type, materials)
         return filling_type
+
+
+class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
+    materials = serializers.SerializerMethodField(read_only=True)
+    card_image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = CalculatorHingeType
+        fields = (
+            "id",
+            "name",
+            "image_url",
+            "card_image",
+            "is_active",
+            "sort_order",
+            "materials",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_materials(self, obj: CalculatorHingeType) -> list:
+        if not obj.pk:
+            return []
+        out = []
+        for x in obj.materials.all().select_related("material", "material__uom"):
+            out.append(
+                {
+                    "id": x.id,
+                    "material_id": x.material_id,
+                    "material": MaterialSummarySerializer(x.material).data,
+                }
+            )
+        return out
+
+    def _replace_materials(self, hinge_type: CalculatorHingeType, rows: list) -> None:
+        for row in rows:
+            if not isinstance(row, dict):
+                raise serializers.ValidationError({"materials": "Каждая строка — объект."})
+        hinge_type.materials.all().delete()
+        for i, row in enumerate(rows):
+            mid = row.get("material_id")
+            if mid is None or mid == "":
+                raise serializers.ValidationError({"materials": "Нужен material_id."})
+            CalculatorHingeTypeMaterial.objects.create(
+                hinge_type=hinge_type,
+                material_id=int(mid),
+                sort_order=i,
+            )
+
+    def create(self, validated_data):
+        materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
+        if materials is None:
+            materials = []
+        hinge_type = super().create(validated_data)
+        self._replace_materials(hinge_type, materials)
+        return hinge_type
+
+    def update(self, instance, validated_data):
+        materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
+        hinge_type = super().update(instance, validated_data)
+        if materials is not None:
+            self._replace_materials(hinge_type, materials)
+        return hinge_type
+
+
+class CalculatorHandleHoleDiameterSerializer(serializers.ModelSerializer):
+    """При создании можно задать diameter_mm; после сохранения менять диаметр нельзя."""
+
+    class Meta:
+        model = CalculatorHandleHoleDiameter
+        fields = (
+            "id",
+            "diameter_mm",
+            "client_visible",
+            "sort_order",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if getattr(self, "instance", None) is not None:
+            self.fields["diameter_mm"].read_only = True
+
+    def update(self, instance, validated_data):
+        validated_data.pop("diameter_mm", None)
+        return super().update(instance, validated_data)

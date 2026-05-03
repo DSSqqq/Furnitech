@@ -198,3 +198,27 @@ export type CalculatorFillingType = {
   created_at: string
   updated_at: string
 }
+
+/** Каталог петель (шаг присадки): та же форма, что у типов наполнения. */
+export type CalculatorHingeTypeMaterialDto = CalculatorFillingTypeMaterialDto
+export type CalculatorHingeType = {
+  id: number
+  name: string
+  image_url: string
+  card_image?: string | null
+  is_active: boolean
+  sort_order: number
+  materials: CalculatorHingeTypeMaterialDto[]
+  created_at: string
+  updated_at: string
+}
+
+/** Справочник d для шага 7 (публичный GET — только строки с client_visible). */
+export type CalculatorHandleHoleDiameter = {
+  id: number
+  diameter_mm: number
+  client_visible: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}

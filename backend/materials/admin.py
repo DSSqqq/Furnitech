@@ -3,6 +3,9 @@ from django.contrib import admin
 from .models import (
     CalculatorFillingType,
     CalculatorFillingTypeMaterial,
+    CalculatorHandleHoleDiameter,
+    CalculatorHingeType,
+    CalculatorHingeTypeMaterial,
     Material,
     MaterialAlternativePrice,
     MaterialCategory,
@@ -77,3 +80,24 @@ class CalculatorFillingTypeAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name",)
     inlines = (CalculatorFillingTypeMaterialInline,)
+
+
+class CalculatorHingeTypeMaterialInline(admin.TabularInline):
+    model = CalculatorHingeTypeMaterial
+    extra = 0
+    raw_id_fields = ("material",)
+
+
+@admin.register(CalculatorHingeType)
+class CalculatorHingeTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_active", "sort_order")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+    inlines = (CalculatorHingeTypeMaterialInline,)
+
+
+@admin.register(CalculatorHandleHoleDiameter)
+class CalculatorHandleHoleDiameterAdmin(admin.ModelAdmin):
+    list_display = ("diameter_mm", "client_visible", "sort_order")
+    list_filter = ("client_visible",)
+    ordering = ("sort_order", "diameter_mm")

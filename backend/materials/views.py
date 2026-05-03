@@ -10,6 +10,8 @@ from rest_framework.response import Response
 
 from .models import (
     CalculatorFillingType,
+    CalculatorHandleHoleDiameter,
+    CalculatorHingeType,
     CalculatorProfile,
     CalculatorProfileType,
     Material,
@@ -19,6 +21,8 @@ from .models import (
 )
 from .serializers import (
     CalculatorFillingTypeSerializer,
+    CalculatorHandleHoleDiameterSerializer,
+    CalculatorHingeTypeSerializer,
     CalculatorProfileSerializer,
     CalculatorProfileTypeSerializer,
     MaterialCategorySerializer,
@@ -158,3 +162,36 @@ class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
     serializer_class = CalculatorFillingTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+
+class CalculatorHingeTypeViewSet(viewsets.ModelViewSet):
+    queryset = CalculatorHingeType.objects.all().prefetch_related("materials__material__uom")
+    serializer_class = CalculatorHingeTypeSerializer
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+
+class CalculatorHandleHoleDiameterViewSet(viewsets.ModelViewSet):
+    """Список диаметров: без прав change_* гости видят только client_visible=True."""
+
+    queryset = CalculatorHandleHoleDiameter.objects.all().order_by("sort_order", "diameter_mm")
+    serializer_class = CalculatorHandleHoleDiameterSerializer
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.is_authenticated and user.has_perm("materials.change_calculatorhandleholediameter"):
+            return qs
+        return qs.filter(client_visible=True)
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        data = response.data
+        if isinstance(data, dict):
+            user = request.user
+            if user.is_authenticated and user.has_perm("materials.change_calculatorhandleholediameter"):
+                data["catalog_scope"] = "full"
+            else:
+                data["catalog_scope"] = "client"
+        return response

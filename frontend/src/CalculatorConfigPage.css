@@ -10,6 +10,41 @@
   align-items: start;
 }
 
+.calcconf-handle-dia-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.calcconf-handle-dia-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #ecf0f4;
+}
+
+.calcconf-handle-dia-row:last-child {
+  border-bottom: none;
+}
+
+.calcconf-handle-dia-mm {
+  font-weight: 600;
+  min-width: 3.5rem;
+}
+
+.calcconf-handle-dia-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: #3a4149;
+}
+
 @media (max-width: 1024px) {
   .calcconf-grid {
     grid-template-columns: 1fr;

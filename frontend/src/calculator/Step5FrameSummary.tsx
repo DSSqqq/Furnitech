@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import { fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import {
@@ -9,6 +9,7 @@ import {
   readCalculatorPriceConfigKey,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
+import { FrameHingeMortisePanel } from './FrameHingeMortisePanel'
 import { materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -62,6 +63,15 @@ export function Step5FrameSummary() {
     const w = parts[2] || '—'
     const fillIdRaw = parts[4]?.trim() ?? ''
     const fillMatId = fillIdRaw ? Number(fillIdRaw) : null
+    const mortiseRaw = parts[5]?.trim() ?? ''
+    const mortiseMode = mortiseRaw === 'hinge' ? 'hinge' : 'none'
+    const hingeSrcRaw = parts[6]?.trim() ?? ''
+    const hingeSource =
+      hingeSrcRaw === 'customer' || hingeSrcRaw === 'production' ? hingeSrcRaw : ('' as const)
+    const htRaw = parts[7]?.trim() ?? ''
+    const hmRaw = parts[8]?.trim() ?? ''
+    const hingeTypeId = htRaw ? Number(htRaw) : null
+    const hingeMatId = hmRaw ? Number(hmRaw) : null
     return {
       colorId: colorId && Number.isFinite(colorId) && colorId > 0 ? colorId : null,
       height: h,
@@ -69,6 +79,12 @@ export function Step5FrameSummary() {
       heightN: h === '—' ? null : asNum(h),
       widthN: w === '—' ? null : asNum(w),
       fillMatId: fillMatId && Number.isFinite(fillMatId) && fillMatId > 0 ? fillMatId : null,
+      mortiseMode,
+      hingeSource,
+      hingeTypeId:
+        hingeTypeId != null && Number.isFinite(hingeTypeId) && hingeTypeId > 0 ? hingeTypeId : null,
+      hingeMatId:
+        hingeMatId != null && Number.isFinite(hingeMatId) && hingeMatId > 0 ? hingeMatId : null,
     }
   }, [cfgKey])
 
@@ -89,6 +105,7 @@ export function Step5FrameSummary() {
   const [frameTypeName, setFrameTypeName] = useState('—')
   const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [mortiseSketchLine, setMortiseSketchLine] = useState('—')
 
   useEffect(() => {
     let cancel = false
@@ -137,20 +154,56 @@ export function Step5FrameSummary() {
     }
   }, [parsed.fillMatId])
 
+  useEffect(() => {
+    if (parsed.mortiseMode !== 'hinge') {
+      setMortiseSketchLine('Не требуется')
+      return
+    }
+    if (parsed.hingeSource === 'customer') {
+      setMortiseSketchLine('Петли заказчика (уточнить детали и стоимость у сотрудника)')
+      return
+    }
+    if (parsed.hingeSource !== 'production') {
+      setMortiseSketchLine('—')
+      return
+    }
+    if (parsed.hingeTypeId == null || parsed.hingeMatId == null) {
+      setMortiseSketchLine('Петли производства — выберите тип и модель')
+      return
+    }
+    let cancel = false
+    ;(async () => {
+      try {
+        const r = await fetchCalculatorHingeTypes()
+        const t = (r.results ?? []).find((x) => x.id === parsed.hingeTypeId)
+        const row = t?.materials?.find((c) => c.material_id === parsed.hingeMatId)
+        const name = row?.material?.name
+        if (!cancel) {
+          setMortiseSketchLine(
+            name ? `${t?.name ?? '—'} — ${name}` : 'Петли производства — выберите тип и модель'
+          )
+        }
+      } catch {
+        if (!cancel) setMortiseSketchLine('—')
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [cfgKey, parsed.hingeMatId, parsed.hingeSource, parsed.hingeTypeId, parsed.mortiseMode])
+
   return (
     <div className="frame2">
       <section className="frame2-card calc-side-panel">
         <div className="admin-heading-row calc-card-title-row">
           <h3 className="calc-h3">Итоговый эскиз</h3>
         </div>
-        <p className="admin-muted frame2-lead">
-          Пока без левого меню: на этом шаге показываем эскиз и используем панель «Расчёт» справа.
-        </p>
+        <FrameHingeMortisePanel />
         <div className="frame2-card-nav">
           <button type="button" className="admin-secondary" onClick={() => nav(step('frame/filling'))}>
             ← Предыдущий шаг
           </button>
-          <button type="button" className="admin-primary" disabled title="Следующий шаг пока не реализован">
+          <button type="button" className="admin-primary" onClick={() => nav(step('frame/hinge-layout'))}>
             Следующий шаг →
           </button>
         </div>
@@ -197,6 +250,10 @@ export function Step5FrameSummary() {
                     <div className="sketch-val">
                       {parsed.height}×{parsed.width} мм
                     </div>
+                  </div>
+                  <div className="sketch-row">
+                    <div className="sketch-key">Присадка</div>
+                    <div className="sketch-val">{mortiseSketchLine}</div>
                   </div>
                 </div>
               </div>

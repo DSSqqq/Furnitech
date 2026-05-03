@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createCalculatorProfile,
   deleteCalculatorProfile,
+  fetchCalculatorHandleHoleDiameters,
   fetchCalculatorProfiles,
   searchMaterials,
+  updateCalculatorHandleHoleDiameter,
   updateCalculatorProfile,
 } from './api'
 import { HintButton } from './HintButton'
-import type { CalculatorProfile, Material } from './types'
+import type { CalculatorHandleHoleDiameter, CalculatorProfile, Material } from './types'
 import './CalculatorConfigPage.css'
 
 function matLabel(m: { name: string; article?: string | null }) {
@@ -25,6 +27,9 @@ export function CalculatorConfigPage() {
 
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
+
+  const [handleHoleDiameters, setHandleHoleDiameters] = useState<CalculatorHandleHoleDiameter[]>([])
+  const [diaLoading, setDiaLoading] = useState(true)
 
   const [pickOpen, setPickOpen] = useState(false)
   const [pickQ, setPickQ] = useState('')
@@ -55,6 +60,14 @@ export function CalculatorConfigPage() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  useEffect(() => {
+    setDiaLoading(true)
+    fetchCalculatorHandleHoleDiameters()
+      .then((r) => setHandleHoleDiameters(r.results ?? []))
+      .catch((e) => setErr(String(e)))
+      .finally(() => setDiaLoading(false))
+  }, [])
 
   useEffect(() => {
     if (!pickOpen) return
@@ -325,6 +338,45 @@ export function CalculatorConfigPage() {
           )}
         </section>
       </div>
+
+      <section className="calcconf-card" style={{ marginTop: '1rem' }}>
+        <div className="calcconf-card-head">
+          <h3 className="calcconf-h3">Диаметры отверстий под ручку</h3>
+          <HintButton text="Шаг 7 рамочного калькулятора. Снятый флажок скрывает диаметр только у публичного клиента; в админке при наличии права «Изменять диаметры отверстий под ручку» в списке остаются все значения." />
+        </div>
+        <p className="admin-muted" style={{ marginTop: 0 }}>
+          Показывать клиенту — отображать в публичном калькуляторе. Нужны права на изменение этой модели в Django, иначе список совпадает с клиентским.
+        </p>
+        {diaLoading ? (
+          <p className="admin-muted">Загрузка диаметров…</p>
+        ) : handleHoleDiameters.length === 0 ? (
+          <p className="admin-muted">Нет записей. Выполните миграции и перезапустите backend.</p>
+        ) : (
+          <ul className="calcconf-handle-dia-list" aria-label="Диаметры под ручку">
+            {handleHoleDiameters.map((d) => (
+              <li key={d.id} className="calcconf-handle-dia-row">
+                <span className="calcconf-handle-dia-mm">{d.diameter_mm} мм</span>
+                <label className="calcconf-handle-dia-check">
+                  <input
+                    type="checkbox"
+                    checked={d.client_visible}
+                    onChange={(e) => {
+                      const client_visible = e.target.checked
+                      setErr(null)
+                      updateCalculatorHandleHoleDiameter(d.id, { client_visible })
+                        .then((row) => {
+                          setHandleHoleDiameters((prev) => prev.map((x) => (x.id === d.id ? row : x)))
+                        })
+                        .catch((ex) => setErr(String(ex)))
+                    }}
+                  />
+                  <span>Показывать клиенту</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   )
 }

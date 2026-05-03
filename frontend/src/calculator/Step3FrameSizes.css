@@ -118,6 +118,10 @@
   display: inline-block;
   line-height: 0;
   vertical-align: top;
+  /* Общие токены для габаритов (.frame3-dim-drawing) и цепочек петелей (.frame3-hinge-dim-layer) */
+  --frame3-dim-sketch-gap-y: 30px;
+  --frame3-dim-sketch-gap-x: 28px;
+  --frame3-dim-vtrack: 34px;
 }
 
 /* Иначе от .frame3-drawing наследуется line-height: 0 и «слепливается» текст в .sketch-sheet */
@@ -133,11 +137,7 @@
   color: rgba(255, 255, 255, 0.92);
   font-weight: 700;
   font-size: 0.78rem;
-  /* зазор между размерной линией и верхом эскиза (выносные пунктиры на всю высоту) */
-  --frame3-dim-sketch-gap-y: 30px;
-  --frame3-dim-sketch-gap-x: 28px;
-  /* участок от вертикальной линии до эскиза (+ запас до наконечника стрелки) */
-  --frame3-dim-vtrack: 34px;
+  /* зазоры и vtrack наследуются с .frame3-drawing; здесь только цвет выносок */
   --frame3-dim-witness: rgba(255, 255, 255, 0.55);
 }
 
@@ -245,33 +245,45 @@
   inset: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  /* Строка на всю высоту эскиза — иначе height:100% у стрелок не срабатывает и линия «рвётся» */
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   gap: 5px;
   padding-right: 2px;
+  min-height: 0;
 }
 
+/* Как на чертеже: слева — чтение снизу вверх (-90°), справа — сверху вниз (+90°) */
 .frame3-dim-drawing__value--side {
-  writing-mode: vertical-rl;
+  writing-mode: horizontal-tb;
   text-orientation: mixed;
-  transform: rotate(180deg);
+  transform: rotate(-90deg);
   text-align: center;
   justify-self: center;
+  align-self: center;
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__value--side {
+  transform: rotate(90deg);
 }
 
 .frame3-dim-drawing__v {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(12px, 1fr) auto;
+  justify-items: center;
+  align-content: stretch;
+  align-self: stretch;
+  width: auto;
+  min-width: 0;
+  height: auto;
   min-height: 48px;
 }
 
 .frame3-dim-drawing__v-line {
-  flex: 1 1 auto;
   width: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.8);
-  min-height: 20px;
+  min-height: 12px;
+  height: 100%;
 }
 
 .frame3-dim-drawing__arrow--n {
@@ -312,19 +324,451 @@
   bottom: 0;
 }
 
+/* Ширина: снизу (если петли сверху — общий размер не пересекается с цепочкой) */
+.frame3-dim-drawing--bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  bottom: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: var(--frame3-dim-sketch-gap-y);
+}
+
+.frame3-dim-drawing--bottom .frame3-dim-drawing__value {
+  order: 2;
+}
+
+.frame3-dim-drawing--bottom .frame3-dim-drawing__top-row {
+  order: 1;
+}
+
+.frame3-dim-drawing--bottom .frame3-dim-drawing__top-row .frame3-dim-drawing__ext-v {
+  top: calc(-1 * var(--frame3-dim-sketch-gap-y));
+  bottom: 0;
+}
+
+/* Высота: справа (зеркало --left; петли слева — габарит высоты справа) */
+.frame3-dim-drawing--right {
+  position: absolute;
+  left: 100%;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  width: 70px;
+  margin-left: var(--frame3-dim-sketch-gap-x);
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__left-col {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding-right: 0;
+  padding-left: 2px;
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__value--side {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: center;
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__v {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__ext-h {
+  position: absolute;
+  left: calc(-1 * var(--frame3-dim-sketch-gap-x));
+  right: auto;
+  height: 0;
+  border-top: 1px dashed var(--frame3-dim-witness);
+  width: var(--frame3-dim-vtrack);
+}
+
 @media (max-width: 1024px) {
-  .frame3-dim-drawing--left {
-    width: 58px;
+  .frame3-drawing {
+    --frame3-dim-sketch-gap-y: 26px;
     --frame3-dim-sketch-gap-x: 22px;
+    --frame3-dim-vtrack: 30px;
   }
 
-  .frame3-dim-drawing--left .frame3-dim-drawing__ext-h {
-    --frame3-dim-vtrack: 30px;
+  .frame3-dim-drawing--left {
+    width: 58px;
+  }
+
+  .frame3-dim-drawing--right {
+    width: 58px;
   }
 
   .frame3-dim-drawing {
     font-size: 0.72rem;
-    --frame3-dim-sketch-gap-y: 26px;
   }
 }
 
+/* Шаг 6: маркеры петель на эскизе (как чертёж: от внешнего края рамки) */
+.frame3-drawing .sketch {
+  position: relative;
+}
+
+/* Чтобы маркеры могли заходить на линию внешней границы, как на референсе */
+.sketch.sketch--hinge-markers {
+  overflow: visible;
+}
+
+.sketch-hinge-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.sketch-hinge-pin {
+  position: absolute;
+  z-index: 13;
+  pointer-events: none;
+}
+
+.sketch-hinge-pin-stack {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Корпус петли: тёмный прямоугольник + белая точка по центру */
+.sketch-hinge-pin-body {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0c;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.sketch-hinge-pin-body::after {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.sketch-hinge-pin--top .sketch-hinge-pin-body,
+.sketch-hinge-pin--bottom .sketch-hinge-pin-body {
+  width: 20px;
+  height: 11px;
+}
+
+.sketch-hinge-pin--left .sketch-hinge-pin-body,
+.sketch-hinge-pin--right .sketch-hinge-pin-body {
+  width: 11px;
+  height: 20px;
+}
+
+.sketch-hinge-pin-label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+}
+
+/* Подпись к центру панели; корпус — у самого края эскиза */
+.sketch-hinge-pin--top .sketch-hinge-pin-stack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sketch-hinge-pin--bottom .sketch-hinge-pin-stack {
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.sketch-hinge-pin--left .sketch-hinge-pin-stack {
+  flex-direction: row;
+  align-items: center;
+}
+
+.sketch-hinge-pin--right .sketch-hinge-pin-stack {
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+/* Отверстия под ручку (шаг 7): круглые маркеры у края */
+.sketch-handle-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.sketch-handle-pin {
+  position: absolute;
+  z-index: 13;
+  pointer-events: none;
+}
+
+.sketch-handle-pin-stack {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sketch-handle-pin-body {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(120, 125, 135, 0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.sketch-handle-pin--first .sketch-handle-pin-body {
+  border-color: rgba(232, 140, 50, 0.95);
+  box-shadow: 0 0 0 1px rgba(232, 140, 50, 0.35), 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.sketch-handle-pin-label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+}
+
+.sketch-handle-pin--top .sketch-handle-pin-stack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sketch-handle-pin--bottom .sketch-handle-pin-stack {
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.sketch-handle-pin--left .sketch-handle-pin-stack {
+  flex-direction: row;
+  align-items: center;
+}
+
+.sketch-handle-pin--right .sketch-handle-pin-stack {
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+/* Обёртка эскиза + выносные размеры петель (шаг 6) */
+.frame3-drawing-core {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  vertical-align: top;
+}
+
+.frame3-hinge-dim-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 14;
+  /* Зазор до эскиза как у верхнего габарита; vtrack как у выносок .frame3-dim-drawing__ext-* */
+  --hinge-chain-sketch-gap: var(--frame3-dim-sketch-gap-y);
+  --hinge-chain-vtrack: var(--frame3-dim-vtrack);
+}
+
+/* Цепочка размеров вдоль стороны петель (стиль как у frame3-dim-drawing) */
+.hinge-chain-dim {
+  position: absolute;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  --hinge-dim-witness: rgba(255, 255, 255, 0.55);
+}
+
+.hinge-chain-dim__wit {
+  position: absolute;
+  pointer-events: none;
+}
+
+/*
+ * Вертикальный участок: горизонтальные выноски — как .frame3-dim-drawing__ext-h:
+ * правый конец штриха у края эскиза (с учётом --hinge-chain-sketch-gap у блока цепочки).
+ */
+.hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__wit {
+  right: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  width: var(--hinge-chain-vtrack, 34px);
+  height: 0;
+  border-top: 1px dashed var(--hinge-dim-witness);
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__wit--start {
+  top: 0;
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__wit--end {
+  bottom: 0;
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__wit {
+  left: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  width: var(--hinge-chain-vtrack, 34px);
+  height: 0;
+  border-top: 1px dashed var(--hinge-dim-witness);
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__wit--start {
+  top: 0;
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__wit--end {
+  bottom: 0;
+}
+
+/* Горизонтальный участок: вертикальные выноски к кромке (аналог .frame3-dim-drawing__ext-v) */
+.hinge-chain-dim--h.hinge-chain-dim--top .hinge-chain-dim__wit {
+  bottom: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  width: 0;
+  height: var(--hinge-chain-vtrack, 34px);
+  border-left: 1px dashed var(--hinge-dim-witness);
+}
+
+.hinge-chain-dim--h.hinge-chain-dim--top .hinge-chain-dim__wit--start {
+  left: 0;
+}
+
+.hinge-chain-dim--h.hinge-chain-dim--top .hinge-chain-dim__wit--end {
+  right: 0;
+}
+
+.hinge-chain-dim--h.hinge-chain-dim--bottom .hinge-chain-dim__wit {
+  top: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  width: 0;
+  height: var(--hinge-chain-vtrack, 34px);
+  border-left: 1px dashed var(--hinge-dim-witness);
+}
+
+.hinge-chain-dim--h.hinge-chain-dim--bottom .hinge-chain-dim__wit--start {
+  left: 0;
+}
+
+.hinge-chain-dim--h.hinge-chain-dim--bottom .hinge-chain-dim__wit--end {
+  right: 0;
+}
+
+.hinge-chain-dim__body {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  /* stretch: размерная линия на всю высоту участка — выноски смыкаются с «самого начала» */
+  align-items: stretch;
+  padding-right: 2px;
+}
+
+.hinge-chain-dim--right .hinge-chain-dim__body {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding-right: 0;
+  padding-left: 2px;
+}
+
+.hinge-chain-dim--right .hinge-chain-dim__val {
+  order: 2;
+}
+
+.hinge-chain-dim--right .hinge-chain-dim__v {
+  order: 1;
+}
+
+.hinge-chain-dim__val {
+  writing-mode: horizontal-tb;
+  text-align: center;
+  justify-self: center;
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* Поворот задаётся inline в Step6 (вместе со сдвигом); здесь только базовая типографика */
+
+.hinge-chain-dim__v {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  align-content: stretch;
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+}
+
+.hinge-chain-dim__v-line {
+  width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.82);
+  min-height: 4px;
+  height: 100%;
+}
+
+/* Узкий участок: без стрелок — сплошная вертикаль от верхней выноски до нижней */
+.hinge-chain-dim--narrow .hinge-chain-dim__v {
+  display: block;
+  position: relative;
+  height: 100%;
+  min-height: 2px;
+}
+
+.hinge-chain-dim--narrow .hinge-chain-dim__v .frame3-dim-drawing__arrow--n,
+.hinge-chain-dim--narrow .hinge-chain-dim__v .frame3-dim-drawing__arrow--s {
+  display: none;
+}
+
+.hinge-chain-dim--narrow .hinge-chain-dim__v-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  height: auto;
+  transform: translateX(-50%);
+  min-height: 0;
+}
+
+.hinge-chain-dim__body--h {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
+.hinge-chain-dim__val--h {
+  writing-mode: horizontal-tb;
+  transform: none;
+  text-align: center;
+}
+
+.hinge-chain-dim__h {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 16px;
+  min-height: 0;
+}
+
+.hinge-chain-dim__h-line {
+  flex: 1 1 auto;
+  height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.82);
+  min-width: 8px;
+}

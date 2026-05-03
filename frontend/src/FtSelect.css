@@ -106,6 +106,17 @@
   scrollbar-color: rgba(203, 176, 121, 0.45) rgba(255, 255, 255, 0.06);
 }
 
+/* В потоке под триггером: прокрутка и обрезка как у нативного select внутри .calc-side-panel */
+.ft-select-menu.ft-select-menu--inline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  width: auto;
+  max-height: 280px;
+  z-index: 30;
+}
+
 .ft-select-menu::-webkit-scrollbar {
   width: 8px;
 }

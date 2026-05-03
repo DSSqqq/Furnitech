@@ -11,6 +11,10 @@
   align-items: start;
 }
 
+.calc-body-with-totals--wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .calc-main-column {
   min-width: 0;
 }

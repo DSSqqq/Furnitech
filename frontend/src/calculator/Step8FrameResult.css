@@ -1,0 +1,298 @@
+/* Шаг «Итог»: две колонки; справа — одна прокручиваемая колонка (детали + таблица + кнопки) */
+.frame2.step8-result {
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: 1.25rem 1.75rem;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .frame2.step8-result {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+}
+
+.step8-result__kicker {
+  margin: 0;
+  color: var(--ft-accent, #e8a23e);
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.step8-result__title {
+  margin-top: 0.35rem;
+}
+
+.step8-result__contact {
+  min-width: 0;
+}
+
+@media (min-width: 1025px) {
+  .step8-result__contact {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: min(920px, calc(100dvh - 9.5rem));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+}
+
+.step8-form {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.step8-form__head {
+  font-family: var(--ft-font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ft-accent-2, #c9a227);
+  margin-bottom: 0.15rem;
+}
+
+.step8-form__textarea {
+  resize: vertical;
+  min-height: 5.5rem;
+  line-height: 1.45;
+}
+
+.step8-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.step8-form__submit {
+  flex: 1 1 auto;
+  min-width: 10rem;
+}
+
+.step8-form__pdf {
+  flex: 0 1 auto;
+}
+
+.step8-form__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ft-muted);
+  line-height: 1.4;
+}
+
+.step8-result__nav {
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.step8-result__details {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1025px) {
+  .step8-result__details {
+    max-height: min(920px, calc(100dvh - 9.5rem));
+  }
+}
+
+/* Одна область прокрутки для обеих панелей справа и нижних действий */
+.step8-result__scroll-pack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 1025px) {
+  .step8-result__scroll-pack {
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding-right: 0.2rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .step8-result__contact {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .step8-result__details {
+    max-height: none;
+  }
+
+  .step8-result__scroll-pack {
+    overflow: visible;
+  }
+}
+
+.step8-panel {
+  background: linear-gradient(180deg, rgba(15, 16, 19, 0.72), rgba(15, 16, 19, 0.96));
+  border-radius: var(--ft-radius-md);
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--ft-border);
+  box-shadow: var(--ft-shadow-1);
+}
+
+.step8-panel__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ft-text);
+  font-family: var(--ft-font-display);
+  letter-spacing: 0.04em;
+}
+
+.step8-panel__warn {
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 204, 102, 0.12);
+  border: 1px solid rgba(255, 204, 102, 0.32);
+  border-radius: 8px;
+}
+
+.step8-panel__note {
+  margin: 0.65rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ft-muted);
+}
+
+.step8-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.step8-kv__row {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 0.65rem 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--ft-border);
+  font-size: 0.88rem;
+}
+
+.step8-kv__row:last-child {
+  border-bottom: 0;
+}
+
+.step8-kv__k {
+  color: var(--ft-muted);
+  font-weight: 500;
+}
+
+.step8-kv__v {
+  color: var(--ft-text);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.step8-table-wrap {
+  overflow-x: auto;
+  margin: 0 -0.15rem;
+}
+
+.step8-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.step8-table th,
+.step8-table td {
+  border: 1px solid var(--ft-border);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.step8-table th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ft-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.step8-table td {
+  color: var(--ft-text);
+}
+
+.step8-table__total {
+  font-weight: 800;
+  color: var(--ft-accent-2, #e8c96b);
+  white-space: nowrap;
+}
+
+.step8-result__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.step8-result__footer-actions .admin-primary {
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+
+@media print {
+  .public-shell__header,
+  .calc-head,
+  .calc-totals-aside,
+  .step8-result__nav,
+  .step8-form,
+  .step8-result__footer-actions {
+    display: none !important;
+  }
+
+  .calc-body-with-totals {
+    display: block !important;
+  }
+
+  .frame2.step8-result {
+    display: block !important;
+  }
+
+  .step8-result__details,
+  .step8-result__scroll-pack,
+  .step8-panel {
+    break-inside: avoid;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .calc,
+  .calc-card,
+  .step8-panel {
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  .step8-table th,
+  .step8-table td {
+    border-color: #ccc !important;
+    color: #111 !important;
+  }
+
+  .step8-kv__k {
+    color: #444 !important;
+  }
+}

@@ -628,3 +628,89 @@ class CalculatorFillingTypeMaterial(models.Model):
 
     def __str__(self) -> str:
         return f"{self.filling_type_id} → {self.material_id}"
+
+
+class CalculatorHingeType(models.Model):
+    """Тип петель для калькулятора (присадка под петли производства)."""
+
+    name = models.CharField("Название типа петель", max_length=255)
+    image_url = models.CharField(
+        "Картинка (URL)",
+        max_length=1000,
+        blank=True,
+        default="",
+        help_text="URL картинки для карточки типа.",
+    )
+    card_image = models.ImageField(
+        "Картинка (файл)",
+        upload_to="hinge_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Тип петель (калькулятор)"
+        verbose_name_plural = "Типы петель (калькулятор)"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class CalculatorHingeTypeMaterial(models.Model):
+    """Материал варианта петель (конкретная модель петли)."""
+
+    hinge_type = models.ForeignKey(
+        CalculatorHingeType,
+        on_delete=models.CASCADE,
+        related_name="materials",
+        verbose_name="Тип петель",
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name="calculator_hinge_in_types",
+        verbose_name="Материал",
+    )
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Материал типа петель"
+        verbose_name_plural = "Материалы типов петель"
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["hinge_type", "material"],
+                name="materials_calc_hinge_type_material_uniq",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.hinge_type_id} → {self.material_id}"
+
+
+class CalculatorHandleHoleDiameter(models.Model):
+    """Диаметр отверстия под ручку (шаг 7 калькулятора): видимость для публичного клиента."""
+
+    diameter_mm = models.PositiveSmallIntegerField("Диаметр, мм", unique=True)
+    client_visible = models.BooleanField(
+        "Показывать клиенту",
+        default=True,
+        help_text="Если снято — в публичном калькуляторе этот диаметр в списке не отображается.",
+    )
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Диаметр отверстия под ручку"
+        verbose_name_plural = "Диаметры отверстий под ручку"
+        ordering = ["sort_order", "diameter_mm"]
+
+    def __str__(self) -> str:
+        return f"{self.diameter_mm} мм"

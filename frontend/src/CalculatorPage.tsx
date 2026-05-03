@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { fetchCalculatorProfiles } from './api'
 import {
   CalcPathsProvider,
@@ -20,6 +20,9 @@ import { Step2PvcFacade } from './calculator/Step2PvcFacade'
 import { Step3FrameSizes } from './calculator/Step3FrameSizes'
 import { Step4FrameFilling } from './calculator/Step4FrameFilling'
 import { Step5FrameSummary } from './calculator/Step5FrameSummary'
+import { Step6FrameHingeLayout } from './calculator/Step6FrameHingeLayout'
+import { Step7FrameHandleHoles } from './calculator/Step7FrameHandleHoles'
+import { Step8FrameResult } from './calculator/Step8FrameResult'
 import { CalcPriceTotals } from './calculator/CalcPriceTotals'
 import './CalculatorPage.css'
 
@@ -53,14 +56,27 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
   const isStep3FrameSizes = normalized === '/frame/size'
   const isStep4FrameFilling = normalized === '/frame/filling'
   const isStep5FrameSummary = normalized === '/frame/summary'
+  const isStep6FrameHingeLayout = normalized === '/frame/hinge-layout'
+  const isStep7FrameHandleHoles = normalized === '/frame/handle-holes'
+  const isStep8FrameResult = normalized === '/frame/result'
   const isStep2 =
-    Boolean(facade) && !isStep1 && !isStep3FrameSizes && !isStep4FrameFilling && !isStep5FrameSummary
+    Boolean(facade) &&
+    !isStep1 &&
+    !isStep3FrameSizes &&
+    !isStep4FrameFilling &&
+    !isStep5FrameSummary &&
+    !isStep6FrameHingeLayout &&
+    !isStep7FrameHandleHoles &&
+    !isStep8FrameResult
 
   const frameStep2Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep2Ready, isFrameStep2Ready)
   const frameStep4Ready = useSyncExternalStore(subscribeFrameCalcSession, isFrameStep4Ready, isFrameStep4Ready)
   const canOpenFrameStep3 = facade === 'frame' && frameStep2Ready
   const canOpenFrameStep4 = facade === 'frame' && frameStep2Ready
   const canOpenFrameStep5 = facade === 'frame' && frameStep4Ready
+  const canOpenFrameStep6 = facade === 'frame' && frameStep4Ready
+  const canOpenFrameStep7 = facade === 'frame' && frameStep4Ready
+  const canOpenFrameStep8 = facade === 'frame' && frameStep4Ready
 
   useEffect(() => {
     if (!showProfilesCount) return
@@ -179,18 +195,93 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
           >
             Шаг 5
           </button>
+          <button
+            type="button"
+            role="tab"
+            className={isStep6FrameHingeLayout ? 'calc-step-tab calc-step-tab--active' : 'calc-step-tab'}
+            aria-selected={isStep6FrameHingeLayout}
+            disabled={!canOpenFrameStep6}
+            onClick={() => {
+              if (canOpenFrameStep6) nav(step('frame/hinge-layout'))
+            }}
+            title={
+              !facade
+                ? 'Сначала выберите фасад'
+                : facade !== 'frame'
+                  ? 'Шаг 6 только для рамочного фасада'
+                  : !frameStep2Ready
+                    ? 'Сначала на шаге 2 выберите тип профиля и цвет'
+                    : !frameStep4Ready
+                      ? 'Сначала на шаге 4 выберите наполнение'
+                      : undefined
+            }
+          >
+            Шаг 6
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={isStep7FrameHandleHoles ? 'calc-step-tab calc-step-tab--active' : 'calc-step-tab'}
+            aria-selected={isStep7FrameHandleHoles}
+            disabled={!canOpenFrameStep7}
+            onClick={() => {
+              if (canOpenFrameStep7) nav(step('frame/handle-holes'))
+            }}
+            title={
+              !facade
+                ? 'Сначала выберите фасад'
+                : facade !== 'frame'
+                  ? 'Шаг 7 только для рамочного фасада'
+                  : !frameStep2Ready
+                    ? 'Сначала на шаге 2 выберите тип профиля и цвет'
+                    : !frameStep4Ready
+                      ? 'Сначала на шаге 4 выберите наполнение'
+                      : undefined
+            }
+          >
+            Шаг 7
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={isStep8FrameResult ? 'calc-step-tab calc-step-tab--active' : 'calc-step-tab'}
+            aria-selected={isStep8FrameResult}
+            disabled={!canOpenFrameStep8}
+            onClick={() => {
+              if (canOpenFrameStep8) nav(step('frame/result'))
+            }}
+            title={
+              !facade
+                ? 'Сначала выберите фасад'
+                : facade !== 'frame'
+                  ? 'Итог только для рамочного фасада'
+                  : !frameStep2Ready
+                    ? 'Сначала на шаге 2 выберите тип профиля и цвет'
+                    : !frameStep4Ready
+                      ? 'Сначала на шаге 4 выберите наполнение'
+                      : undefined
+            }
+          >
+            Итог
+          </button>
         </div>
       </div>
 
-      <div className="calc-body-with-totals">
+      <div
+        className={
+          isStep8FrameResult ? 'calc-body-with-totals calc-body-with-totals--wide' : 'calc-body-with-totals'
+        }
+      >
         <div className="calc-main-column">
-          <div className="calc-routes-wrap">
+          <div
+            className={isStep8FrameResult ? 'calc-routes-wrap calc-routes-wrap--step8' : 'calc-routes-wrap'}
+          >
             <div className="calc-routes-inner">
               <div key={loc.pathname} className="calc-routes-step">
-                <Routes>
-                  <Route
-                    index
-                    element={
+                {(() => {
+                  const n = normalized
+                  if (n === '/' || n === '') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-1" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -207,10 +298,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                                     value={k}
                                     checked={false}
                                     onChange={() => {
-                                  clearFrameCalculatorStorage()
-                                  notifyFrameCalcSession()
-                                  nav(step(k))
-                                }}
+                                      clearFrameCalculatorStorage()
+                                      notifyFrameCalcSession()
+                                      nav(step(k))
+                                    }}
                                   />
                                   <span className="calc-facade-title">{FACADE_LABEL[k]}</span>
                                 </label>
@@ -219,11 +310,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           </div>
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="frame/size"
-                    element={
+                    )
+                  }
+                  if (n === '/frame/size') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-3" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -232,11 +322,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           <Step3FrameSizes />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="frame/filling"
-                    element={
+                    )
+                  }
+                  if (n === '/frame/filling') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-4" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -245,24 +334,58 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           <Step4FrameFilling />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="frame/summary"
-                    element={
+                    )
+                  }
+                  if (n === '/frame/summary') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-5" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — итог</h3>
+                            <h3 className="calc-h3">Рамочный фасад — присадка</h3>
                           </div>
                           <Step5FrameSummary />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="frame"
-                    element={
+                    )
+                  }
+                  if (n === '/frame/hinge-layout') {
+                    return (
+                      <div className="calc-grid" id="calc-step-panel-6" role="tabpanel">
+                        <section className="calc-card">
+                          <div className="admin-heading-row calc-card-title-row">
+                            <h3 className="calc-h3">Рамочный фасад — петли</h3>
+                          </div>
+                          <Step6FrameHingeLayout />
+                        </section>
+                      </div>
+                    )
+                  }
+                  if (n === '/frame/handle-holes') {
+                    return (
+                      <div className="calc-grid" id="calc-step-panel-7" role="tabpanel">
+                        <section className="calc-card">
+                          <div className="admin-heading-row calc-card-title-row">
+                            <h3 className="calc-h3">Рамочный фасад — ручка</h3>
+                          </div>
+                          <Step7FrameHandleHoles />
+                        </section>
+                      </div>
+                    )
+                  }
+                  if (n === '/frame/result') {
+                    return (
+                      <div className="calc-grid" id="calc-step-panel-8" role="tabpanel">
+                        <section className="calc-card">
+                          <div className="admin-heading-row calc-card-title-row">
+                            <h3 className="calc-h3">Рамочный фасад — итог</h3>
+                          </div>
+                          <Step8FrameResult />
+                        </section>
+                      </div>
+                    )
+                  }
+                  if (n === '/frame') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -271,11 +394,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           <Step2FrameFacade />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="mdf"
-                    element={
+                    )
+                  }
+                  if (n === '/mdf') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -284,11 +406,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           <Step2MdfFacade />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route
-                    path="pvc"
-                    element={
+                    )
+                  }
+                  if (n === '/pvc') {
+                    return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
                           <div className="admin-heading-row calc-card-title-row">
@@ -297,10 +418,10 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                           <Step2PvcFacade />
                         </section>
                       </div>
-                    }
-                  />
-                  <Route path="*" element={<CalcRouteFallback />} />
-                </Routes>
+                    )
+                  }
+                  return <CalcRouteFallback />
+                })()}
               </div>
             </div>
             {routeBusy && (
@@ -310,7 +431,7 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
             )}
           </div>
         </div>
-        <CalcPriceTotals hideTotals={isStep1 || isStep2} />
+        <CalcPriceTotals hideTotals={isStep1 || isStep2} blankAside={isStep8FrameResult} />
       </div>
     </div>
   )

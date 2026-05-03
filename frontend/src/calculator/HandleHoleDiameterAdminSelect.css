@@ -1,0 +1,147 @@
+/* Выпадающий список диаметров (админ): строка = выбор | Видимость | Удалить */
+
+.step7-dia-admin-menu.ft-select-menu--inline {
+  max-height: min(380px, 70vh);
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+}
+
+.step7-dia-admin-menu-scroll {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.15rem 0.25rem 0.45rem;
+}
+
+.step7-dia-admin-empty {
+  padding: 0.55rem 0.45rem 0.35rem;
+  font-size: 0.86rem;
+  color: var(--ft-muted, #9aa3af);
+}
+
+.step7-dia-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.25rem 0.15rem;
+  border-radius: 10px;
+}
+
+.step7-dia-row--current {
+  background: rgba(203, 176, 121, 0.08);
+}
+
+.step7-dia-row__pick {
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ft-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.step7-dia-row__pick:hover {
+  background: rgba(203, 176, 121, 0.14);
+  color: var(--ft-accent-2, #e8c89a);
+}
+
+/* Та же «рамка», что у «Удалить» */
+.step7-dia-row__vis,
+.step7-dia-row__del {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(203, 176, 121, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ft-muted, #9aa3af);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.step7-dia-row__vis:hover {
+  border-color: rgba(203, 176, 121, 0.55);
+  color: var(--ft-accent-2, #e8c89a);
+  background: rgba(203, 176, 121, 0.1);
+}
+
+.step7-dia-row__vis--on {
+  border-color: rgba(203, 176, 121, 0.55);
+  color: var(--ft-accent-2, #e8c89a);
+  background: rgba(203, 176, 121, 0.12);
+}
+
+.step7-dia-row__vis--on:hover {
+  border-color: rgba(203, 176, 121, 0.65);
+  background: rgba(203, 176, 121, 0.16);
+}
+
+.step7-dia-row__del:hover {
+  border-color: rgba(220, 100, 100, 0.55);
+  color: #f0a8a8;
+  background: rgba(220, 80, 80, 0.12);
+}
+
+.step7-dia-admin-add {
+  flex: 0 0 auto;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  padding: 0.55rem 0.35rem 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.step7-dia-admin-add__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ft-accent, #e8a23e);
+  margin-bottom: 0.45rem;
+}
+
+.step7-dia-admin-add__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step7-dia-admin-add__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.step7-dia-admin-add__btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.step7-dia-admin-err {
+  font-size: 0.86rem;
+}
+
+@media (max-width: 520px) {
+  .step7-dia-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+  }
+
+  .step7-dia-row__pick {
+    grid-column: 1 / -1;
+  }
+
+  .step7-dia-row__vis {
+    justify-self: start;
+  }
+
+  .step7-dia-row__del {
+    justify-self: end;
+  }
+}

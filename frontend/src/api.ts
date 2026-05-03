@@ -1,5 +1,7 @@
 import type {
   CalculatorFillingType,
+  CalculatorHandleHoleDiameter,
+  CalculatorHingeType,
   CalculatorProfile,
   CalculatorProfileType,
   Material,
@@ -309,6 +311,88 @@ export function updateCalculatorFillingType(
 
 export function deleteCalculatorFillingType(id: number) {
   return apiFetch(`/api/calculator-filling-types/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+export function fetchCalculatorHingeTypes() {
+  return apiFetch('/api/calculator-hinge-types/').then((r) => json<{ results: CalculatorHingeType[] }>(r))
+}
+
+export type CalculatorHandleHoleDiametersListResponse = {
+  results: CalculatorHandleHoleDiameter[]
+  catalog_scope?: 'full' | 'client'
+  count?: number
+  next?: string | null
+  previous?: string | null
+}
+
+export function fetchCalculatorHandleHoleDiameters() {
+  return apiFetch('/api/calculator-handle-hole-diameters/').then((r) => json<CalculatorHandleHoleDiametersListResponse>(r))
+}
+
+export function updateCalculatorHandleHoleDiameter(
+  id: number,
+  data: Partial<{ client_visible: boolean; sort_order: number }>,
+) {
+  return apiFetch(`/api/calculator-handle-hole-diameters/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<CalculatorHandleHoleDiameter>(r))
+}
+
+export function createCalculatorHandleHoleDiameter(data: {
+  diameter_mm: number
+  client_visible?: boolean
+  sort_order?: number
+}) {
+  return apiFetch('/api/calculator-handle-hole-diameters/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => json<CalculatorHandleHoleDiameter>(r))
+}
+
+export function deleteCalculatorHandleHoleDiameter(id: number) {
+  return apiFetch(`/api/calculator-handle-hole-diameters/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+export function createCalculatorHingeType(
+  data:
+    | FormData
+    | {
+        name: string
+        image_url?: string
+        is_active?: boolean
+        sort_order?: number
+        materials?: { material_id: number }[]
+      }
+) {
+  return apiFetch('/api/calculator-hinge-types/', {
+    method: 'POST',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<CalculatorHingeType>(r))
+}
+
+export function updateCalculatorHingeType(
+  id: number,
+  data: Partial<{
+    name: string
+    image_url: string
+    is_active: boolean
+    sort_order: number
+    materials: { material_id: number }[]
+  }> | FormData
+) {
+  return apiFetch(`/api/calculator-hinge-types/${id}/`, {
+    method: 'PATCH',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<CalculatorHingeType>(r))
+}
+
+export function deleteCalculatorHingeType(id: number) {
+  return apiFetch(`/api/calculator-hinge-types/${id}/`, { method: 'DELETE' }).then(async (r) => {
     if (!r.ok) await parseJsonError(r)
   })
 }
