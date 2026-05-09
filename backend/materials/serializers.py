@@ -18,10 +18,11 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
-    MaterialOperationLine,
     MaterialRelatedItem,
     RelatedQuantityScale,
     RoundingMode,
+    TextureCategory,
+    TextureItem,
     UnitOfMeasure,
 )
 
@@ -42,6 +43,7 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
     """Краткие поля сопутствующего материала (для строк и pickers)."""
 
     uom = UnitOfMeasureSerializer(read_only=True)
+    texture_library_item = serializers.IntegerField(source="texture_item_id", read_only=True)
 
     class Meta:
         model = Material
@@ -55,7 +57,14 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
             "texture_mode",
             "texture_color",
             "texture_image",
+            "texture_library_item",
         )
+
+    def to_representation(self, instance) -> dict:
+        data = super().to_representation(instance)
+        req = self.context.get("request")
+        data["texture_image"] = MaterialSerializer.effective_texture_image_url(instance, req)
+        return data
 
 
 class MaterialCategorySerializer(serializers.ModelSerializer):
@@ -73,6 +82,23 @@ class MaterialCategorySerializer(serializers.ModelSerializer):
             "external_id",
             "last_synced_at",
         )
+
+
+class TextureCategorySerializer(serializers.ModelSerializer):
+    path = serializers.ReadOnlyField()
+
+    class Meta:
+        model = TextureCategory
+        fields = ("id", "parent", "name", "code", "sort_order", "path")
+
+
+class TextureItemSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = TextureItem
+        fields = ("id", "category", "name", "image", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
 
 
 def _as_decimal(x) -> Decimal:
@@ -130,6 +156,13 @@ class MaterialSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    texture_library_item = serializers.PrimaryKeyRelatedField(
+        queryset=TextureItem.objects.all(),
+        source="texture_item",
+        allow_null=True,
+        required=False,
+    )
+    texture_library_item_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
@@ -158,6 +191,8 @@ class MaterialSerializer(serializers.ModelSerializer):
             "texture_mode",
             "texture_color",
             "texture_image",
+            "texture_library_item",
+            "texture_library_item_name",
             "tex_offset_x",
             "tex_offset_y",
             "tex_step_x",
@@ -172,7 +207,31 @@ class MaterialSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "uom", "created_at", "updated_at", "last_synced_at")
+        read_only_fields = (
+            "id",
+            "uom",
+            "texture_library_item_name",
+            "created_at",
+            "updated_at",
+            "last_synced_at",
+        )
+
+    def get_texture_library_item_name(self, obj: Material) -> str | None:
+        if obj.texture_item_id and obj.texture_item:
+            return obj.texture_item.name
+        return None
+
+    @staticmethod
+    def effective_texture_image_url(instance: Material, request) -> str | None:
+        if instance.texture_item_id:
+            ti = getattr(instance, "texture_item", None)
+            if ti and ti.image:
+                url = ti.image.url
+                return request.build_absolute_uri(url) if request else url
+        if instance.texture_image:
+            url = instance.texture_image.url
+            return request.build_absolute_uri(url) if request else url
+        return None
 
     def validate_article(self, value: str) -> str:
         v = (value or "").strip()
@@ -191,7 +250,9 @@ class MaterialSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["material_class_ids"] = [c.pk for c in instance.material_classes.all()]
         data["related_items"] = self._serialize_related_items(instance)
-        data["operation_lines"] = self._serialize_operation_lines(instance)
+        req = self.context.get("request")
+        data["texture_image"] = self.effective_texture_image_url(instance, req)
+        data["texture_library_item"] = instance.texture_item_id
         return data
 
     @staticmethod
@@ -210,26 +271,6 @@ class MaterialSerializer(serializers.ModelSerializer):
                     "quantity": str(x.quantity),
                     "quantity_scale": x.quantity_scale,
                     "line_total": str(line_total),
-                }
-            )
-        return out
-
-    @staticmethod
-    def _serialize_operation_lines(instance: Material) -> list:
-        if not instance.pk:
-            return []
-        out = []
-        for x in instance.operation_lines.all().select_related("uom"):
-            out.append(
-                {
-                    "id": x.id,
-                    "name": x.name,
-                    "model_parameter": x.model_parameter,
-                    "quantity": str(x.quantity),
-                    "uom_id": x.uom_id,
-                    "uom": UnitOfMeasureSerializer(x.uom).data if x.uom_id else None,
-                    "price": str(x.price),
-                    "price_per_facade": x.price_per_facade,
                 }
             )
         return out
@@ -291,49 +332,12 @@ class MaterialSerializer(serializers.ModelSerializer):
                 sort_order=i,
             )
 
-    def _replace_operation_lines(self, material: Material, rows: list) -> None:
-        for row in rows:
-            if not isinstance(row, dict):
-                raise serializers.ValidationError({"operation_lines": "Каждая строка — объект."})
-        material.operation_lines.all().delete()
-        for i, row in enumerate(rows):
-            name = (row.get("name") or "").strip()
-            if not name:
-                raise serializers.ValidationError({"operation_lines": "Укажите название операции."})
-            qty = _as_decimal(row.get("quantity", "1"))
-            if qty < 0:
-                raise serializers.ValidationError({"operation_lines": "Количество не может быть отрицательным."})
-            price = _as_decimal(row.get("price", "0"))
-            if price < 0:
-                raise serializers.ValidationError({"operation_lines": "Цена не может быть отрицательной."})
-            model_parameter = (row.get("model_parameter") or "").strip()
-            uom_id = row.get("uom_id", None)
-            kwargs: dict = {
-                "material": material,
-                "name": name,
-                "model_parameter": model_parameter,
-                "quantity": qty,
-                "price": price,
-                "sort_order": i,
-            }
-            if uom_id is not None and uom_id != "":
-                kwargs["uom_id"] = int(uom_id)
-            else:
-                kwargs["uom_id"] = None
-            ppf = row.get("price_per_facade", False)
-            if isinstance(ppf, str):
-                ppf = ppf.strip().lower() in ("1", "true", "yes", "on")
-            kwargs["price_per_facade"] = bool(ppf)
-            MaterialOperationLine.objects.create(**kwargs)
-
     def create(self, validated_data):
+        self._apply_texture_exclusivity(validated_data, instance=None)
         m2m_ids = validated_data.pop("material_class_ids", None) or []
         comp = self._list_from_request_key(self.initial_data, "related_items")
-        ops = self._list_from_request_key(self.initial_data, "operation_lines")
         if comp is None:
             comp = []
-        if ops is None:
-            ops = []
         try:
             material = super().create(validated_data)
         except IntegrityError as e:
@@ -349,10 +353,10 @@ class MaterialSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"material_class_ids": "Некоторые id классов не найдены."})
             material.material_classes.set(qs)
         self._replace_companion_items(material, comp, material.id)
-        self._replace_operation_lines(material, ops)
         return material
 
     def update(self, instance, validated_data):
+        self._apply_texture_exclusivity(validated_data, instance=instance)
         m2m_ids = validated_data.pop("material_class_ids", None)
         # Явный [] в PATCH должен снять M2M; в редких версиях DRF пустой список не попадал в validated_data
         if (
@@ -383,10 +387,19 @@ class MaterialSerializer(serializers.ModelSerializer):
         comp = self._list_from_request_key(self.initial_data, "related_items")
         if comp is not None:
             self._replace_companion_items(material, comp, material.id)
-        ops = self._list_from_request_key(self.initial_data, "operation_lines")
-        if ops is not None:
-            self._replace_operation_lines(material, ops)
         return material
+
+    def _apply_texture_exclusivity(self, validated_data: dict, instance: Material | None) -> None:
+        """Свой файл и ссылка на базу взаимоисключающи: файл побеждает при одновременной передаче."""
+        has_new_file = bool(validated_data.get("texture_image"))
+        ti = validated_data.get("texture_item", serializers.empty)
+        assigning_lib = ti is not serializers.empty and ti is not None
+        if has_new_file:
+            validated_data["texture_item"] = None
+        elif assigning_lib:
+            validated_data["texture_image"] = None
+            if instance and instance.texture_image:
+                instance.texture_image.delete(save=False)
 
     def validate(self, attrs: dict) -> dict:
         instance = self.instance

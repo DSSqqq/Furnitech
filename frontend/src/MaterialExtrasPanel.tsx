@@ -11,13 +11,7 @@ import {
 } from './floatInput'
 import { FtSelect } from './FtSelect'
 import { sortUomForSelect } from './uomSelectOrder'
-import type {
-  Material,
-  MaterialOperationLineDto,
-  MaterialRelatedItemDto,
-  RelatedQuantityScale,
-  UnitOfMeasure,
-} from './types'
+import type { Material, MaterialRelatedItemDto, RelatedQuantityScale, UnitOfMeasure } from './types'
 import './MaterialExtrasPanel.css'
 
 export type RelatedItemState = {
@@ -26,16 +20,6 @@ export type RelatedItemState = {
   quantity: string
   quantity_scale: RelatedQuantityScale
   related_material: MaterialRelatedItemDto['related_material']
-}
-
-export type OpLineState = {
-  id?: number
-  name: string
-  model_parameter: string
-  quantity: string
-  uom_id: number
-  price: string
-  price_per_facade: boolean
 }
 
 function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedItemState[] {
@@ -49,26 +33,11 @@ function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedIte
   }))
 }
 
-function toOpState(items: MaterialOperationLineDto[] | undefined): OpLineState[] {
-  if (!items?.length) return []
-  return items.map((x) => ({
-    id: x.id,
-    name: x.name,
-    model_parameter: x.model_parameter,
-    quantity: formatDecimalStringForInput(String(x.quantity), DECIMAL_FRACTION_DIGITS),
-    uom_id: x.uom_id ?? 0,
-    price: formatDecimalStringForInput(String(x.price), DECIMAL_FRACTION_DIGITS),
-    price_per_facade: Boolean(x.price_per_facade),
-  }))
-}
-
 type Props = {
   uomList: UnitOfMeasure[]
   mainMaterialId: number | null
   relatedItems: RelatedItemState[]
   onRelatedChange: (rows: RelatedItemState[]) => void
-  opLines: OpLineState[]
-  onOpLinesChange: (rows: OpLineState[]) => void
   basePrice: string
 }
 
@@ -82,20 +51,13 @@ export function materialExtrasInitRelated(m: Material | null): RelatedItemState[
   return toRelatedState(m?.related_items)
 }
 
-export function materialExtrasInitOps(m: Material | null): OpLineState[] {
-  return toOpState(m?.operation_lines)
-}
-
 export function MaterialExtrasPanel({
   uomList,
   mainMaterialId,
   relatedItems,
   onRelatedChange,
-  opLines,
-  onOpLinesChange,
   basePrice,
 }: Props) {
-  const [tab, setTab] = useState<'related' | 'ops'>('related')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [searchHit, setSearchHit] = useState<Material[]>([])
@@ -117,19 +79,22 @@ export function MaterialExtrasPanel({
     return s
   }, [relatedItems, mainMaterialId])
 
-  const doSearch = useCallback((q: string) => {
-    if (!q.trim()) {
-      setSearchHit([])
-      return
-    }
-    setSearching(true)
-    searchMaterials(q)
-      .then((r) => {
-        setSearchHit(r.results.filter((m) => !excludedIds.has(m.id)))
-      })
-      .catch(() => setSearchHit([]))
-      .finally(() => setSearching(false))
-  }, [excludedIds])
+  const doSearch = useCallback(
+    (q: string) => {
+      if (!q.trim()) {
+        setSearchHit([])
+        return
+      }
+      setSearching(true)
+      searchMaterials(q)
+        .then((r) => {
+          setSearchHit(r.results.filter((m) => !excludedIds.has(m.id)))
+        })
+        .catch(() => setSearchHit([]))
+        .finally(() => setSearching(false))
+    },
+    [excludedIds],
+  )
 
   useEffect(() => {
     if (!searchOpen) return
@@ -161,7 +126,7 @@ export function MaterialExtrasPanel({
 
   const updateQty = (idx: number, v: string) => {
     const next = relatedItems.map((r, i) =>
-      i === idx ? { ...r, quantity: filterDecimalInput(v, DECIMAL_FRACTION_DIGITS) } : r
+      i === idx ? { ...r, quantity: filterDecimalInput(v, DECIMAL_FRACTION_DIGITS) } : r,
     )
     onRelatedChange(next)
   }
@@ -170,76 +135,20 @@ export function MaterialExtrasPanel({
     onRelatedChange(relatedItems.filter((_, i) => i !== idx))
   }
 
-  const addOp = () => {
-    onOpLinesChange([
-      ...opLines,
-      {
-        name: '',
-        model_parameter: '',
-        quantity: formatDecimalStringForInput('1', DECIMAL_FRACTION_DIGITS),
-        uom_id: uomList[0]?.id ?? 0,
-        price: formatDecimalStringForInput('0', DECIMAL_FRACTION_DIGITS),
-        price_per_facade: false,
-      },
-    ])
-  }
-
-  const updateOp = (idx: number, patch: Partial<OpLineState>) => {
-    onOpLinesChange(
-      opLines.map((o, i) => (i === idx ? { ...o, ...patch } : o))
-    )
-  }
-
-  const removeOp = (idx: number) => {
-    onOpLinesChange(opLines.filter((_, i) => i !== idx))
-  }
-
   const sumRelated = relatedItems.reduce(
     (acc, r) =>
       acc + (parseFloat(lineTotalRelated(r.quantity, r.related_material.base_price)) || 0),
-    0
-  )
-  const sumOps = opLines.reduce(
-    (acc, o) => acc + (parseFloat(normalizeDecimalOnBlur(o.price)) || 0),
-    0
+    0,
   )
   const mainP = parseFloat(normalizeDecimalOnBlur(basePrice)) || 0
-  const grand = mainP + sumRelated + sumOps
+  const grand = mainP + sumRelated
 
   return (
     <div className="mat-extras">
-      <div className="mat-extras-tabs" role="tablist" aria-label="Дополнительные строки материала">
-        <button
-          type="button"
-          className={tab === 'related' ? 'mat-form-tab' : 'mat-form-tab'}
-          role="tab"
-          aria-selected={tab === 'related'}
-          aria-controls="mat-extras-panel-related"
-          id="mat-extras-tab-related"
-          onClick={() => setTab('related')}
-        >
-          Сопутствующие
-        </button>
-        <button
-          type="button"
-          className={tab === 'ops' ? 'mat-form-tab' : 'mat-form-tab'}
-          role="tab"
-          aria-selected={tab === 'ops'}
-          aria-controls="mat-extras-panel-ops"
-          id="mat-extras-tab-ops"
-          onClick={() => setTab('ops')}
-        >
-          Операции
-        </button>
-      </div>
       <div className="mat-extras-stack">
-        {tab === 'related' && (
         <section
           className="mat-extras-block mat-extras-block-related"
           aria-labelledby="mat-extras-related-heading"
-          role="tabpanel"
-          id="mat-extras-panel-related"
-          aria-controls="mat-extras-tab-related"
         >
           <div className="mat-extras-head">
             <h3 id="mat-extras-related-heading" className="mat-extras-title">
@@ -269,9 +178,7 @@ export function MaterialExtrasPanel({
                   {searchHit.map((m) => (
                     <li key={m.id}>
                       <button type="button" onClick={() => addRelated(m)}>
-                        <span className="mat-extras-pick-article">
-                          {m.article || '—'}
-                        </span>
+                        <span className="mat-extras-pick-article">{m.article || '—'}</span>
                         <span className="mat-extras-pick-name">{m.name}</span>
                         <span className="mat-extras-pick-price">
                           {m.base_price} {m.base_currency}
@@ -302,9 +209,7 @@ export function MaterialExtrasPanel({
             )}
             {relatedItems.map((r, i) => (
               <li key={r.id ?? `r-${r.related_material_id}-${i}`} className="mat-extras-row">
-                <span title="Артикул">
-                  {r.related_material.article || '—'}
-                </span>
+                <span title="Артикул">{r.related_material.article || '—'}</span>
                 <span className="mat-extras-clip" title={r.related_material.name}>
                   {r.related_material.name}
                 </span>
@@ -317,8 +222,8 @@ export function MaterialExtrasPanel({
                       relatedItems.map((row, j) =>
                         j === i
                           ? { ...row, quantity: normalizeDecimalForInput(row.quantity, DECIMAL_FRACTION_DIGITS) }
-                          : row
-                      )
+                          : row,
+                      ),
                     )
                   }
                 />
@@ -341,8 +246,8 @@ export function MaterialExtrasPanel({
                       const nextUom = updated.uom ?? u
                       onRelatedChange(
                         relatedItems.map((row, j) =>
-                          j === i ? { ...row, related_material: { ...row.related_material, uom: nextUom } } : row
-                        )
+                          j === i ? { ...row, related_material: { ...row.related_material, uom: nextUom } } : row,
+                        ),
                       )
                     } catch (err) {
                       setUomSaveErr(err instanceof Error ? err.message : String(err))
@@ -370,8 +275,8 @@ export function MaterialExtrasPanel({
                   onChange={(v) =>
                     onRelatedChange(
                       relatedItems.map((row, j) =>
-                        j === i ? { ...row, quantity_scale: v as RelatedQuantityScale } : row
-                      )
+                        j === i ? { ...row, quantity_scale: v as RelatedQuantityScale } : row,
+                      ),
                     )
                   }
                   options={[
@@ -397,122 +302,10 @@ export function MaterialExtrasPanel({
           </ul>
           {uomSaveErr && <p className="mat-extras-warn">{uomSaveErr}</p>}
         </section>
-        )}
-
-        {tab === 'ops' && (
-        <section
-          className="mat-extras-block mat-extras-block-ops"
-          aria-labelledby="mat-extras-ops-heading"
-          role="tabpanel"
-          id="mat-extras-panel-ops"
-          aria-controls="mat-extras-tab-ops"
-        >
-          <div className="mat-extras-head">
-            <h3 id="mat-extras-ops-heading" className="mat-extras-title">
-              Операции
-            </h3>
-            <button
-              type="button"
-              className="mat-extras-plus"
-              onClick={addOp}
-              title="Добавить операцию"
-            >
-              +
-            </button>
-          </div>
-          <div className="mat-extras-legend mat-extras-legend-ops" role="row">
-            <span>Операция</span>
-            <span>Описание</span>
-            <span>Кол-во</span>
-            <span>Ед. изм.</span>
-            <span>Цена ({BASE_CURRENCY})</span>
-            <span title="Умножать цену строки на число фасадов в калькуляторе">× фасад</span>
-            <span />
-          </div>
-          <ul className="mat-extras-list mat-extras-list-ops">
-            {opLines.length === 0 && (
-              <li className="admin-muted mat-extras-empty">Нет операций — нажмите + и заполните строку.</li>
-            )}
-            {opLines.map((o, i) => (
-              <li key={o.id ?? `o-${i}`} className="mat-extras-row-ops">
-                <input
-                  className="admin-input"
-                  value={o.name}
-                  onChange={(e) => updateOp(i, { name: e.target.value })}
-                  placeholder="Название"
-                />
-                <input
-                  className="admin-input"
-                  value={o.model_parameter}
-                  onChange={(e) => updateOp(i, { model_parameter: e.target.value })}
-                  placeholder="Параметр"
-                />
-                <input
-                  className="admin-input"
-                  value={o.quantity}
-                  onChange={(e) =>
-                    updateOp(i, {
-                      quantity: filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS),
-                    })
-                  }
-                  onBlur={() => {
-                    const v = opLines[i]?.quantity
-                    if (v !== undefined) {
-                      updateOp(i, { quantity: normalizeDecimalForInput(v, DECIMAL_FRACTION_DIGITS) })
-                    }
-                  }}
-                />
-                <FtSelect
-                  compact
-                  value={o.uom_id ? String(o.uom_id) : ''}
-                  onChange={(v) => updateOp(i, { uom_id: v ? Number(v) : 0 })}
-                  options={[
-                    { value: '', label: '—' },
-                    ...sortedUom.map((u) => ({
-                      value: String(u.id),
-                      label: u.short_name || u.name,
-                    })),
-                  ]}
-                />
-                <input
-                  className="admin-input"
-                  value={o.price}
-                  onChange={(e) =>
-                    updateOp(i, {
-                      price: filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS),
-                    })
-                  }
-                  onBlur={() => {
-                    const v = opLines[i]?.price
-                    if (v !== undefined) updateOp(i, { price: normalizeDecimalForInput(v, DECIMAL_FRACTION_DIGITS) })
-                  }}
-                />
-                <label className="mat-extras-op-facade" title="Умножать цену строки на число фасадов в калькуляторе">
-                  <input
-                    type="checkbox"
-                    checked={o.price_per_facade}
-                    onChange={(e) => updateOp(i, { price_per_facade: e.target.checked })}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="mat-extras-rm"
-                  onClick={() => removeOp(i)}
-                  title="Удалить строку"
-                  aria-label="Удалить строку операции"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-        )}
       </div>
       <p className="mat-extras-total" aria-live="polite">
         Предв. оценка (карточка, без габаритов): основной {formatNumberForUi(mainP, DECIMAL_FRACTION_DIGITS)} +
-        сопутствующие {formatNumberForUi(sumRelated, DECIMAL_FRACTION_DIGITS)} + операции{' '}
-        {formatNumberForUi(sumOps, DECIMAL_FRACTION_DIGITS)} ={' '}
+        сопутствующие {formatNumberForUi(sumRelated, DECIMAL_FRACTION_DIGITS)} ={' '}
         <strong>
           {formatNumberForUi(grand, DECIMAL_FRACTION_DIGITS)} {BASE_CURRENCY}
         </strong>

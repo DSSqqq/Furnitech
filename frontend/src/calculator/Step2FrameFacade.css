@@ -185,6 +185,18 @@
   font-size: 0.82rem;
 }
 
+.sketch-val.sketch-val--texture-wrap {
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.sketch-row:has(.sketch-val--texture-wrap) {
+  align-items: start;
+}
+
 .frame2-card {
   background: linear-gradient(180deg, rgba(15, 16, 19, 0.62), rgba(15, 16, 19, 0.98));
   border: 1px solid var(--ft-border);
@@ -388,6 +400,19 @@
   -webkit-box-orient: vertical;
 }
 
+/* Длинные имена текстур: ровно 2 строки по ~15 символов (переносы задаёт textureLabelDisplayWrap). */
+.tile-title.tile-title--texture-wrap {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  -webkit-box-orient: unset;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  max-height: calc(1.15em * 2 + 0.15em);
+}
+
 .tile-sub {
   color: var(--ft-muted);
   font-size: 0.85rem;
@@ -403,6 +428,25 @@
   width: 100%;
 }
 
+/* Меню на шестерёнке (как tree-gear в материалах), шаг 2 — типы профилей */
+.tile-gear-wrap {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+}
+
+.tile-gear-menu-anchor.tree-line-actions {
+  opacity: 0;
+}
+
+.tile-cell:hover .tile-gear-wrap .tree-line-actions,
+.tile-cell:focus-within .tile-gear-wrap .tree-line-actions,
+.tile-gear-wrap .tree-line-actions:has([aria-expanded='true']) {
+  opacity: 1;
+}
+
+/* Как .tree-gear-btn: чёрный квадрат, белая шестерёнка (шаги 2–4, петли). */
 .tile-gear {
   position: absolute;
   top: 8px;
@@ -414,17 +458,17 @@
   width: 1.75rem;
   height: 1.75rem;
   box-sizing: border-box;
-  border: 1px solid #c8ccd4;
-  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: #000;
   border-radius: 4px;
   font: inherit;
   padding: 0;
   cursor: pointer;
-  color: #3d4450;
+  color: #fff;
   line-height: 1;
   opacity: 0;
-  transition: opacity 0.1s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: opacity 0.1s ease, background 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .tile-cell:hover .tile-gear,
@@ -434,8 +478,9 @@
 
 .tile-gear:hover,
 .tile-gear:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: #141414;
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #fff;
   outline: none;
 }
 
@@ -603,9 +648,74 @@
   align-items: start;
 }
 
+/* Кнопка файла слева, поле имени справа — на одной линии; справа ширина как у «Поиск». */
+.frame2-create-grid--file-status-pair {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    'create-tl create-tr'
+    'create-ml create-mr'
+    'create-bl create-br';
+}
+
+.frame2-create-tl {
+  grid-area: create-tl;
+  min-width: 0;
+}
+
+.frame2-create-tr {
+  grid-area: create-tr;
+  min-width: 0;
+}
+
+.frame2-create-ml {
+  grid-area: create-ml;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.frame2-create-mr {
+  grid-area: create-mr;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.frame2-create-bl {
+  grid-area: create-bl;
+  min-width: 0;
+}
+
+.frame2-create-br {
+  grid-area: create-br;
+  min-width: 0;
+}
+
+.frame2-create-mr .frame2-file-name {
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+}
+
+.frame2-file-picker-row--solo {
+  display: block;
+}
+
 @media (max-width: 1024px) {
   .frame2-create-grid {
     grid-template-columns: 1fr;
+  }
+
+  .frame2-create-grid--file-status-pair {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'create-tl'
+      'create-tr'
+      'create-ml'
+      'create-mr'
+      'create-bl'
+      'create-br';
   }
 }
 
@@ -616,6 +726,63 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.frame2-material-search-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Форма как у .admin-input (высота), цвета как у .admin-secondary («Отмена»). */
+button.admin-secondary.frame2-material-tree-search-btn,
+button.admin-secondary.frame2-file-btn {
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid var(--ft-border-2);
+  background: transparent;
+  color: var(--ft-text);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.admin-secondary.frame2-material-tree-search-btn {
+  width: 100%;
+}
+
+/* Как ширина кнопки «Поиск» в соседней колонке (~236px); не сжимать под короткий текст. */
+button.admin-secondary.frame2-file-btn {
+  flex: 0 0 14.75rem;
+  width: 14.75rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+button.admin-secondary.frame2-material-tree-search-btn:hover,
+button.admin-secondary.frame2-file-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+button.admin-secondary.frame2-material-tree-search-btn:focus-visible,
+button.admin-secondary.frame2-file-btn:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: 2px;
+}
+
+button.admin-secondary.frame2-material-tree-search-btn:active,
+button.admin-secondary.frame2-file-btn:active {
+  transform: translateY(0.5px);
 }
 
 .frame2-picked {
@@ -763,10 +930,10 @@
 }
 
 .frame2-file-picker-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.75rem;
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  gap: 0.75rem;
   min-width: 0;
 }
 
@@ -800,18 +967,31 @@
   border: 0;
 }
 
-.frame2-file-btn {
-  justify-content: center;
+
+/* Поле только для чтения: имя файла или «Файл не выбран» (как .admin-input). */
+.frame2-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--ft-border-2);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ft-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
 }
 
-.frame2-file-name {
-  font-size: 0.82rem;
-  color: var(--ft-faint);
-  overflow: visible;
-  text-overflow: unset;
-  white-space: nowrap;
-  min-width: 0;
+.frame2-file-name--empty {
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .frame2-file-input::file-selector-button {

@@ -93,6 +93,69 @@ class MaterialCategory(models.Model):
         return " / ".join(reversed(parts))
 
 
+class TextureCategory(models.Model):
+    """Папки базы именованных текстур (отдельно от категорий материалов)."""
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="Родительская папка",
+    )
+    name = models.CharField("Наименование", max_length=255)
+    code = models.SlugField("Код", max_length=64, blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Папка текстур"
+        verbose_name_plural = "Папки текстур"
+        ordering = ["sort_order", "name"]
+        unique_together = [("parent", "name")]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def path(self) -> str:
+        parts = [self.name]
+        p: TextureCategory | None = self.parent
+        while p is not None:
+            parts.append(p.name)
+            p = p.parent
+        return " / ".join(reversed(parts))
+
+
+class TextureItem(models.Model):
+    """Именованная текстура (файл) в базе; материалы могут ссылаться на неё."""
+
+    category = models.ForeignKey(
+        TextureCategory,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Папка",
+    )
+    name = models.CharField("Наименование", max_length=500)
+    image = models.ImageField(
+        "Изображение",
+        upload_to="texture_library/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Текстура (база)"
+        verbose_name_plural = "Текстуры (база)"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Material(models.Model):
     """Карточка материала. Вкладка «Общие параметры» + задел на расширения."""
 
@@ -213,6 +276,14 @@ class Material(models.Model):
         max_length=300,
         null=True,
         blank=True,
+    )
+    texture_item = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="materials_using",
+        verbose_name="Текстура из базы",
     )
     tex_offset_x = models.DecimalField(
         "Смещение X",
@@ -356,54 +427,6 @@ class MaterialRelatedItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.parent_id} → {self.related_material_id} × {self.quantity}"
-
-
-class MaterialOperationLine(models.Model):
-    """Операция/услуга в расчёте (текст + параметр с модели, кол-во, ед.изм., цена)."""
-
-    material = models.ForeignKey(
-        "Material",
-        on_delete=models.CASCADE,
-        related_name="operation_lines",
-        verbose_name="Материал",
-    )
-    name = models.CharField("Операция", max_length=500)
-    model_parameter = models.CharField("Параметр с модели", max_length=500, blank=True)
-    quantity = models.DecimalField(
-        "Количество",
-        max_digits=18,
-        decimal_places=3,
-        default=Decimal("1"),
-        validators=[MinValueValidator(Decimal("0"))],
-    )
-    uom = models.ForeignKey(
-        UnitOfMeasure,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="operation_lines",
-        verbose_name="Ед. изм.",
-    )
-    price = models.DecimalField(
-        "Цена (KZT)",
-        max_digits=18,
-        decimal_places=3,
-        validators=[MinValueValidator(Decimal("0"))],
-    )
-    price_per_facade = models.BooleanField(
-        "Цена за каждый фасад",
-        default=False,
-        help_text="Если включено, в калькуляторе строка умножается на количество фасадов; иначе — один раз на конфигурацию.",
-    )
-    sort_order = models.PositiveIntegerField("Порядок", default=0)
-
-    class Meta:
-        verbose_name = "Операция (строка)"
-        verbose_name_plural = "Операции"
-        ordering = ["sort_order", "id"]
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.material_id})"
 
 
 class CalculatorProfile(models.Model):

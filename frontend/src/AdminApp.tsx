@@ -21,28 +21,27 @@ import {
   type AdminUserRow,
 } from './api'
 import { AdminOrdersPanel } from './AdminOrdersPanel'
+import { AdminTexturesPanel } from './AdminTexturesPanel'
+import { FolderCreateModal } from './FolderCreateModal'
+import { FolderMoveModal } from './FolderMoveModal'
+import { MaterialSearchModal } from './MaterialSearchModal'
 import type { Me } from './auth'
 import { BASE_CURRENCY } from './currencies'
 import {
-  capDecimalString,
   commitDecimalForApi,
   DECIMAL_FRACTION_DIGITS,
   formatDecimalStringForUi,
   formatDecimalStringForInput,
   filterDecimalInput,
   normalizeDecimalForInput,
-  normalizeDecimalOnBlur,
 } from './floatInput'
 import { FtSelect, type FtSelectOption } from './FtSelect'
 import { HintButton } from './HintButton'
 import { sortUomForSelect } from './uomSelectOrder'
-import {
-  materialExtrasInitOps,
-  materialExtrasInitRelated,
-  MaterialExtrasPanel,
-} from './MaterialExtrasPanel'
+import { materialExtrasInitRelated, MaterialExtrasPanel } from './MaterialExtrasPanel'
 import { CalculatorPage } from './CalculatorPage'
-import type { OpLineState, RelatedItemState } from './MaterialExtrasPanel'
+import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
+import type { RelatedItemState } from './MaterialExtrasPanel'
 import type { Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure } from './types'
 import './AdminApp.css'
 
@@ -100,6 +99,7 @@ function TreeRow({
   onSelect,
   onRename,
   onDelete,
+  onMove,
 }: {
   c: MaterialCategory
   depth: number
@@ -109,6 +109,7 @@ function TreeRow({
   onSelect: (id: number) => void
   onRename: (id: number, name: string) => Promise<void>
   onDelete: (c: MaterialCategory) => void
+  onMove: (c: MaterialCategory) => void
 }) {
   const isSel = c.id === selectedId
   const hasKids = (c.children?.length ?? 0) > 0
@@ -226,7 +227,7 @@ function TreeRow({
               type="button"
               className="tree-gear-btn"
               title="Действия с папкой"
-              aria-label="Действия с папкой: переименовать или удалить"
+              aria-label="Действия с папкой: переименовать, переместить или удалить"
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={(e) => {
@@ -253,6 +254,20 @@ function TreeRow({
                     }}
                   >
                     Переименовать
+                  </button>
+                </li>
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="tree-gear-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      onMove(c)
+                    }}
+                  >
+                    Переместить…
                   </button>
                 </li>
                 <li role="none">
@@ -287,6 +302,7 @@ function TreeRow({
               onSelect={onSelect}
               onRename={onRename}
               onDelete={onDelete}
+              onMove={onMove}
             />
           ))}
         </ul>
@@ -335,11 +351,12 @@ function materialListCoeffPlaceholder() {
 export function AdminApp({ user, onLogout }: AdminProps) {
   const nav = useNavigate()
   const loc = useLocation()
-  const section: 'materials' | 'orders' | 'calculator' | 'users' = (() => {
+  const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'users' = (() => {
     const p = (loc.pathname || '/materials').toLowerCase()
     if (p.startsWith('/calculator')) return 'calculator'
     if (p.startsWith('/orders')) return 'orders'
     if (p.startsWith('/users')) return 'users'
+    if (p.startsWith('/textures')) return 'textures'
     return 'materials'
   })()
   const [tree, setTree] = useState<MaterialCategory[]>([])
@@ -352,7 +369,9 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
   const [matExtraHost, setMatExtraHost] = useState<HTMLDivElement | null>(null)
-  const [newFolderName, setNewFolderName] = useState('')
+  const [folderCreateOpen, setFolderCreateOpen] = useState(false)
+  const [materialSearchOpen, setMaterialSearchOpen] = useState(false)
+  const [folderMoveTarget, setFolderMoveTarget] = useState<MaterialCategory | null>(null)
   const [folderDeleteModal, setFolderDeleteModal] = useState<MaterialCategory | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
   const [adminUsersLoading, setAdminUsersLoading] = useState(false)
@@ -425,15 +444,42 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       .catch((e) => setErr(String(e)))
   }, [selected])
 
-  const addFolder = (parent: number | null) => {
-    const name = newFolderName.trim() || (parent == null ? 'Новая папка' : 'Вложенная папка')
-    createCategory({ parent, name, sort_order: 0 })
-      .then(() => {
-        setNewFolderName('')
-        return reloadTree()
-      })
+  const handleMaterialPickedFromSearch = useCallback((materials: Material[]) => {
+    if (materials.length === 0) return
+    setErr(null)
+    setMaterialSearchOpen(false)
+    const m = materials[0]
+    setSelected(m.category)
+    fetchMaterial(m.id)
+      .then((full) => setEditing(full))
       .catch((e) => setErr(String(e)))
-  }
+  }, [])
+
+  const submitNewFolder = useCallback(
+    (parent: number | null, name: string) => {
+      setErr(null)
+      return createCategory({ parent, name, sort_order: 0 })
+        .then(async (created) => {
+          await reloadTree()
+          if (parent != null) {
+            setExpandedIds((prev) => {
+              if (prev.has(parent)) return prev
+              const next = new Set(prev)
+              next.add(parent)
+              return next
+            })
+          }
+          if (created && typeof created.id === 'number') {
+            setSelected(created.id)
+          }
+        })
+        .catch((e) => {
+          setErr(String(e))
+          throw e instanceof Error ? e : new Error(String(e))
+        })
+    },
+    [reloadTree]
+  )
 
   const renameFolder = useCallback(
     (id: number, name: string) => {
@@ -452,6 +498,18 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const deleteFolder = useCallback((cat: MaterialCategory) => {
     setFolderDeleteModal(cat)
   }, [])
+
+  const applyFolderMove = useCallback(async (newParentId: number | null, movingId: number) => {
+    setErr(null)
+    await updateCategory(movingId, { parent: newParentId })
+    await reloadTree()
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (newParentId != null) next.add(newParentId)
+      return next
+    })
+    setSelected(movingId)
+  }, [reloadTree])
 
   const confirmDeleteFolder = useCallback(() => {
     const cat = folderDeleteModal
@@ -578,6 +636,19 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             type="button"
             role="tab"
             className={
+              section === 'textures' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
+            }
+            aria-selected={section === 'textures'}
+            aria-controls="admin-panel-textures"
+            id="admin-tab-textures"
+            onClick={() => nav('/textures')}
+          >
+            Текстуры
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={
               section === 'calculator' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
             }
             aria-selected={section === 'calculator'}
@@ -611,35 +682,30 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           </button>
         </nav>
       </header>
-      {err && <div className="admin-error">{err}</div>}
-      {loading && <p className="admin-muted admin-initial-state">Загрузка…</p>}
+      {err && section === 'materials' && <div className="admin-error">{err}</div>}
+      {loading && section === 'materials' && <p className="admin-muted admin-initial-state">Загрузка…</p>}
       {section === 'materials' ? (
         <div className="admin-body" id="admin-panel-materials" role="tabpanel" aria-labelledby="admin-tab-materials">
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. Наведите на строку, чтобы появилась кнопка." />
+              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать, переместить (окно с деревом и перетаскиванием) или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. «Создать папку» — окно с деревом как в проводнике. «Поиск» — такое же окно: фильтры сверху (папка, артикул, наименование, цена, классы), дерево слева, результаты справа; клик по строке открывает материал." />
             </div>
             <div className="admin-stack">
-              <input
-                className="admin-input"
-                placeholder="Название папки"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-              />
-              <div className="admin-row">
-                <button type="button" className="admin-secondary admin-secondary--sm" onClick={() => addFolder(null)}>
-                  + В корень
-                </button>
-                <button
-                  type="button"
-                  className="admin-secondary admin-secondary--sm"
-                  disabled={selected == null}
-                  onClick={() => addFolder(selected!)}
-                >
-                  + В текущую
-                </button>
-              </div>
+              <button
+                type="button"
+                className="admin-primary admin-folder-create-btn"
+                onClick={() => setFolderCreateOpen(true)}
+              >
+                + Создать папку
+              </button>
+              <button
+                type="button"
+                className="admin-secondary admin-folder-search-btn"
+                onClick={() => setMaterialSearchOpen(true)}
+              >
+                Поиск
+              </button>
             </div>
             <ul className="tree-root">
               {tree.map((c) => (
@@ -653,6 +719,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   onSelect={setSelected}
                   onRename={renameFolder}
                   onDelete={deleteFolder}
+                  onMove={setFolderMoveTarget}
                 />
               ))}
             </ul>
@@ -749,6 +816,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             )}
           </section>
         </div>
+      ) : section === 'textures' ? (
+        <AdminTexturesPanel />
       ) : section === 'calculator' ? (
         <div
           className="admin-body"
@@ -845,6 +914,31 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         </div>
       )}
     </div>
+    {folderCreateOpen ? (
+      <FolderCreateModal
+        tree={tree}
+        initialParentId={selected}
+        onClose={() => setFolderCreateOpen(false)}
+        onCreate={submitNewFolder}
+      />
+    ) : null}
+    {folderMoveTarget ? (
+      <FolderMoveModal
+        key={folderMoveTarget.id}
+        tree={tree}
+        folderToMove={folderMoveTarget}
+        onClose={() => setFolderMoveTarget(null)}
+        onMove={applyFolderMove}
+      />
+    ) : null}
+    {materialSearchOpen ? (
+      <MaterialSearchModal
+        tree={tree}
+        mclasses={mclasses}
+        onClose={() => setMaterialSearchOpen(false)}
+        onPick={handleMaterialPickedFromSearch}
+      />
+    ) : null}
     {folderDeleteModal &&
       createPortal(
         <div
@@ -952,8 +1046,13 @@ function MaterialForm({
 }) {
   const [activeTab, setActiveTab] = useState<'general' | 'extra' | 'texture'>('general')
   const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
-  const [textureFile, setTextureFile] = useState<File | null>(null)
-  const [texturePreviewUrl, setTexturePreviewUrl] = useState<string | null>(null)
+  const [texturePickerOpen, setTexturePickerOpen] = useState(false)
+  const [textureLibraryItemId, setTextureLibraryItemId] = useState<number | null>(
+    material?.texture_library_item ?? null
+  )
+  const [textureLibraryItemName, setTextureLibraryItemName] = useState(
+    material?.texture_library_item_name ?? ''
+  )
   const [textureClearRequested, setTextureClearRequested] = useState(false)
   const [form, setForm] = useState({
     name: material?.name ?? '',
@@ -995,15 +1094,8 @@ function MaterialForm({
   const [relatedItems, setRelatedItems] = useState<RelatedItemState[]>(() =>
     materialExtrasInitRelated(material)
   )
-  const [opLines, setOpLines] = useState<OpLineState[]>(() => materialExtrasInitOps(material))
   const matClassInputRef = useRef<HTMLInputElement>(null)
   const matClassRowRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    return () => {
-      if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
-    }
-  }, [texturePreviewUrl])
 
   useEffect(() => {
     if (!materialDeleteOpen) return
@@ -1180,52 +1272,27 @@ function MaterialForm({
         quantity: commitDecimalForApi(r.quantity),
         quantity_scale: r.quantity_scale,
       })),
-      operation_lines: opLines
-        .filter((o) => o.name.trim())
-        .map((o) => ({
-          name: o.name.trim(),
-          model_parameter: o.model_parameter.trim(),
-          quantity: commitDecimalForApi(o.quantity),
-          uom_id: o.uom_id > 0 ? o.uom_id : null,
-          price: commitDecimalForApi(o.price),
-          price_per_facade: o.price_per_facade,
-        })),
+      texture_library_item: textureLibraryItemId,
     }
     if (textureClearRequested) {
-      // Для удаления файла текстуры отправляем явный null (JSON PATCH).
       baseBody.texture_image = null
+      baseBody.texture_library_item = null
     }
-    const body: Record<string, unknown> | FormData = (() => {
-      if (!textureFile) return baseBody
-      const fd = new FormData()
-      for (const [k, v] of Object.entries(baseBody)) {
-        if (v === undefined) continue
-        // Для multipart не отправляем null как пустую строку — DRF может ругаться на DecimalField.
-        if (v === null) continue
-        else if (typeof v === 'object') fd.append(k, JSON.stringify(v))
-        else fd.append(k, String(v))
-      }
-      fd.append('texture_image', textureFile)
-      return fd
-    })()
+    const body = baseBody
     const p =
       material == null
         ? createMaterial(body)
         : updateMaterial(material.id, body)
     p.then((m) => {
       onSaved(m)
-      // После загрузки файла важно сразу подхватить URL из ответа API,
-      // иначе форма может продолжать показывать старое (null) до переоткрытия карточки.
       if (m.texture_image) setField('texture_image', m.texture_image)
       if (m.texture_image === null) setField('texture_image', null)
       if (m.texture_mode) setField('texture_mode', m.texture_mode)
       if (m.texture_color) setField('texture_color', m.texture_color)
-      setTextureFile(null)
+      setTextureLibraryItemId(m.texture_library_item ?? null)
+      setTextureLibraryItemName(m.texture_library_item_name ?? '')
       setTextureClearRequested(false)
-      if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
-      setTexturePreviewUrl(null)
       setRelatedItems(materialExtrasInitRelated(m))
-      setOpLines(materialExtrasInitOps(m))
     })
       .catch((e) => setLocalErr(String(e)))
       .finally(() => setSaving(false))
@@ -1249,7 +1316,7 @@ function MaterialForm({
       <div className="mat-form-head">
         <div className="admin-heading-row mat-form-title-line">
           <h3 className="admin-h2">{material ? 'Карточка материала' : 'Новый материал'}</h3>
-          <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие и операции — внизу по центру (под списком папки)." />
+          <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие — внизу по центру (под списком папки). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
@@ -1664,13 +1731,10 @@ function MaterialForm({
                     backgroundImage:
                       form.texture_mode === 'color'
                         ? 'none'
-                        : `url(${(() => {
-                            if (texturePreviewUrl) return texturePreviewUrl
-                            const p = form.texture_image
-                            if (!p) return ''
-                            if (p.startsWith('http')) return p
-                            return `http://127.0.0.1:8000${p}`
-                          })()})`,
+                        : (() => {
+                            const u = resolveTextureImageUrl(form.texture_image)
+                            return u ? `url(${u})` : 'none'
+                          })(),
                     backgroundColor: form.texture_mode === 'color' ? form.texture_color : 'transparent',
                     backgroundPosition: `${form.tex_offset_x}px ${form.tex_offset_y}px`,
                     backgroundSize: `${form.tex_step_x}px ${form.tex_step_y}px`,
@@ -1706,9 +1770,10 @@ function MaterialForm({
                     checked={form.texture_mode === 'color'}
                     onChange={() => {
                       setField('texture_mode', 'color')
-                      setTextureFile(null)
-                      if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
-                      setTexturePreviewUrl(null)
+                      setTextureLibraryItemId(null)
+                      setTextureLibraryItemName('')
+                      setTextureClearRequested(true)
+                      setField('texture_image', null)
                     }}
                   />
                   Цвет
@@ -1738,29 +1803,30 @@ function MaterialForm({
                 </div>
               ) : (
                 <div className="field tex-file-row">
-                  <span>Текстура (файл)</span>
-                  <input
-                    className="admin-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null
-                      setField('texture_mode', 'texture')
-                      setTextureClearRequested(false)
-                      setTextureFile(f)
-                      if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
-                      setTexturePreviewUrl(f ? URL.createObjectURL(f) : null)
-                    }}
-                  />
-                  {(texturePreviewUrl || form.texture_image) && (
+                  <span>Текстура</span>
+                  <div className="tex-library-row">
                     <button
                       type="button"
                       className="admin-secondary"
                       onClick={() => {
-                        setTextureFile(null)
+                        setField('texture_mode', 'texture')
+                        setTexturePickerOpen(true)
+                      }}
+                    >
+                      Выбрать из базы…
+                    </button>
+                    <span className="tex-library-label" title={textureLibraryItemName || undefined}>
+                      {textureLibraryItemName ? `«${textureLibraryItemName}»` : 'Не выбрана'}
+                    </span>
+                  </div>
+                  {(textureLibraryItemId != null || form.texture_image) && (
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      onClick={() => {
+                        setTextureLibraryItemId(null)
+                        setTextureLibraryItemName('')
                         setTextureClearRequested(true)
-                        if (texturePreviewUrl) URL.revokeObjectURL(texturePreviewUrl)
-                        setTexturePreviewUrl(null)
                         setField('texture_image', null)
                       }}
                     >
@@ -1972,6 +2038,19 @@ function MaterialForm({
         </div>,
         document.body
       )}
+    {texturePickerOpen && (
+      <TexturePickerModal
+        onClose={() => setTexturePickerOpen(false)}
+        onPick={(item) => {
+          setTextureLibraryItemId(item.id)
+          setTextureLibraryItemName(item.name)
+          setField('texture_mode', 'texture')
+          setTextureClearRequested(false)
+          setField('texture_image', resolveTextureImageUrl(item.image))
+          setTexturePickerOpen(false)
+        }}
+      />
+    )}
     {extraHost &&
       createPortal(
         <MaterialExtrasPanel
@@ -1979,8 +2058,6 @@ function MaterialForm({
           mainMaterialId={material?.id ?? null}
           relatedItems={relatedItems}
           onRelatedChange={setRelatedItems}
-          opLines={opLines}
-          onOpLinesChange={setOpLines}
           basePrice={form.base_price}
         />,
         extraHost

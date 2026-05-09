@@ -25,16 +25,17 @@ function safePostLoginTarget(rawFrom: string | undefined, isStaff: boolean): str
   if (isPublicCalculatorRoute(pathname) || pathname.replace(/\/$/, '') === '/my-orders') {
     return noHash || '/'
   }
-  if (isStaff) {
-    if (
-      pathname.startsWith('/materials') ||
-      pathname.startsWith('/calculator') ||
-      pathname.startsWith('/orders') ||
-      pathname.startsWith('/users')
-    ) {
-      return noHash
+    if (isStaff) {
+      if (
+        pathname.startsWith('/materials') ||
+        pathname.startsWith('/textures') ||
+        pathname.startsWith('/calculator') ||
+        pathname.startsWith('/orders') ||
+        pathname.startsWith('/users')
+      ) {
+        return noHash
+      }
     }
-  }
   return fallback
 }
 
@@ -203,6 +204,14 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/materials/*"
+        element={
+          <AdminRoute auth={auth}>
+            {(user) => <AdminApp user={user} onLogout={logout} />}
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/textures/*"
         element={
           <AdminRoute auth={auth}>
             {(user) => <AdminApp user={user} onLogout={logout} />}

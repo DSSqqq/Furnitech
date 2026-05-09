@@ -1,11 +1,5 @@
 import { normalizeDecimalOnBlur } from '../floatInput'
-import type {
-  Material,
-  MaterialOperationLineDto,
-  MaterialRelatedItemDto,
-  RelatedQuantityScale,
-  UnitOfMeasure,
-} from '../types'
+import type { Material, MaterialRelatedItemDto, RelatedQuantityScale, UnitOfMeasure } from '../types'
 
 export function parseMoney(s: string | undefined | null): number {
   if (s == null || s === '') return 0
@@ -158,24 +152,9 @@ export function relatedItemsCalculatorCost(
   return sum
 }
 
-/** Сумма цен операций; при price_per_facade строка умножается на число фасадов. */
-export function operationLinesCost(
-  lines: MaterialOperationLineDto[] | undefined | null,
-  facadeCount: number
-): number {
-  if (!lines?.length) return 0
-  const fc = Math.max(0, facadeCount)
-  return lines.reduce((acc, o) => {
-    const p = parseMoney(o.price)
-    const mult = o.price_per_facade ? fc : 1
-    return acc + p * mult
-  }, 0)
-}
-
 export type FramePriceBreakdown = {
   profile: number
   related: number
-  operations: number
   filling: number
   total: number
 }
@@ -205,8 +184,6 @@ export function computeFramePriceBreakdown(
     fc
   )
 
-  const profileOps = operationLinesCost(colorMaterial?.operation_lines, fc)
-
   const geomFill =
     fillingMaterial && fc > 0 ? pricedUnitsForMaterial(fillingMaterial, heightMm, widthMm, fc) : 0
   const fillMain = fillingMaterial ? parseMoney(fillingMaterial.base_price) : 0
@@ -218,16 +195,13 @@ export function computeFramePriceBreakdown(
     widthMm,
     fc
   )
-  const fillingOps = operationLinesCost(fillingMaterial?.operation_lines, fc)
-  const filling = fillingMain + fillingRelated + fillingOps
-  const operations = profileOps + fillingOps
+  const filling = fillingMain + fillingRelated
 
   return {
     profile,
     related,
-    operations,
     filling,
-    total: profile + related + operations + filling,
+    total: profile + related + filling,
   }
 }
 

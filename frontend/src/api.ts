@@ -7,6 +7,8 @@ import type {
   Material,
   MaterialCategory,
   MaterialClass,
+  TextureCategory,
+  TextureItem,
   UnitOfMeasure,
 } from './types'
 import { getAccessToken, refreshAccessToken } from './auth'
@@ -137,6 +139,59 @@ export function deleteCategory(id: number) {
   })
 }
 
+export function fetchTextureCategoryTree() {
+  return apiFetch('/api/texture-categories/?tree=1').then((r) => json<TextureCategory[]>(r))
+}
+
+export function createTextureCategory(data: { parent: number | null; name: string; sort_order?: number }) {
+  return apiFetch('/api/texture-categories/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => json<TextureCategory>(r))
+}
+
+export function updateTextureCategory(
+  id: number,
+  data: Partial<{ parent: number | null; name: string; code: string; sort_order: number }>
+) {
+  return apiFetch(`/api/texture-categories/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<TextureCategory>(r))
+}
+
+export function deleteTextureCategory(id: number) {
+  return apiFetch(`/api/texture-categories/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+export function fetchTextureItems(categoryId: number) {
+  return apiFetch(`/api/texture-items/?category=${categoryId}`).then((r) =>
+    json<{ results: TextureItem[] }>(r)
+  )
+}
+
+export function createTextureItem(data: Record<string, unknown> | FormData) {
+  return apiFetch('/api/texture-items/', {
+    method: 'POST',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<TextureItem>(r))
+}
+
+export function updateTextureItem(id: number, data: Record<string, unknown> | FormData) {
+  return apiFetch(`/api/texture-items/${id}/`, {
+    method: 'PATCH',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }).then((r) => json<TextureItem>(r))
+}
+
+export function deleteTextureItem(id: number) {
+  return apiFetch(`/api/texture-items/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
 export function fetchMaterials(categoryId: number) {
   return apiFetch(`/api/materials/?category=${categoryId}`).then((r) =>
     json<{ results: Material[] }>(r)
@@ -150,6 +205,36 @@ export function searchMaterials(query: string) {
   return apiFetch(`/api/materials/?search=${encodeURIComponent(q)}`).then((r) =>
     json<{ results: Material[] }>(r)
   )
+}
+
+export type MaterialsListFilterParams = {
+  category?: number | null
+  folder_name?: string
+  article?: string
+  name?: string
+  price?: string
+  material_class_ids?: number[]
+}
+
+/** Список материалов с фильтрами (см. MaterialViewSet.get_queryset). */
+export function fetchMaterialsFiltered(params: MaterialsListFilterParams) {
+  const sp = new URLSearchParams()
+  if (params.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  const fn = params.folder_name?.trim()
+  if (fn) sp.set('folder_name', fn)
+  const ar = params.article?.trim()
+  if (ar) sp.set('article', ar)
+  const nm = params.name?.trim()
+  if (nm) sp.set('name', nm)
+  const pr = params.price?.trim()
+  if (pr) sp.set('price', pr)
+  if (params.material_class_ids?.length) {
+    sp.set('material_class_ids', params.material_class_ids.join(','))
+  }
+  const q = sp.toString()
+  return apiFetch(`/api/materials/${q ? `?${q}` : ''}`).then((r) => json<{ results: Material[] }>(r))
 }
 
 export function fetchUom() {

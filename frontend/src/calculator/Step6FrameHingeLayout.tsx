@@ -21,7 +21,9 @@ import {
   validateHingePositions,
   writeHingeLayout,
 } from './frameCalcSession'
+import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialTextureLayerStyle } from './sketchFrame'
+import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -119,6 +121,7 @@ export function Step6FrameHingeLayout() {
   const nav = useNavigate()
   const { step } = useCalcPaths()
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const fillingTypeName = useFillingTypeName(cfgKey)
 
   const savedOnce = useMemo(() => readHingeLayout(), [])
   const initialSide = savedOnce?.side ?? 'top'
@@ -504,7 +507,9 @@ export function Step6FrameHingeLayout() {
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Цвет</div>
-                      <div className="sketch-val">{frameColorMaterial?.name || '—'}</div>
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(materialTextureLabel(frameColorMaterial))}
+                      </div>
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">В × Ш (мм)</div>
@@ -514,7 +519,9 @@ export function Step6FrameHingeLayout() {
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Наполнение</div>
-                      <div className="sketch-val">{fillingMaterial?.name || '—'}</div>
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(sketchFillingLine(fillingTypeName, fillingMaterial))}
+                      </div>
                     </div>
                   </div>
                 </div>

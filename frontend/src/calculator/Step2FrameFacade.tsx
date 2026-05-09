@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   createCalculatorProfileType,
   deleteCalculatorProfileType,
   fetchCalculatorProfileTypes,
+  fetchCategoryTree,
   fetchMaterial,
-  searchMaterials,
+  fetchMaterialClasses,
   updateCalculatorProfileType,
 } from '../api'
-import type { CalculatorProfileType, Material } from '../types'
+import { MaterialSearchModal } from '../MaterialSearchModal'
+import type { CalculatorProfileType, Material, MaterialCategory, MaterialClass } from '../types'
 import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import {
@@ -19,21 +22,35 @@ import {
   subscribeFrameCalcSession,
 } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
 import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 
-function matLabel(m: { name: string; article?: string | null }) {
+function matLabel(m: {
+  name: string
+  article?: string | null
+  texture_mode?: string
+  texture_color?: string
+  texture_image?: string | null
+}) {
   const a = (m.article ?? '').trim()
-  return a ? `${m.name} (${a})` : m.name
+  const lab = materialTextureLabel(m)
+  return a ? `${lab} (${a})` : lab
 }
 
-function textureThumb(m: { texture_image?: string | null; texture_color?: string; name: string }) {
+function textureThumb(m: {
+  texture_image?: string | null
+  texture_color?: string
+  texture_mode?: string
+  name: string
+}) {
   const img = resolveMediaUrl(m.texture_image ?? '')
   const color = (m.texture_color ?? '').trim()
+  const alt = materialTextureLabel(m)
   if (img) {
     return (
       <div className="tile-thumb tile-thumb--color">
-        <img className="tile-thumb-img" src={img} alt={m.name} />
+        <img className="tile-thumb-img" src={img} alt={alt} />
       </div>
     )
   }
@@ -76,9 +93,7 @@ export function Step2FrameFacade() {
   const [createTypeImageFile, setCreateTypeImageFile] = useState<File | null>(null)
   const cardImageInputRef = useRef<HTMLInputElement>(null)
 
-  const [createColorsQ, setCreateColorsQ] = useState('')
   const [createColorsHit, setCreateColorsHit] = useState<Material[]>([])
-  const [createColorsPicking, setCreateColorsPicking] = useState(false)
   const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
   const [calcSessionHydrated, setCalcSessionHydrated] = useState(false)
 
@@ -86,10 +101,88 @@ export function Step2FrameFacade() {
   const [editTypeName, setEditTypeName] = useState('')
   const [editTypeImageFile, setEditTypeImageFile] = useState<File | null>(null)
   const editImageInputRef = useRef<HTMLInputElement>(null)
-  const [editColorsQ, setEditColorsQ] = useState('')
   const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
-  const [editColorsPicking, setEditColorsPicking] = useState(false)
   const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
+
+  const [gearMenuTypeId, setGearMenuTypeId] = useState<number | null>(null)
+  const gearMenuWrapRef = useRef<HTMLDivElement | null>(null)
+  const [profileTypeDeleteModal, setProfileTypeDeleteModal] = useState<CalculatorProfileType | null>(null)
+
+  const [folderTreeCache, setFolderTreeCache] = useState<MaterialCategory[]>([])
+  const [materialClassesCache, setMaterialClassesCache] = useState<MaterialClass[]>([])
+  const [materialSearchOverlay, setMaterialSearchOverlay] = useState<null | {
+    tree: MaterialCategory[]
+    mclasses: MaterialClass[]
+  }>(null)
+  const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
+
+  const closeMaterialSearch = useCallback(() => {
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+  }, [])
+
+  const openMaterialTreeSearch = useCallback(
+    async (target: 'create' | 'edit') => {
+      setErr(null)
+      try {
+        let tree = folderTreeCache
+        let mclasses = materialClassesCache
+        if (tree.length === 0 || mclasses.length === 0) {
+          const [t, mcRes] = await Promise.all([fetchCategoryTree(), fetchMaterialClasses()])
+          tree = t
+          mclasses = mcRes.results ?? []
+          setFolderTreeCache(t)
+          setMaterialClassesCache(mclasses)
+        }
+        materialSearchTargetRef.current = target
+        setMaterialSearchOverlay({ tree, mclasses })
+      } catch (e) {
+        setErr(String(e))
+      }
+    },
+    [folderTreeCache, materialClassesCache]
+  )
+
+  const handleMaterialPickedFromTree = useCallback((materials: Material[]) => {
+    if (materials.length === 0) return
+    const target = materialSearchTargetRef.current
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+    const flags: ColorFlags = { is_new: false, is_hit: false, is_sale: false }
+    if (target === 'create') {
+      setCreateColorsHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setCreateColors((prev) => {
+        const next = { ...prev }
+        for (const m of materials) {
+          if (next[m.id] == null) next[m.id] = flags
+        }
+        return next
+      })
+    } else if (target === 'edit') {
+      setEditColorsHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setEditColors((prev) => {
+        const next = { ...prev }
+        for (const m of materials) {
+          if (next[m.id] == null) next[m.id] = flags
+        }
+        return next
+      })
+    }
+  }, [])
 
   const reload = useCallback(() => {
     setErr(null)
@@ -170,40 +263,6 @@ export function Step2FrameFacade() {
   }, [calcSessionHydrated, loading, selectedTypeId, profileTypes, selectedColorId])
 
   useEffect(() => {
-    if (!createOpen) return
-    const q = createColorsQ.trim()
-    const t = window.setTimeout(() => {
-      if (!q) {
-        setCreateColorsHit([])
-        return
-      }
-      setCreateColorsPicking(true)
-      searchMaterials(q)
-        .then((r) => setCreateColorsHit(r.results ?? []))
-        .catch(() => setCreateColorsHit([]))
-        .finally(() => setCreateColorsPicking(false))
-    }, 250)
-    return () => clearTimeout(t)
-  }, [createColorsQ, createOpen])
-
-  useEffect(() => {
-    if (editTypeId == null) return
-    const q = editColorsQ.trim()
-    const t = window.setTimeout(() => {
-      if (!q) {
-        setEditColorsHit([])
-        return
-      }
-      setEditColorsPicking(true)
-      searchMaterials(q)
-        .then((r) => setEditColorsHit(r.results ?? []))
-        .catch(() => setEditColorsHit([]))
-        .finally(() => setEditColorsPicking(false))
-    }, 250)
-    return () => clearTimeout(t)
-  }, [editColorsQ, editTypeId])
-
-  useEffect(() => {
     const list = [...createColorsHit, ...editColorsHit]
     const ids = new Set<number>()
     for (const m of list) {
@@ -261,6 +320,7 @@ export function Step2FrameFacade() {
   }, [editingType])
 
   const openEditType = (t: CalculatorProfileType) => {
+    closeMaterialSearch()
     setCreateOpen(false)
     setErr(null)
     setEditTypeId(t.id)
@@ -276,17 +336,21 @@ export function Step2FrameFacade() {
       }
     }
     setEditColors(m)
-    setEditColorsQ('')
     setEditColorsHit([])
+    void Promise.all(
+      (t.colors ?? []).map((c) => fetchMaterial(c.color_material_id).catch(() => null))
+    ).then((rows) => {
+      setEditColorsHit(rows.filter((x): x is Material => x != null))
+    })
   }
 
   const closeEditType = () => {
+    closeMaterialSearch()
     setEditTypeId(null)
     setEditTypeName('')
     setEditTypeImageFile(null)
     if (editImageInputRef.current) editImageInputRef.current.value = ''
     setEditColors({})
-    setEditColorsQ('')
     setEditColorsHit([])
   }
 
@@ -357,18 +421,18 @@ export function Step2FrameFacade() {
       setCreateTypeName('')
       setCreateTypeImageFile(null)
       if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-      setCreateColorsQ('')
       setCreateColorsHit([])
       setCreateColors({})
+      closeMaterialSearch()
     } catch (e) {
       setErr(String(e))
     }
   }
 
-  const deleteSelectedType = () => {
-    const selected = profileTypes.find((p) => p.id === selectedTypeId) ?? null
+  const confirmDeleteProfileType = useCallback(() => {
+    const selected = profileTypeDeleteModal
     if (!selected) return
-    if (!window.confirm('Удалить тип профиля?')) return
+    setProfileTypeDeleteModal(null)
     setErr(null)
     deleteCalculatorProfileType(selected.id)
       .then(() => {
@@ -378,7 +442,44 @@ export function Step2FrameFacade() {
         setEditTypeId((prev) => (prev === selected.id ? null : prev))
       })
       .catch((e) => setErr(String(e)))
-  }
+  }, [profileTypeDeleteModal])
+
+  const cancelDeleteProfileType = useCallback(() => {
+    setProfileTypeDeleteModal(null)
+  }, [])
+
+  useEffect(() => {
+    if (gearMenuTypeId == null) {
+      gearMenuWrapRef.current = null
+      return
+    }
+    const onDoc = (e: MouseEvent) => {
+      if (gearMenuWrapRef.current && !gearMenuWrapRef.current.contains(e.target as Node)) {
+        setGearMenuTypeId(null)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGearMenuTypeId(null)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [gearMenuTypeId])
+
+  useEffect(() => {
+    if (!profileTypeDeleteModal) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setProfileTypeDeleteModal(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [profileTypeDeleteModal])
 
   useEffect(() => {
     if (editTypeId == null) return
@@ -388,7 +489,6 @@ export function Step2FrameFacade() {
       setEditTypeImageFile(null)
       if (editImageInputRef.current) editImageInputRef.current.value = ''
       setEditColors({})
-      setEditColorsQ('')
       setEditColorsHit([])
     }
   }, [editTypeId, profileTypes])
@@ -554,15 +654,6 @@ export function Step2FrameFacade() {
                 >
                   + Добавить тип профиля
                 </button>
-                <button
-                  type="button"
-                  className="admin-secondary"
-                  disabled={!selectedType}
-                  onClick={deleteSelectedType}
-                  title={!selectedType ? 'Выберите тип профиля' : undefined}
-                >
-                  Удалить тип
-                </button>
               </div>
             )}
           </div>
@@ -576,11 +667,11 @@ export function Step2FrameFacade() {
                     type="button"
                     className="admin-secondary"
                     onClick={() => {
+                      closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateTypeName('')
                       setCreateTypeImageFile(null)
                       if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-                      setCreateColorsQ('')
                       setCreateColorsHit([])
                       setCreateColors({})
                     }}
@@ -593,8 +684,8 @@ export function Step2FrameFacade() {
                 </div>
               </div>
 
-              <div className="frame2-create-grid">
-                <div className="frame2-block">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+                <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип профиля</div>
                   <input
                     className="admin-input"
@@ -620,35 +711,55 @@ export function Step2FrameFacade() {
                         setCreateTypeImageFile(f)
                       }}
                     />
-                    <div className="frame2-file-picker-row">
-                      <button
-                        type="button"
-                        className="admin-secondary frame2-file-btn"
-                        onClick={() => cardImageInputRef.current?.click()}
-                      >
-                        {createTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                      </button>
-                      <div className="frame2-file-name" aria-live="polite">
-                        {createTypeImageFile ? createTypeImageFile.name : 'Файл не выбран'}
-                      </div>
-                    </div>
-                    {createTypeImagePreview && (
-                      <div className="frame2-file-preview frame2-file-preview--cover">
-                        <img src={createTypeImagePreview} alt="" />
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                <div className="frame2-block">
+                <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Цвета (материалы)</div>
-                  <input
-                    className="admin-input"
-                    value={createColorsQ}
-                    onChange={(e) => setCreateColorsQ(e.target.value)}
-                    placeholder="Поиск материалов…"
-                  />
-                  {createColorsPicking && <p className="admin-muted">Поиск…</p>}
+                  <div className="frame2-material-search-row">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-material-tree-search-btn"
+                      onClick={() => void openMaterialTreeSearch('create')}
+                    >
+                      Поиск
+                    </button>
+                  </div>
+                </div>
+
+                <div className="frame2-create-ml">
+                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-file-btn"
+                      onClick={() => cardImageInputRef.current?.click()}
+                    >
+                      {createTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-mr">
+                  <div
+                    className={[
+                      'frame2-file-name',
+                      createTypeImageFile ? '' : 'frame2-file-name--empty',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    aria-live="polite"
+                  >
+                    {createTypeImageFile ? createTypeImageFile.name : 'Файл не выбран'}
+                  </div>
+                </div>
+
+                <div className="frame2-create-bl">
+                  {createTypeImagePreview && (
+                    <div className="frame2-file-preview frame2-file-preview--cover">
+                      <img src={createTypeImagePreview} alt="" />
+                    </div>
+                  )}
+                </div>
+                <div className="frame2-create-br">
                   {createColorsHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {createColorsHit.map((m) => {
@@ -679,12 +790,12 @@ export function Step2FrameFacade() {
                               />
                               <span className="frame2-check-article">{m.article || '—'}</span>
                               <MaterialCheckSwatch
-                                name={m.name}
+                                name={materialTextureLabel(m)}
                                 material={m}
                                 texExtra={texByMaterialId[m.id]}
                               />
                               <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{m.name}</span>
+                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
                               </span>
                             </div>
                             {checked && (
@@ -757,8 +868,8 @@ export function Step2FrameFacade() {
                 </div>
               </div>
 
-              <div className="frame2-create-grid">
-                <div className="frame2-block">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+                <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип профиля</div>
                   <input
                     className="admin-input"
@@ -781,35 +892,55 @@ export function Step2FrameFacade() {
                       accept="image/*"
                       onChange={(e) => setEditTypeImageFile(e.target.files?.[0] ?? null)}
                     />
-                    <div className="frame2-file-picker-row">
-                      <button
-                        type="button"
-                        className="admin-secondary frame2-file-btn"
-                        onClick={() => editImageInputRef.current?.click()}
-                      >
-                        {editTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                      </button>
-                      <div className="frame2-file-name" aria-live="polite">
-                        {editTypeImageFile ? editTypeImageFile.name : 'Файл не выбран'}
-                      </div>
-                    </div>
-                    {(editTypeImagePreview || editExistingCardUrl) && (
-                      <div className="frame2-file-preview frame2-file-preview--cover">
-                        <img src={editTypeImagePreview || editExistingCardUrl} alt="" />
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                <div className="frame2-block">
+                <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Цвета (материалы)</div>
-                  <input
-                    className="admin-input"
-                    value={editColorsQ}
-                    onChange={(e) => setEditColorsQ(e.target.value)}
-                    placeholder="Поиск материалов…"
-                  />
-                  {editColorsPicking && <p className="admin-muted">Поиск…</p>}
+                  <div className="frame2-material-search-row">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-material-tree-search-btn"
+                      onClick={() => void openMaterialTreeSearch('edit')}
+                    >
+                      Поиск
+                    </button>
+                  </div>
+                </div>
+
+                <div className="frame2-create-ml">
+                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-file-btn"
+                      onClick={() => editImageInputRef.current?.click()}
+                    >
+                      {editTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-mr">
+                  <div
+                    className={[
+                      'frame2-file-name',
+                      editTypeImageFile ? '' : 'frame2-file-name--empty',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    aria-live="polite"
+                  >
+                    {editTypeImageFile ? editTypeImageFile.name : 'Файл не выбран'}
+                  </div>
+                </div>
+
+                <div className="frame2-create-bl">
+                  {(editTypeImagePreview || editExistingCardUrl) && (
+                    <div className="frame2-file-preview frame2-file-preview--cover">
+                      <img src={editTypeImagePreview || editExistingCardUrl} alt="" />
+                    </div>
+                  )}
+                </div>
+                <div className="frame2-create-br">
                   {editColorsHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {editColorsHit.map((m) => {
@@ -840,12 +971,12 @@ export function Step2FrameFacade() {
                               />
                               <span className="frame2-check-article">{m.article || '—'}</span>
                               <MaterialCheckSwatch
-                                name={m.name}
+                                name={materialTextureLabel(m)}
                                 material={m}
                                 texExtra={texByMaterialId[m.id]}
                               />
                               <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{m.name}</span>
+                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
                               </span>
                             </div>
                             {checked && (
@@ -928,21 +1059,64 @@ export function Step2FrameFacade() {
                     <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
                   </button>
                   {!readOnly && (
-                    <button
-                      type="button"
-                      className="tile-gear"
-                      title="Редактировать тип"
-                      aria-label={`Редактировать тип «${title}»`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        openEditType(t)
+                    <div
+                      className="tile-gear-wrap"
+                      ref={(node) => {
+                        if (gearMenuTypeId === t.id) gearMenuWrapRef.current = node
                       }}
                     >
-                      <span className="tile-gear-ico" aria-hidden>
-                        ⚙
-                      </span>
-                    </button>
+                      <div className="tree-line-actions tile-gear-menu-anchor">
+                        <button
+                          type="button"
+                          className="tree-gear-btn"
+                          title="Действия с типом профиля"
+                          aria-label={`Действия с типом «${title}»: редактировать или удалить`}
+                          aria-haspopup="menu"
+                          aria-expanded={gearMenuTypeId === t.id}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setGearMenuTypeId((id) => (id === t.id ? null : t.id))
+                          }}
+                        >
+                          <span className="tree-gear-ico" aria-hidden>
+                            ⚙
+                          </span>
+                        </button>
+                        {gearMenuTypeId === t.id && (
+                          <ul className="tree-gear-menu" role="menu">
+                            <li role="none">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="tree-gear-menu-item"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setGearMenuTypeId(null)
+                                  openEditType(t)
+                                }}
+                              >
+                                Редактировать
+                              </button>
+                            </li>
+                            <li role="none">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="tree-gear-menu-item tree-gear-menu-item--danger"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setGearMenuTypeId(null)
+                                  setProfileTypeDeleteModal(t)
+                                }}
+                              >
+                                Удалить
+                              </button>
+                            </li>
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )
@@ -989,8 +1163,10 @@ export function Step2FrameFacade() {
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Цвет</div>
-                    <div className="sketch-val">
-                      {selectedColorMaterial?.name || '—'}
+                    <div className="sketch-val sketch-val--texture-wrap">
+                      {textureLabelDisplayWrap(
+                        materialTextureLabel(selectedColorMaterialFull ?? selectedColorMaterial),
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1042,6 +1218,7 @@ export function Step2FrameFacade() {
                       title={matLabel(c.color_material)}
                     >
                       {textureThumb({
+                        texture_mode: (c.color_material as any).texture_mode,
                         texture_image:
                           (c.color_material as any).texture_image ??
                           texByMaterialId[c.color_material_id]?.texture_image ??
@@ -1052,7 +1229,9 @@ export function Step2FrameFacade() {
                           '',
                         name: c.color_material.name,
                       })}
-                      <div className="tile-title">{c.color_material.name}</div>
+                      <div className="tile-title tile-title--texture-wrap">
+                        {textureLabelDisplayWrap(materialTextureLabel(c.color_material))}
+                      </div>
                       <div className="tile-sub">{c.color_material.article || '—'}</div>
                       {(c.is_new || c.is_hit || c.is_sale) && (
                         <div className="tile-flags">
@@ -1071,7 +1250,10 @@ export function Step2FrameFacade() {
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          setRemoveColorConfirm({ id: c.color_material_id, name: c.color_material.name })
+                          setRemoveColorConfirm({
+                            id: c.color_material_id,
+                            name: materialTextureLabel(c.color_material),
+                          })
                         }}
                       >
                         ×
@@ -1087,6 +1269,15 @@ export function Step2FrameFacade() {
             )}
           </div>
         </div>
+      )}
+
+      {materialSearchOverlay && (
+        <MaterialSearchModal
+          tree={materialSearchOverlay.tree}
+          mclasses={materialSearchOverlay.mclasses}
+          onClose={closeMaterialSearch}
+          onPick={handleMaterialPickedFromTree}
+        />
       )}
 
       {removeColorConfirm && (
@@ -1124,6 +1315,42 @@ export function Step2FrameFacade() {
           </div>
         </div>
       )}
+
+      {profileTypeDeleteModal &&
+        createPortal(
+          <div
+            className="admin-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-type-delete-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) cancelDeleteProfileType()
+            }}
+          >
+            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+              <h4 id="profile-type-delete-title" className="admin-modal-title">
+                Удалить тип профиля?
+              </h4>
+              <p className="admin-modal-text">
+                Тип профиля «{profileTypeDeleteModal.name || `Тип #${profileTypeDeleteModal.id}`}» будет удалён
+                безвозвратно вместе со списком цветов, привязанных к этому типу в калькуляторе. Продолжить?
+              </p>
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-secondary" onClick={cancelDeleteProfileType}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="admin-primary admin-modal-confirm"
+                  onClick={confirmDeleteProfileType}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   )
 }

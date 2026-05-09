@@ -15,6 +15,8 @@ import {
   readCalculatorPriceConfigKey,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
+import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
+import { useFillingTypeName } from './useFillingTypeName'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -59,6 +61,8 @@ function CalcPriceTotalsActive() {
     readCalculatorPriceConfigKey,
     () => ''
   )
+
+  const fillingTypeName = useFillingTypeName(cfgKey)
 
   const parsed = useMemo(() => {
     const parts = cfgKey.split('|')
@@ -178,14 +182,6 @@ function CalcPriceTotalsActive() {
                   </dd>
                 </div>
               )}
-              {breakdown.operations > 0 && (
-                <div className="calc-totals-line">
-                  <dt>Операции</dt>
-                  <dd>
-                    {formatSum(breakdown.operations)} {currency}
-                  </dd>
-                </div>
-              )}
               {breakdown.filling > 0 && (
                 <div className="calc-totals-line">
                   <dt>Наполнение</dt>
@@ -215,6 +211,13 @@ function CalcPriceTotalsActive() {
                 </>
               )}
               <br />
+              Визуал профиля: {materialTextureLabel(colorMaterial)}.
+              {fillingMaterial ? (
+                <>
+                  {' '}
+                  Наполнение: {sketchFillingLine(fillingTypeName, fillingMaterial)}.
+                </>
+              ) : null}{' '}
               Материал профиля #{colorMaterial?.id ?? '—'} ({uomDebug(colorMaterial)}).
             </p>
           </>

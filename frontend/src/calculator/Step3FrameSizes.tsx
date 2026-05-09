@@ -9,6 +9,7 @@ import {
   isFrameStep2Ready,
   notifyFrameCalcSession,
 } from './frameCalcSession'
+import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
 import { facadeSketchBoxStyle, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -260,7 +261,9 @@ export function Step3FrameSizes() {
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Цвет</div>
-                    <div className="sketch-val">{colorMaterial?.name || '—'}</div>
+                    <div className="sketch-val sketch-val--texture-wrap">
+                      {textureLabelDisplayWrap(materialTextureLabel(colorMaterial))}
+                    </div>
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Размеры</div>

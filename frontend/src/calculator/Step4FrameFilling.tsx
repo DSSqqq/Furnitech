@@ -5,15 +5,18 @@ import {
   deleteCalculatorFillingType,
   fetchCalculatorFillingTypes,
   fetchCalculatorProfileTypes,
+  fetchCategoryTree,
   fetchMaterial,
-  searchMaterials,
+  fetchMaterialClasses,
   updateCalculatorFillingType,
 } from '../api'
-import type { CalculatorFillingType, Material } from '../types'
+import { MaterialSearchModal } from '../MaterialSearchModal'
+import type { CalculatorFillingType, Material, MaterialCategory, MaterialClass } from '../types'
 import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -38,18 +41,31 @@ function blendScale(defaultScale: number, targetScale: number, strength: number)
   return defaultScale + (targetScale - defaultScale) * k
 }
 
-function matLabel(m: { name: string; article?: string | null }) {
+function matLabel(m: {
+  name: string
+  article?: string | null
+  texture_mode?: string
+  texture_color?: string
+  texture_image?: string | null
+}) {
   const a = (m.article ?? '').trim()
-  return a ? `${m.name} (${a})` : m.name
+  const lab = materialTextureLabel(m)
+  return a ? `${lab} (${a})` : lab
 }
 
-function textureThumb(m: { texture_image?: string | null; texture_color?: string; name: string }) {
+function textureThumb(m: {
+  texture_image?: string | null
+  texture_color?: string
+  texture_mode?: string
+  name: string
+}) {
   const img = resolveMediaUrl(m.texture_image ?? '')
   const color = (m.texture_color ?? '').trim()
+  const alt = materialTextureLabel(m)
   if (img) {
     return (
       <div className="tile-thumb tile-thumb--color">
-        <img className="tile-thumb-img" src={img} alt={m.name} />
+        <img className="tile-thumb-img" src={img} alt={alt} />
       </div>
     )
   }
@@ -120,19 +136,86 @@ export function Step4FrameFilling() {
   const [createName, setCreateName] = useState('')
   const [createImageFile, setCreateImageFile] = useState<File | null>(null)
   const cardImageInputRef = useRef<HTMLInputElement>(null)
-  const [createMatQ, setCreateMatQ] = useState('')
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
-  const [createMatPicking, setCreateMatPicking] = useState(false)
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
   const [editFillingImageFile, setEditFillingImageFile] = useState<File | null>(null)
   const editFillingImageRef = useRef<HTMLInputElement>(null)
-  const [editFillingMatQ, setEditFillingMatQ] = useState('')
   const [editFillingMatHit, setEditFillingMatHit] = useState<Material[]>([])
-  const [editFillingMatPicking, setEditFillingMatPicking] = useState(false)
   const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
+
+  const [folderTreeCache, setFolderTreeCache] = useState<MaterialCategory[]>([])
+  const [materialClassesCache, setMaterialClassesCache] = useState<MaterialClass[]>([])
+  const [materialSearchOverlay, setMaterialSearchOverlay] = useState<null | {
+    tree: MaterialCategory[]
+    mclasses: MaterialClass[]
+  }>(null)
+  const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
+
+  const closeMaterialSearch = useCallback(() => {
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+  }, [])
+
+  const openMaterialTreeSearch = useCallback(
+    async (target: 'create' | 'edit') => {
+      setErr(null)
+      try {
+        let tree = folderTreeCache
+        let mclasses = materialClassesCache
+        if (tree.length === 0 || mclasses.length === 0) {
+          const [t, mcRes] = await Promise.all([fetchCategoryTree(), fetchMaterialClasses()])
+          tree = t
+          mclasses = mcRes.results ?? []
+          setFolderTreeCache(t)
+          setMaterialClassesCache(mclasses)
+        }
+        materialSearchTargetRef.current = target
+        setMaterialSearchOverlay({ tree, mclasses })
+      } catch (e) {
+        setErr(String(e))
+      }
+    },
+    [folderTreeCache, materialClassesCache]
+  )
+
+  const handleMaterialPickedFromTree = useCallback((materials: Material[]) => {
+    if (materials.length === 0) return
+    const target = materialSearchTargetRef.current
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+    if (target === 'create') {
+      setCreateMatHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setCreateMatIds((prev) => {
+        const next = { ...prev }
+        for (const m of materials) next[m.id] = true
+        return next
+      })
+    } else if (target === 'edit') {
+      setEditFillingMatHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setEditFillingMatIds((prev) => {
+        const next = { ...prev }
+        for (const m of materials) next[m.id] = true
+        return next
+      })
+    }
+  }, [])
 
   const [modalSaving, setModalSaving] = useState(false)
 
@@ -243,40 +326,6 @@ export function Step4FrameFilling() {
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, fillingTypes, selectedMaterialId])
 
-  useEffect(() => {
-    if (!createOpen) return
-    const q = createMatQ.trim()
-    const id = window.setTimeout(() => {
-      if (!q) {
-        setCreateMatHit([])
-        return
-      }
-      setCreateMatPicking(true)
-      searchMaterials(q)
-        .then((r) => setCreateMatHit(r.results ?? []))
-        .catch(() => setCreateMatHit([]))
-        .finally(() => setCreateMatPicking(false))
-    }, 250)
-    return () => clearTimeout(id)
-  }, [createMatQ, createOpen])
-
-  useEffect(() => {
-    if (editFillingId == null) return
-    const q = editFillingMatQ.trim()
-    const id = window.setTimeout(() => {
-      if (!q) {
-        setEditFillingMatHit([])
-        return
-      }
-      setEditFillingMatPicking(true)
-      searchMaterials(q)
-        .then((r) => setEditFillingMatHit(r.results ?? []))
-        .catch(() => setEditFillingMatHit([]))
-        .finally(() => setEditFillingMatPicking(false))
-    }, 250)
-    return () => clearTimeout(id)
-  }, [editFillingMatQ, editFillingId])
-
   const createImagePreview = useMemo(() => {
     if (!createImageFile) return ''
     return URL.createObjectURL(createImageFile)
@@ -310,16 +359,17 @@ export function Step4FrameFilling() {
   }, [editingFilling])
 
   const closeEditFilling = () => {
+    closeMaterialSearch()
     setEditFillingId(null)
     setEditFillingName('')
     setEditFillingImageFile(null)
     if (editFillingImageRef.current) editFillingImageRef.current.value = ''
     setEditFillingMatIds({})
-    setEditFillingMatQ('')
     setEditFillingMatHit([])
   }
 
   const openEditFilling = (t: CalculatorFillingType) => {
+    closeMaterialSearch()
     setCreateOpen(false)
     setErr(null)
     setEditFillingId(t.id)
@@ -329,8 +379,12 @@ export function Step4FrameFilling() {
     const ids: Record<number, true> = {}
     for (const m of t.materials ?? []) ids[m.material_id] = true
     setEditFillingMatIds(ids)
-    setEditFillingMatQ('')
     setEditFillingMatHit([])
+    void Promise.all(
+      (t.materials ?? []).map((row) => fetchMaterial(row.material_id).catch(() => null))
+    ).then((rows) => {
+      setEditFillingMatHit(rows.filter((x): x is Material => x != null))
+    })
   }
 
   const submitEditFilling = async () => {
@@ -390,9 +444,9 @@ export function Step4FrameFilling() {
       setCreateName('')
       setCreateImageFile(null)
       if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-      setCreateMatQ('')
       setCreateMatHit([])
       setCreateMatIds({})
+      closeMaterialSearch()
     } catch (e) {
       setErr(String(e))
     }
@@ -421,7 +475,6 @@ export function Step4FrameFilling() {
       setEditFillingImageFile(null)
       if (editFillingImageRef.current) editFillingImageRef.current.value = ''
       setEditFillingMatIds({})
-      setEditFillingMatQ('')
       setEditFillingMatHit([])
     }
   }, [editFillingId, fillingTypes])
@@ -569,11 +622,11 @@ export function Step4FrameFilling() {
                     type="button"
                     className="admin-secondary"
                     onClick={() => {
+                      closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateName('')
                       setCreateImageFile(null)
                       if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-                      setCreateMatQ('')
                       setCreateMatHit([])
                       setCreateMatIds({})
                     }}
@@ -585,8 +638,8 @@ export function Step4FrameFilling() {
                   </button>
                 </div>
               </div>
-              <div className="frame2-create-grid">
-                <div className="frame2-block">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+                <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип наполнения</div>
                   <input
                     className="admin-input"
@@ -609,34 +662,52 @@ export function Step4FrameFilling() {
                       accept="image/*"
                       onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
                     />
-                    <div className="frame2-file-picker-row">
-                      <button
-                        type="button"
-                        className="admin-secondary frame2-file-btn"
-                        onClick={() => cardImageInputRef.current?.click()}
-                      >
-                        {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                      </button>
-                      <div className="frame2-file-name" aria-live="polite">
-                        {createImageFile ? createImageFile.name : 'Файл не выбран'}
-                      </div>
-                    </div>
-                    {createImagePreview && (
-                      <div className="frame2-file-preview frame2-file-preview--cover">
-                        <img src={createImagePreview} alt="" />
-                      </div>
-                    )}
                   </div>
                 </div>
-                <div className="frame2-block">
+                <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Материалы</div>
-                  <input
-                    className="admin-input"
-                    value={createMatQ}
-                    onChange={(e) => setCreateMatQ(e.target.value)}
-                    placeholder="Поиск материалов…"
-                  />
-                  {createMatPicking && <p className="admin-muted">Поиск…</p>}
+                  <div className="frame2-material-search-row">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-material-tree-search-btn"
+                      onClick={() => void openMaterialTreeSearch('create')}
+                    >
+                      Поиск
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-ml">
+                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-file-btn"
+                      onClick={() => cardImageInputRef.current?.click()}
+                    >
+                      {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-mr">
+                  <div
+                    className={[
+                      'frame2-file-name',
+                      createImageFile ? '' : 'frame2-file-name--empty',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    aria-live="polite"
+                  >
+                    {createImageFile ? createImageFile.name : 'Файл не выбран'}
+                  </div>
+                </div>
+                <div className="frame2-create-bl">
+                  {createImagePreview && (
+                    <div className="frame2-file-preview frame2-file-preview--cover">
+                      <img src={createImagePreview} alt="" />
+                    </div>
+                  )}
+                </div>
+                <div className="frame2-create-br">
                   {createMatHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {createMatHit.map((m) => (
@@ -663,14 +734,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                            <MaterialCheckSwatch
-                              name={m.name}
-                              material={m}
-                              texExtra={texByMaterialId[m.id]}
-                            />
-                            <span className="frame2-check-name-wrap">
-                              <span className="frame2-check-name">{m.name}</span>
-                            </span>
+                              <MaterialCheckSwatch
+                                name={materialTextureLabel(m)}
+                                material={m}
+                                texExtra={texByMaterialId[m.id]}
+                              />
+                              <span className="frame2-check-name-wrap">
+                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
+                              </span>
                           </label>
                         </li>
                       ))}
@@ -697,8 +768,8 @@ export function Step4FrameFilling() {
                   </button>
                 </div>
               </div>
-              <div className="frame2-create-grid">
-                <div className="frame2-block">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+                <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип наполнения</div>
                   <input
                     className="admin-input"
@@ -721,34 +792,52 @@ export function Step4FrameFilling() {
                       accept="image/*"
                       onChange={(e) => setEditFillingImageFile(e.target.files?.[0] ?? null)}
                     />
-                    <div className="frame2-file-picker-row">
-                      <button
-                        type="button"
-                        className="admin-secondary frame2-file-btn"
-                        onClick={() => editFillingImageRef.current?.click()}
-                      >
-                        {editFillingImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                      </button>
-                      <div className="frame2-file-name" aria-live="polite">
-                        {editFillingImageFile ? editFillingImageFile.name : 'Файл не выбран'}
-                      </div>
-                    </div>
-                    {(editFillingImagePreview || editFillingExistingCardUrl) && (
-                      <div className="frame2-file-preview frame2-file-preview--cover">
-                        <img src={editFillingImagePreview || editFillingExistingCardUrl} alt="" />
-                      </div>
-                    )}
                   </div>
                 </div>
-                <div className="frame2-block">
+                <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Материалы</div>
-                  <input
-                    className="admin-input"
-                    value={editFillingMatQ}
-                    onChange={(e) => setEditFillingMatQ(e.target.value)}
-                    placeholder="Поиск материалов…"
-                  />
-                  {editFillingMatPicking && <p className="admin-muted">Поиск…</p>}
+                  <div className="frame2-material-search-row">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-material-tree-search-btn"
+                      onClick={() => void openMaterialTreeSearch('edit')}
+                    >
+                      Поиск
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-ml">
+                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                    <button
+                      type="button"
+                      className="admin-secondary frame2-file-btn"
+                      onClick={() => editFillingImageRef.current?.click()}
+                    >
+                      {editFillingImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                    </button>
+                  </div>
+                </div>
+                <div className="frame2-create-mr">
+                  <div
+                    className={[
+                      'frame2-file-name',
+                      editFillingImageFile ? '' : 'frame2-file-name--empty',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    aria-live="polite"
+                  >
+                    {editFillingImageFile ? editFillingImageFile.name : 'Файл не выбран'}
+                  </div>
+                </div>
+                <div className="frame2-create-bl">
+                  {(editFillingImagePreview || editFillingExistingCardUrl) && (
+                    <div className="frame2-file-preview frame2-file-preview--cover">
+                      <img src={editFillingImagePreview || editFillingExistingCardUrl} alt="" />
+                    </div>
+                  )}
+                </div>
+                <div className="frame2-create-br">
                   {editFillingMatHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {editFillingMatHit.map((m) => (
@@ -775,14 +864,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                            <MaterialCheckSwatch
-                              name={m.name}
-                              material={m}
-                              texExtra={texByMaterialId[m.id]}
-                            />
-                            <span className="frame2-check-name-wrap">
-                              <span className="frame2-check-name">{m.name}</span>
-                            </span>
+                              <MaterialCheckSwatch
+                                name={materialTextureLabel(m)}
+                                material={m}
+                                texExtra={texByMaterialId[m.id]}
+                              />
+                              <span className="frame2-check-name-wrap">
+                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
+                              </span>
                           </label>
                         </li>
                       ))}
@@ -889,13 +978,19 @@ export function Step4FrameFilling() {
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Цвет</div>
-                      <div className="sketch-val">{frameColorMaterial?.name || '—'}</div>
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(materialTextureLabel(frameColorMaterial))}
+                      </div>
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Наполнение</div>
-                      <div className="sketch-val">
-                        {selectedType?.name || '—'}
-                        {selectedFillingMaterial ? ` — ${selectedFillingMaterial.name}` : ''}
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(
+                          sketchFillingLine(
+                            selectedType?.name,
+                            (selectedFillingMaterialFull ?? selectedFillingMaterial) as Material | null,
+                          ),
+                        )}
                       </div>
                     </div>
                     <div className="sketch-row">
@@ -979,6 +1074,7 @@ export function Step4FrameFilling() {
                       title={matLabel(c.material)}
                     >
                       {textureThumb({
+                        texture_mode: (c.material as any).texture_mode,
                         texture_image:
                           (c.material as any).texture_image ??
                           texByMaterialId[c.material_id]?.texture_image ??
@@ -989,7 +1085,7 @@ export function Step4FrameFilling() {
                           '',
                         name: c.material.name,
                       })}
-                      <div className="tile-title">{c.material.name}</div>
+                      <div className="tile-title">{materialTextureLabel(c.material)}</div>
                       <div className="tile-sub">{c.material.article || '—'}</div>
                     </button>
                     {!readOnly && (
@@ -1022,6 +1118,15 @@ export function Step4FrameFilling() {
             )}
           </div>
         </div>
+      )}
+
+      {materialSearchOverlay && (
+        <MaterialSearchModal
+          tree={materialSearchOverlay.tree}
+          mclasses={materialSearchOverlay.mclasses}
+          onClose={closeMaterialSearch}
+          onPick={handleMaterialPickedFromTree}
+        />
       )}
     </>
   )

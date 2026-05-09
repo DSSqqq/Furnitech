@@ -10,7 +10,9 @@ import {
   subscribeFrameCalcSession,
 } from './frameCalcSession'
 import { FrameHingeMortisePanel } from './FrameHingeMortisePanel'
+import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialTextureLayerStyle } from './sketchFrame'
+import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -54,6 +56,7 @@ export function Step5FrameSummary() {
   }, [nav, step])
 
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const fillingTypeName = useFillingTypeName(cfgKey)
 
   const parsed = useMemo(() => {
     const parts = cfgKey.split('|')
@@ -177,10 +180,13 @@ export function Step5FrameSummary() {
         const r = await fetchCalculatorHingeTypes()
         const t = (r.results ?? []).find((x) => x.id === parsed.hingeTypeId)
         const row = t?.materials?.find((c) => c.material_id === parsed.hingeMatId)
-        const name = row?.material?.name
+        const mat = row?.material
+        const tex = mat ? materialTextureLabel(mat as Material) : ''
         if (!cancel) {
           setMortiseSketchLine(
-            name ? `${t?.name ?? '—'} — ${name}` : 'Петли производства — выберите тип и модель'
+            tex && tex !== '—'
+              ? `${t?.name ?? '—'} — ${tex}`
+              : 'Петли производства — выберите тип и модель'
           )
         }
       } catch {
@@ -245,11 +251,15 @@ export function Step5FrameSummary() {
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Цвет</div>
-                    <div className="sketch-val">{frameColorMaterial?.name || '—'}</div>
+                    <div className="sketch-val sketch-val--texture-wrap">
+                      {textureLabelDisplayWrap(materialTextureLabel(frameColorMaterial))}
+                    </div>
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Наполнение</div>
-                    <div className="sketch-val">{fillingMaterial?.name || '—'}</div>
+                    <div className="sketch-val sketch-val--texture-wrap">
+                      {textureLabelDisplayWrap(sketchFillingLine(fillingTypeName, fillingMaterial))}
+                    </div>
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Размеры</div>
@@ -259,7 +269,9 @@ export function Step5FrameSummary() {
                   </div>
                   <div className="sketch-row">
                     <div className="sketch-key">Присадка</div>
-                    <div className="sketch-val">{mortiseSketchLine}</div>
+                    <div className="sketch-val sketch-val--texture-wrap">
+                      {textureLabelDisplayWrap(mortiseSketchLine)}
+                    </div>
                   </div>
                 </div>
               </div>

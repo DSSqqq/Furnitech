@@ -38,7 +38,9 @@ import {
   validateHingePositions,
   writeHandleHoles,
 } from './frameCalcSession'
+import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialTextureLayerStyle } from './sketchFrame'
+import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -98,6 +100,7 @@ export function Step7FrameHandleHoles() {
   const { step, readOnly } = useCalcPaths()
   const isAdminCalculator = !readOnly
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const fillingTypeName = useFillingTypeName(cfgKey)
   const mortiseHingeStep = useMemo(() => isFrameMortiseHingeSelected(), [cfgKey])
 
   const hingeLayout = useMemo(() => readHingeLayout(), [cfgKey])
@@ -813,7 +816,9 @@ export function Step7FrameHandleHoles() {
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Цвет</div>
-                      <div className="sketch-val">{frameColorMaterial?.name || '—'}</div>
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(materialTextureLabel(frameColorMaterial))}
+                      </div>
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">В × Ш (мм)</div>
@@ -823,7 +828,9 @@ export function Step7FrameHandleHoles() {
                     </div>
                     <div className="sketch-row">
                       <div className="sketch-key">Наполнение</div>
-                      <div className="sketch-val">{fillingMaterial?.name || '—'}</div>
+                      <div className="sketch-val sketch-val--texture-wrap">
+                        {textureLabelDisplayWrap(sketchFillingLine(fillingTypeName, fillingMaterial))}
+                      </div>
                     </div>
                   </div>
                 </div>

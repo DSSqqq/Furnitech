@@ -6,13 +6,18 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from materials.auth_views import MeView
+from materials.jwt_auth import FurnitechTokenObtainPairSerializer
 from materials.user_admin_views import AdminUserListView, AdminUserStaffView, RegisterView
+
+class FurnitechTokenObtainPairView(TokenObtainPairView):
+    serializer_class = FurnitechTokenObtainPairSerializer
+
 
 urlpatterns = [
     path("admin/django/", admin.site.urls),
     path(
         "api/auth/token/",
-        TokenObtainPairView.as_view(permission_classes=(AllowAny,)),
+        FurnitechTokenObtainPairView.as_view(permission_classes=(AllowAny,)),
         name="token_obtain",
     ),
     path(

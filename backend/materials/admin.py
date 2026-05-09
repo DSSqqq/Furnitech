@@ -10,8 +10,9 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
-    MaterialOperationLine,
     MaterialRelatedItem,
+    TextureCategory,
+    TextureItem,
     UnitOfMeasure,
 )
 
@@ -38,11 +39,29 @@ class MaterialCategoryAdmin(admin.ModelAdmin):
 admin.site.register(MaterialCategory, MaterialCategoryAdmin)
 
 
+class TextureCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "parent", "sort_order", "code")
+    list_filter = ("parent",)
+    search_fields = ("name", "code")
+    raw_id_fields = ("parent",)
+
+
+admin.site.register(TextureCategory, TextureCategoryAdmin)
+
+
+@admin.register(TextureItem)
+class TextureItemAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "updated_at")
+    list_filter = ("category",)
+    search_fields = ("name",)
+    raw_id_fields = ("category",)
+
+
 class MaterialAdmin(admin.ModelAdmin):
     list_display = ("name", "article", "category", "base_price", "base_currency", "is_active")
     list_filter = ("category", "rounding_mode", "is_active")
     search_fields = ("name", "article", "external_id")
-    raw_id_fields = ("category", "uom")
+    raw_id_fields = ("category", "uom", "texture_item")
     filter_horizontal = ("material_classes",)
 
 
@@ -53,12 +72,6 @@ admin.site.register(Material, MaterialAdmin)
 class MaterialRelatedItemAdmin(admin.ModelAdmin):
     list_display = ("parent", "related_material", "quantity", "quantity_scale", "sort_order")
     raw_id_fields = ("parent", "related_material")
-
-
-@admin.register(MaterialOperationLine)
-class MaterialOperationLineAdmin(admin.ModelAdmin):
-    list_display = ("material", "name", "quantity", "price", "price_per_facade", "sort_order")
-    raw_id_fields = ("material", "uom")
 
 
 class CalculatorFillingTypeMaterialInline(admin.TabularInline):

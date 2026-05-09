@@ -12,19 +12,21 @@ import {
   validateHandleHoles,
   validateHingePositions,
 } from './frameCalcSession'
+import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { resolveMediaUrl } from './sketchFrame'
 
 export type FrameClientPdfBreakdown = {
   profile: number
   filling: number
   related: number
-  operations: number
   total: number
 }
 
 export type FrameClientPdfInput = {
   contact: { name: string; phone: string; email: string; comment: string }
   frameTypeName: string
+  /** Имя типа наполнения (как в каталоге шага 4). */
+  fillingTypeName?: string
   colorMaterial: Material | null
   fillingMaterial: Material | null
   heightMm: number
@@ -258,7 +260,7 @@ async function buildSummaryPage(doc: jsPDF, calcNo: string, data: FrameClientPdf
     head: [['Параметр', 'Значение']],
     body: [
       ['Профиль', data.frameTypeName],
-      ['Цвет профиля', data.colorMaterial?.name ?? '—'],
+      ['Цвет профиля', materialTextureLabel(data.colorMaterial)],
       ['Высота фасада (мм)', String(data.heightMm)],
       ['Ширина фасада (мм)', String(data.widthMm)],
       ['Количество фасадов', String(data.facadeCount)],
@@ -306,7 +308,7 @@ async function buildSummaryPage(doc: jsPDF, calcNo: string, data: FrameClientPdf
     startY: finalY,
     head: [['Параметр', 'Значение']],
     body: [
-      ['Наполнение', data.fillingMaterial?.name ?? '—'],
+      ['Наполнение', sketchFillingLine(data.fillingTypeName, data.fillingMaterial)],
       ['Ручка', data.handleLine],
     ],
     theme: 'grid',
@@ -329,14 +331,13 @@ async function buildSummaryPage(doc: jsPDF, calcNo: string, data: FrameClientPdf
 
   autoTable(doc, {
     startY: finalY + (data.currencyMismatch ? 8 : 0),
-    head: [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Операции', 'Итого']],
+    head: [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Итого']],
     body: [
       [
         '1',
         formatMoney(data.breakdown.profile, data.currency),
         formatMoney(data.breakdown.filling, data.currency),
         formatMoney(data.breakdown.related, data.currency),
-        formatMoney(data.breakdown.operations, data.currency),
         formatMoney(data.breakdown.total, data.currency),
       ],
     ],

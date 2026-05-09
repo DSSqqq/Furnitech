@@ -419,6 +419,7 @@ export function readCalculatorPriceConfigKey(): string {
       localStorage.getItem(CALC_LS_HINGE_MATERIAL_ID) ?? '',
       localStorage.getItem(CALC_LS_HINGE_LAYOUT) ?? '',
       localStorage.getItem(CALC_LS_HANDLE_HOLES) ?? '',
+      localStorage.getItem('calc_filling_type_id') ?? '',
     ].join('|')
   } catch {
     return ''

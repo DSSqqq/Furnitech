@@ -23,7 +23,9 @@ import {
 } from './frameCalcSession'
 import './Step2FrameFacade.css'
 import './Step8FrameResult.css'
+import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { buildFrameClientPdfBlob, preloadFramePdfFont } from './frameClientPdf'
+import { useFillingTypeName } from './useFillingTypeName'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -71,6 +73,7 @@ export function Step8FrameResult() {
   }, [nav, step])
 
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const fillingTypeName = useFillingTypeName(cfgKey)
 
   const parsed = useMemo(() => {
     const parts = cfgKey.split('|')
@@ -228,10 +231,13 @@ export function Step8FrameResult() {
         const r = await fetchCalculatorHingeTypes()
         const t = (r.results ?? []).find((x) => x.id === parsed.hingeTypeId)
         const row = t?.materials?.find((c) => c.material_id === parsed.hingeMatId)
-        const name = row?.material?.name
+        const mat = row?.material
+        const tex = mat ? materialTextureLabel(mat as Material) : ''
         if (!cancel) {
           setMortiseLine(
-            name ? `${t?.name ?? '—'} — ${name}` : 'Петли производства — не выбраны',
+            tex && tex !== '—'
+              ? `${t?.name ?? '—'} — ${tex}`
+              : 'Петли производства — не выбраны',
           )
         }
       } catch {
@@ -284,9 +290,9 @@ export function Step8FrameResult() {
     const lines: string[] = [
       'Расчёт фасада (Furnitech)',
       `Профиль: ${frameTypeName}`,
-      `Цвет: ${colorMaterial?.name ?? '—'}`,
+      `Цвет: ${materialTextureLabel(colorMaterial)}`,
       `Габариты: ${parsed.heightMm} × ${parsed.widthMm} мм, ${parsed.facadeCount} шт.`,
-      `Наполнение: ${fillingMaterial?.name ?? '—'}`,
+      `Наполнение: ${sketchFillingLine(fillingTypeName, fillingMaterial)}`,
       `Присадка / петли: ${mortiseLine}`,
       ...(parsed.mortiseMode === 'hinge' ? [`Раскладка петель: ${hingeLayoutLine}`] : []),
       `Ручка: ${handleLine}`,
@@ -369,6 +375,7 @@ export function Step8FrameResult() {
         comment: contactComment,
       },
       frameTypeName,
+      fillingTypeName,
       colorMaterial,
       fillingMaterial,
       heightMm: parsed.heightMm,
@@ -381,7 +388,6 @@ export function Step8FrameResult() {
         profile: breakdown.profile,
         filling: breakdown.filling,
         related: breakdown.related,
-        operations: breakdown.operations,
         total: breakdown.total,
       },
       currency,
@@ -401,13 +407,16 @@ export function Step8FrameResult() {
         ? {
             id: p.colorMaterial.id,
             name: p.colorMaterial.name,
+            texture_label: materialTextureLabel(p.colorMaterial),
             article: p.colorMaterial.article,
           }
         : null,
+      fillingTypeName: p.fillingTypeName,
       fillingMaterial: p.fillingMaterial
         ? {
             id: p.fillingMaterial.id,
             name: p.fillingMaterial.name,
+            texture_label: materialTextureLabel(p.fillingMaterial),
             article: p.fillingMaterial.article,
           }
         : null,
@@ -573,7 +582,7 @@ export function Step8FrameResult() {
             </div>
             <div className="step8-kv__row">
               <span className="step8-kv__k">Цвет профиля</span>
-              <span className="step8-kv__v">{colorMaterial?.name ?? '—'}</span>
+              <span className="step8-kv__v">{materialTextureLabel(colorMaterial)}</span>
             </div>
             <div className="step8-kv__row">
               <span className="step8-kv__k">Габариты (В × Ш)</span>
@@ -587,7 +596,7 @@ export function Step8FrameResult() {
             </div>
             <div className="step8-kv__row">
               <span className="step8-kv__k">Наполнение</span>
-              <span className="step8-kv__v">{fillingMaterial?.name ?? '—'}</span>
+              <span className="step8-kv__v">{sketchFillingLine(fillingTypeName, fillingMaterial)}</span>
             </div>
             <div className="step8-kv__row">
               <span className="step8-kv__k">Присадка / петли</span>
@@ -619,7 +628,6 @@ export function Step8FrameResult() {
                   <th>Профиль</th>
                   <th>Наполнение</th>
                   <th>Сопутствующие</th>
-                  <th>Операции</th>
                   <th>Итого</th>
                 </tr>
               </thead>
@@ -634,9 +642,6 @@ export function Step8FrameResult() {
                   </td>
                   <td>
                     {formatSum(breakdown.related)} {currency}
-                  </td>
-                  <td>
-                    {formatSum(breakdown.operations)} {currency}
                   </td>
                   <td className="step8-table__total">
                     {formatSum(breakdown.total)} {currency}

@@ -1,5 +1,5 @@
 from django.db import transaction
-from rest_framework import filters, viewsets
+from rest_framework import viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import (
     SAFE_METHODS,
@@ -20,7 +20,14 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
+    TextureCategory,
+    TextureItem,
     UnitOfMeasure,
+)
+from .flexible_search import (
+    apply_flexible_charfield_filter,
+    apply_flexible_search_name_or_article,
+    apply_folder_name_filter,
 )
 from .serializers import (
     CalculatorFillingTypeSerializer,
@@ -34,6 +41,8 @@ from .serializers import (
     MaterialCategorySerializer,
     MaterialClassSerializer,
     MaterialSerializer,
+    TextureCategorySerializer,
+    TextureItemSerializer,
     UnitOfMeasureSerializer,
 )
 
@@ -103,6 +112,54 @@ class MaterialCategoryViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
 
+class TextureCategoryViewSet(viewsets.ModelViewSet):
+    queryset = TextureCategory.objects.all()
+    serializer_class = TextureCategorySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    @staticmethod
+    def _build_tree(categories: list, parent_id: int | None) -> list:
+        def is_child(c: TextureCategory) -> bool:
+            if parent_id is None:
+                return c.parent_id is None
+            return c.parent_id == parent_id
+
+        children = [c for c in categories if is_child(c)]
+        out = []
+        for c in sorted(children, key=lambda x: (x.sort_order, x.name)):
+            out.append(
+                {
+                    **TextureCategorySerializer(c).data,
+                    "children": TextureCategoryViewSet._build_tree(categories, c.id),
+                }
+            )
+        return out
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("tree") == "1":
+            all_cats = list(TextureCategory.objects.all().select_related("parent"))
+            return Response(self._build_tree(all_cats, None))
+        return super().list(request, *args, **kwargs)
+
+
+class TextureItemViewSet(viewsets.ModelViewSet):
+    queryset = TextureItem.objects.all().select_related("category")
+    serializer_class = TextureItemSerializer
+    permission_classes = [DjangoModelPermissions]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+    filter_backends = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        cat = self.request.query_params.get("category")
+        if cat is not None and cat != "":
+            try:
+                qs = qs.filter(category_id=int(cat))
+            except (TypeError, ValueError):
+                pass
+        return qs
+
+
 class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
     """GET/HEAD/OPTIONS — всем (в т.ч. без авторизации); запись — авторизация + Django model permissions."""
 
@@ -117,27 +174,68 @@ class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
 class MaterialViewSet(viewsets.ModelViewSet):
     queryset = (
         Material.objects.all()
-        .select_related("uom", "category")
+        .select_related("uom", "category", "texture_item")
         .prefetch_related(
             "material_classes",
             "companion_items__related_material__uom",
-            "operation_lines__uom",
+            "companion_items__related_material__texture_item",
         )
     )
     serializer_class = MaterialSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ("name", "article")
+    filter_backends = []
 
     def get_queryset(self):
         qs = super().get_queryset()
-        cat = self.request.query_params.get("category")
+        qp = self.request.query_params
+
+        cat_id = None
+        cat = qp.get("category")
         if cat is not None and cat != "":
             try:
-                return qs.filter(category_id=int(cat))
+                cat_id = int(cat)
+                qs = qs.filter(category_id=cat_id)
             except (TypeError, ValueError):
-                return qs
+                pass
+
+        if cat_id is None:
+            folder_name = (qp.get("folder_name") or "").strip()
+            if folder_name:
+                qs = apply_folder_name_filter(qs, folder_name)
+
+        article = (qp.get("article") or "").strip()
+        if article:
+            qs = apply_flexible_charfield_filter(qs, "article", article)
+
+        name = (qp.get("name") or "").strip()
+        if name:
+            qs = apply_flexible_charfield_filter(qs, "name", name)
+
+        search = (qp.get("search") or "").strip()
+        if search:
+            qs = apply_flexible_search_name_or_article(qs, search)
+
+        price_raw = (qp.get("price") or "").strip()
+        if price_raw:
+            try:
+                from decimal import Decimal
+
+                normalized = price_raw.replace(",", ".").replace(" ", "")
+                qs = qs.filter(base_price=Decimal(normalized))
+            except Exception:
+                pass
+
+        mc_raw = qp.get("material_class_ids")
+        if mc_raw:
+            ids = []
+            for x in mc_raw.split(","):
+                x = x.strip()
+                if x.isdigit():
+                    ids.append(int(x))
+            if ids:
+                qs = qs.filter(material_classes__id__in=ids).distinct()
+
         return qs
 
 
@@ -153,29 +251,35 @@ class AuthReadModelPermsWrite(IsAuthenticated):
 
 
 class CalculatorProfileViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorProfile.objects.all().select_related("material").prefetch_related(
-        "colors__color_material__uom"
-    )
+    queryset = CalculatorProfile.objects.all().select_related(
+        "material", "material__texture_item"
+    ).prefetch_related("colors__color_material__uom", "colors__color_material__texture_item")
     serializer_class = CalculatorProfileSerializer
     permission_classes = [AuthReadModelPermsWrite]
 
 
 class CalculatorProfileTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorProfileType.objects.all().prefetch_related("colors__color_material__uom")
+    queryset = CalculatorProfileType.objects.all().prefetch_related(
+        "colors__color_material__uom", "colors__color_material__texture_item"
+    )
     serializer_class = CalculatorProfileTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
 
 class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorFillingType.objects.all().prefetch_related("materials__material__uom")
+    queryset = CalculatorFillingType.objects.all().prefetch_related(
+        "materials__material__uom", "materials__material__texture_item"
+    )
     serializer_class = CalculatorFillingTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
 
 
 class CalculatorHingeTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorHingeType.objects.all().prefetch_related("materials__material__uom")
+    queryset = CalculatorHingeType.objects.all().prefetch_related(
+        "materials__material__uom", "materials__material__texture_item"
+    )
     serializer_class = CalculatorHingeTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]

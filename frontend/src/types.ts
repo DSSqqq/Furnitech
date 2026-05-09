@@ -24,6 +24,18 @@ export type MaterialCategory = {
   children?: MaterialCategory[]
 }
 
+/** Дерево папок базы текстур (тот же контракт, что у категорий материалов). */
+export type TextureCategory = MaterialCategory
+
+export type TextureItem = {
+  id: number
+  category: number
+  name: string
+  image: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 /** Как строка сопутствующего масштабируется в калькуляторе (см. docs/ARCHITECTURE). */
 export type RelatedQuantityScale = 'follow_parent' | 'per_facade' | 'use_related_uom'
 
@@ -42,18 +54,6 @@ export type MaterialRelatedItemDto = {
   /** Режим расчёта; по умолчанию как раньше — follow_parent. */
   quantity_scale?: RelatedQuantityScale
   line_total: string
-}
-
-export type MaterialOperationLineDto = {
-  id: number
-  name: string
-  model_parameter: string
-  quantity: string
-  uom_id: number | null
-  uom: UnitOfMeasure | null
-  price: string
-  /** Если true — сумма строки умножается на количество фасадов в калькуляторе. */
-  price_per_facade?: boolean
 }
 
 export type Material = {
@@ -80,6 +80,9 @@ export type Material = {
   texture_mode?: 'color' | 'texture' | string
   texture_color?: string
   texture_image?: string | null
+  /** Ссылка на запись в базе текстур; URL картинки в `texture_image` при ответе API. */
+  texture_library_item?: number | null
+  texture_library_item_name?: string | null
   tex_offset_x?: string
   tex_offset_y?: string
   tex_step_x?: string
@@ -90,7 +93,6 @@ export type Material = {
   tex_specular_brightness?: string
   tex_rotation_deg?: string
   related_items?: MaterialRelatedItemDto[]
-  operation_lines?: MaterialOperationLineDto[]
   note: string
   rounding_mode: RoundingMode
   rounding_multiple: string | null

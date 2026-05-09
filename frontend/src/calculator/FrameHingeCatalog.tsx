@@ -467,8 +467,8 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               </button>
             </div>
           </div>
-          <div className="frame2-create-grid">
-            <div className="frame2-block">
+          <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+            <div className="frame2-block frame2-create-tl">
               <div className="frame2-block-title">Тип петель</div>
               <input
                 className="admin-input"
@@ -491,26 +491,9 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                   accept="image/*"
                   onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
                 />
-                <div className="frame2-file-picker-row">
-                  <button
-                    type="button"
-                    className="admin-secondary frame2-file-btn"
-                    onClick={() => cardImageInputRef.current?.click()}
-                  >
-                    {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                  </button>
-                  <div className="frame2-file-name" aria-live="polite">
-                    {createImageFile ? createImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-                {createImagePreview && (
-                  <div className="frame2-file-preview frame2-file-preview--cover">
-                    <img src={createImagePreview} alt="" />
-                  </div>
-                )}
               </div>
             </div>
-            <div className="frame2-block">
+            <div className="frame2-block frame2-create-tr">
               <div className="frame2-block-title">Материалы (петли)</div>
               <input
                 className="admin-input"
@@ -519,6 +502,39 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                 placeholder="Поиск материалов…"
               />
               {createMatPicking && <p className="admin-muted">Поиск…</p>}
+            </div>
+            <div className="frame2-create-ml">
+              <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                <button
+                  type="button"
+                  className="admin-secondary frame2-file-btn"
+                  onClick={() => cardImageInputRef.current?.click()}
+                >
+                  {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                </button>
+              </div>
+            </div>
+            <div className="frame2-create-mr">
+              <div
+                className={[
+                  'frame2-file-name',
+                  createImageFile ? '' : 'frame2-file-name--empty',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-live="polite"
+              >
+                {createImageFile ? createImageFile.name : 'Файл не выбран'}
+              </div>
+            </div>
+            <div className="frame2-create-bl">
+              {createImagePreview && (
+                <div className="frame2-file-preview frame2-file-preview--cover">
+                  <img src={createImagePreview} alt="" />
+                </div>
+              )}
+            </div>
+            <div className="frame2-create-br">
               {createMatHit.length > 0 && (
                 <ul className="frame2-checklist">
                   {createMatHit.map((m) => (
@@ -572,8 +588,8 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               </button>
             </div>
           </div>
-          <div className="frame2-create-grid">
-            <div className="frame2-block">
+          <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+            <div className="frame2-block frame2-create-tl">
               <div className="frame2-block-title">Тип петель</div>
               <input
                 className="admin-input"
@@ -596,26 +612,9 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                   accept="image/*"
                   onChange={(e) => setEditHingeImageFile(e.target.files?.[0] ?? null)}
                 />
-                <div className="frame2-file-picker-row">
-                  <button
-                    type="button"
-                    className="admin-secondary frame2-file-btn"
-                    onClick={() => editHingeImageRef.current?.click()}
-                  >
-                    {editHingeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                  </button>
-                  <div className="frame2-file-name" aria-live="polite">
-                    {editHingeImageFile ? editHingeImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-                {(editHingeImagePreview || editHingeExistingCardUrl) && (
-                  <div className="frame2-file-preview frame2-file-preview--cover">
-                    <img src={editHingeImagePreview || editHingeExistingCardUrl} alt="" />
-                  </div>
-                )}
               </div>
             </div>
-            <div className="frame2-block">
+            <div className="frame2-block frame2-create-tr">
               <div className="frame2-block-title">Материалы</div>
               <input
                 className="admin-input"
@@ -624,6 +623,39 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                 placeholder="Поиск материалов…"
               />
               {editHingeMatPicking && <p className="admin-muted">Поиск…</p>}
+            </div>
+            <div className="frame2-create-ml">
+              <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+                <button
+                  type="button"
+                  className="admin-secondary frame2-file-btn"
+                  onClick={() => editHingeImageRef.current?.click()}
+                >
+                  {editHingeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                </button>
+              </div>
+            </div>
+            <div className="frame2-create-mr">
+              <div
+                className={[
+                  'frame2-file-name',
+                  editHingeImageFile ? '' : 'frame2-file-name--empty',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-live="polite"
+              >
+                {editHingeImageFile ? editHingeImageFile.name : 'Файл не выбран'}
+              </div>
+            </div>
+            <div className="frame2-create-bl">
+              {(editHingeImagePreview || editHingeExistingCardUrl) && (
+                <div className="frame2-file-preview frame2-file-preview--cover">
+                  <img src={editHingeImagePreview || editHingeExistingCardUrl} alt="" />
+                </div>
+              )}
+            </div>
+            <div className="frame2-create-br">
               {editHingeMatHit.length > 0 && (
                 <ul className="frame2-checklist">
                   {editHingeMatHit.map((m) => (
