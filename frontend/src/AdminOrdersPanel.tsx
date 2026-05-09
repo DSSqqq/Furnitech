@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { FacadeOrder, FacadeOrderStatus } from './api'
-import { fetchFacadeOrders, patchFacadeOrderStatus } from './api'
+import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderStatus } from './api'
 import { FtSelect, type FtSelectOption } from './FtSelect'
 import { HintButton } from './HintButton'
 
@@ -33,6 +34,8 @@ export function AdminOrdersPanel() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [statusPending, setStatusPending] = useState<number | null>(null)
+  const [orderToDelete, setOrderToDelete] = useState<FacadeOrder | null>(null)
+  const [deletePending, setDeletePending] = useState(false)
 
   const load = useCallback(() => {
     setErr(null)
@@ -57,7 +60,22 @@ export function AdminOrdersPanel() {
       .finally(() => setStatusPending(null))
   }
 
+  const confirmDeleteOrder = () => {
+    if (!orderToDelete) return
+    const id = orderToDelete.id
+    setDeletePending(true)
+    setErr(null)
+    deleteFacadeOrder(id)
+      .then(() => {
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        setOrderToDelete(null)
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => setDeletePending(false))
+  }
+
   return (
+    <>
     <div className="admin-orders-layout">
       <div className="admin-heading-row">
         <h2 className="admin-h2">Заказы</h2>
@@ -84,6 +102,9 @@ export function AdminOrdersPanel() {
                 <th scope="col">Контакты в заявке</th>
                 <th scope="col">Статус</th>
                 <th scope="col">PDF</th>
+                <th scope="col" className="admin-orders-actions-th">
+                  Действия
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -126,6 +147,16 @@ export function AdminOrdersPanel() {
                       '—'
                     )}
                   </td>
+                  <td className="admin-orders-actions-cell">
+                    <button
+                      type="button"
+                      className="admin-secondary admin-secondary--sm admin-danger"
+                      disabled={statusPending === o.id || deletePending}
+                      onClick={() => setOrderToDelete(o)}
+                    >
+                      Удалить
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -133,5 +164,47 @@ export function AdminOrdersPanel() {
         </div>
       )}
     </div>
+    {orderToDelete
+      ? createPortal(
+          <div
+            className="admin-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-delete-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !deletePending) setOrderToDelete(null)
+            }}
+          >
+            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+              <h4 id="order-delete-title" className="admin-modal-title">
+                Удалить заказ?
+              </h4>
+              <p className="admin-modal-text">
+                Заказ «{orderToDelete.order_number}» будет удалён безвозвратно (включая PDF). Клиент больше не увидит его в «Мои заказы». Продолжить?
+              </p>
+              <div className="admin-modal-actions">
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  disabled={deletePending}
+                  onClick={() => setOrderToDelete(null)}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="admin-primary admin-modal-confirm"
+                  disabled={deletePending}
+                  onClick={confirmDeleteOrder}
+                >
+                  {deletePending ? 'Удаление…' : 'Удалить'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null}
+    </>
   )
 }

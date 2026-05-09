@@ -132,7 +132,6 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 ### Поля тела/ответа: материал (дополнительно к полям модели)
 
 - `material_class_ids` — список id.
-- `alt_prices` — `[{ currency, price }]`; при сохранении — **полная замена**, если передан.
 - `related_items` / `operation_lines` — то же, при передаче ключа. В каждой строке `related_items`: **`quantity_scale`**: `follow_parent` \| `per_facade` \| `use_related_uom` (по умолчанию `follow_parent`). В каждой строке `operation_lines`: **`price_per_facade`** (bool, по умолчанию `false`).
 - `article` — строка, при записи **обрезка**; **уникальность** у непустого значения (БД + валидация в сериализаторе), см. [материал](#категории-материалы-папки).
 - `thickness`, `min_length`, `max_length`, `min_width`, `max_width`, `designation`, `cut_coeff`, `calc_type` — **«Доп. параметры»** (задел для калькулятора и ограничений габаритов).
@@ -178,7 +177,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 - `AllowAnyReadAuthenticatedModelPermsWrite` — разрешения для **материалов**, **типов профилей**, **типов наполнения**, **типов петель**, **диаметров отверстий под ручку**: анонимные **безопасные** методы; запись — только аутентификация + `DjangoModelPermissions`.
 - `AuthReadModelPermsWrite` — **только авторизованным** на чтение; запись по model permissions — используется для **`CalculatorProfileViewSet`**.
-- `MaterialViewSet` — `select_related`/`prefetch_related`; поиск `SearchFilter` по `name`, `article`, `fnp_name`.
+- `MaterialViewSet` — `select_related`/`prefetch_related`; поиск `SearchFilter` по `name`, `article`.
 - `MaterialCategoryViewSet` — кастомный `list` для `?tree=1` и **`destroy`** с **каскадным** удалением материалов и поддерева категорий.
 - **`RegisterView`** (`user_admin_views.py`) — публичная регистрация: **`create_user(..., is_staff=False, is_superuser=False)`**; попытка передать **`is_staff`** или **`is_superuser`** как **`true`** в теле запроса → **400**; после создания при необходимости принудительный сброс флагов.
 - `MaterialSerializer` — `validate_article`, замена `related_items`/`operation_lines` в `create`/`update`, обработка `IntegrityError` по артикулу.
@@ -263,7 +262,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 #### Multipart нюанс (важно)
 
-При загрузке `texture_image` запрос идёт как `multipart/form-data`, и списочные поля (`material_class_ids`, `alt_prices`, `related_items`, `operation_lines`) приходят строкой. Сериализатор поддерживает JSON‑строки вида `"[1,2]"` и `"[]"`.
+При загрузке `texture_image` запрос идёт как `multipart/form-data`, и списочные поля (`material_class_ids`, `related_items`, `operation_lines`) приходят строкой. Сериализатор поддерживает JSON‑строки вида `"[1,2]"` и `"[]"`.
 
 #### Удаление текстуры (важно)
 

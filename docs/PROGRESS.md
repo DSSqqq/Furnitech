@@ -176,8 +176,15 @@
 
 ### Изменения 2026-05-03 (часть 4 — статус «Завершён», таблица заказов)
 
-- **`FacadeOrder.Status`:** добавлено **`completed`** / подпись **«Завершён»**; **`FacadeOrderStatus`** и опции **`FtSelect`** в **`AdminOrdersPanel`**, подписи и **`HintButton`** в **`ClientMyOrdersPage`** (**`PublicClientPages.tsx`**).
+- **`FacadeOrder.Status`:** добавлено **`completed`** / подпись **«Завершён»**; миграция **`0031_alter_facadeorder_status`**; **`FacadeOrderStatus`** и опции **`FtSelect`** в **`AdminOrdersPanel`**, подписи и **`HintButton`** в **`ClientMyOrdersPage`** (**`PublicClientPages.tsx`**).
 - **`AdminOrdersPanel`:** убрана колонка **«Детали»** с раскрывающимся просмотром **`snapshot`**; удалены стили **`admin-orders-details-*`** / **`admin-orders-snapshot`** из **`AdminApp.css`**.
+- **Удаление заказа из админки:** колонка **«Действия»** + кнопка **«Удалить»** в **`AdminOrdersPanel`** (модалка через **`createPortal`** + **`admin-modal-*`**); фронт-API **`deleteFacadeOrder`**; бэкенд — **`DELETE /api/facade-orders/{id}/`** (только **`IsAdminUser`**, **`perform_destroy`** удаляет привязанный **`pdf_file`** перед удалением строки). У клиента заказ исчезает из **«Мои заказы»** при следующем `GET`.
+
+### Изменения 2026-05-09 (часть 1 — удаление полей материала)
+
+- **Полностью удалены из проекта:** поле **`fnp_name`** («Наименование ФНП»), поле **`unit_mass`** («Масса на ед. изм.») у **`Material`** и модель **`MaterialAlternativePrice`** («Альтернативные валюты», ключ `alt_prices` в API). Уход без обратной совместимости — данных, на которые опирается калькулятор, в этих полях не было.
+- **Backend:** удалены поля и модель в **`materials/models.py`**; убраны импорт/admin-регистрация **`MaterialAlternativePrice`** в **`materials/admin.py`**; в **`MaterialAdmin.list_display` / `search_fields`** больше нет **`fnp_name`**; в **`MaterialViewSet`** убрано **`prefetch_related("alternative_prices")`** и **`fnp_name`** из **`search_fields`**; в **`MaterialSerializer`** удалены поля и весь блок про **`alt_prices`** (методы **`_replace_alternative_prices`**, **`_get_alt_prices_from_request`**, ветки в `create`/`update`, проверка `unit_mass` в `validate`, инъекция в `to_representation`). Миграция **`materials.0030_drop_fnp_unit_mass_alt_prices`** удаляет поля, модель и связанные **content type / Permission**.
+- **Frontend:** в **`types.ts`** убраны `fnp_name`, `unit_mass`, `alt_prices`; в **`currencies.ts`** убран список **`ALTERNATIVE_CURRENCIES`** (остался только **`BASE_CURRENCY = 'KZT'`**); в **`AdminApp.tsx`** удалены инпуты «Наименование ФНП», «Масса на ед. изм.», блок «Альтернативные валюты» / «Валюта для ввода» / «Цена за ед. в …», поля стейта, helpers **`mapFromAltPriceRows`** / **`buildAltPricesPayload`**, ключи в `baseBody` при сохранении.
 
 **Бэкенд:** для **`MaterialViewSet`**, **`CalculatorProfileTypeViewSet`**, **`CalculatorFillingTypeViewSet`**, **`CalculatorHingeTypeViewSet`**, **`CalculatorHandleHoleDiameterViewSet`** — класс **`AllowAnyReadAuthenticatedModelPermsWrite`** (GET без JWT; POST/PATCH/DELETE — только авторизованные пользователи с правами Django). **`CalculatorProfileViewSet`** — по‑прежнему только с JWT (`AuthReadModelPermsWrite`).
 
@@ -198,16 +205,15 @@
 | **Пагинация** | `PageNumberPagination`, `PAGE_SIZE=100` (`config/settings.py`). |
 | **Категории (папки)** | `GET /api/categories/?tree=1` — дерево; `POST` — создать; `PATCH/PUT/DELETE` — по `/api/categories/{id}/`. **DELETE** — **каскад**: удаляются все материалы в выбранной папке и подпапках, затем поддерево категорий (в транзакции, см. `MaterialCategoryViewSet.destroy`). |
 | **Материалы** | `GET` (в т.ч. **без JWT** для каталога в калькуляторе) / `POST/PUT/PATCH/DELETE` (только с JWT и правами) на `/api/materials/`, `?category=`, `?search=`. |
-| **Миграции** | В т.ч. `0010`–`0017` (сопутствующие, артикул, текстуры, профили и типы профилей); **`0018`** — min/max размеры материала; **`0019_calculator_filling_types`** — типы наполнения и связь с материалами (шаг 4); **`0020_calculator_material_fk_cascade`** — при удалении материала каскадно убираются строки калькулятора: цвет в профиле (`CalculatorProfileColor`), цвет в типе профиля (`CalculatorProfileTypeColor`), материал в типе наполнения (`CalculatorFillingTypeMaterial`); **`0021_related_quantity_scale_op_per_facade`** — у сопутствующих **`quantity_scale`** (масштаб в калькуляторе), у операций **`price_per_facade`**; **`0026_calculator_hinge_types`** — типы петель и материалы в типе (шаг 5); **`0027_calculator_handle_hole_diameters`** — диаметры отверстий под ручку (шаг 7); **`0028_editor_perms_handle_hole_diameter`** — обновление прав группы «Редактор материалов» для новой модели; **`0029_facade_orders`** — заказы калькулятора (**`FacadeOrder`**). |
+| **Миграции** | В т.ч. `0010`–`0017` (сопутствующие, артикул, текстуры, профили и типы профилей); **`0018`** — min/max размеры материала; **`0019_calculator_filling_types`** — типы наполнения и связь с материалами (шаг 4); **`0020_calculator_material_fk_cascade`** — при удалении материала каскадно убираются строки калькулятора: цвет в профиле (`CalculatorProfileColor`), цвет в типе профиля (`CalculatorProfileTypeColor`), материал в типе наполнения (`CalculatorFillingTypeMaterial`); **`0021_related_quantity_scale_op_per_facade`** — у сопутствующих **`quantity_scale`** (масштаб в калькуляторе), у операций **`price_per_facade`**; **`0026_calculator_hinge_types`** — типы петель и материалы в типе (шаг 5); **`0027_calculator_handle_hole_diameters`** — диаметры отверстий под ручку (шаг 7); **`0028_editor_perms_handle_hole_diameter`** — обновление прав группы «Редактор материалов» для новой модели; **`0029_facade_orders`** — заказы калькулятора (**`FacadeOrder`**); **`0030_drop_fnp_unit_mass_alt_prices`** — удаление полей **`fnp_name`** / **`unit_mass`** у `Material` и модели **`MaterialAlternativePrice`** вместе с её content type/permissions; **`0031_alter_facadeorder_status`** — статус **`completed`** («Завершён»). |
 
 ### Модели (сущности)
 
 - `MaterialCategory` — дерево (`parent`, `on_delete` у детей: CASCADE), `unique_together (parent, name)`, `path` в API.
 - `UnitOfMeasure`, `MaterialClass` — справочники; M2M классов к `Material`.
-- `Material` — `category`, `name`, **`article`** (у непустых — уникальность в БД; пустой артикул у нескольких записей **разрешён**), `fnp_name`, M2M классов, `uom`, `unit_mass` (3 знака, default 0), **`base_currency` = KZT**, `base_price`, `note`, округления, **`is_active`** (см. глоссарий ниже), `external_id` / `last_synced_at`.
+- `Material` — `category`, `name`, **`article`** (у непустых — уникальность в БД; пустой артикул у нескольких записей **разрешён**), M2M классов, `uom`, **`base_currency` = KZT**, `base_price`, `note`, округления, **`is_active`** (см. глоссарий ниже), `external_id` / `last_synced_at`. Поля **`fnp_name`** («Наименование ФНП») и **`unit_mass`** («Масса на ед. изм.»), а также таблица **`MaterialAlternativePrice`** были удалены миграцией **`0030_drop_fnp_unit_mass_alt_prices`**.
 - `Material` (продолжение) — **«Доп. параметры»**: `thickness`, `min_length`, `max_length`, `min_width`, `max_width`, `designation`, `cut_coeff`, `calc_type`.
 - `Material` (продолжение) — **«Параметры текстуры»**: `texture_mode`, `texture_color`, `texture_image`, `tex_offset_x/y`, `tex_step_x/y`, `tex_opacity`, `tex_mirror`, `tex_specular_sharpness`, `tex_specular_brightness`, `tex_rotation_deg`.
-- `MaterialAlternativePrice` — `alt_prices` в API, полная замена при сохранении.
 - `MaterialRelatedItem` / `MaterialOperationLine` — см. [ARCHITECTURE.md](ARCHITECTURE.md).
 - `CalculatorProfile` — профиль калькулятора: **один материал** из базы, который выступает «профилем» (OneToOne к `Material`).
 - `CalculatorProfileColor` — «цвет профиля»: привязка профиля к другому материалу (многие‑ко‑многим через таблицу, с порядком и уникальностью).
@@ -222,7 +228,7 @@
 
 - `related_items` / `operation_lines` — чтение и полная замена при записи, если ключ в теле.
 - Валидация дубликата артикула в сериализаторе; при гонке — `IntegrityError` → 400 с полем `article`.
-- **Multipart для загрузки текстуры:** при `texture_image` запрос уходит как `multipart/form-data`, и списки (`material_class_ids`, `alt_prices`, `related_items`, `operation_lines`) могут приходить JSON‑строкой. Сериализатор поддерживает JSON‑строки.
+- **Multipart для загрузки текстуры:** при `texture_image` запрос уходит как `multipart/form-data`, и списки (`material_class_ids`, `related_items`, `operation_lines`) могут приходить JSON‑строкой. Сериализатор поддерживает JSON‑строки.
 - **Multipart edge-case:** некоторые клиенты/сервер могут дать `["[]"]` вместо `"[]"` — обработано в сериализаторе.
 
 ### Django admin

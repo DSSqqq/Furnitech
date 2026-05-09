@@ -8,7 +8,6 @@ from .models import (
     CalculatorHingeTypeMaterial,
     FacadeOrder,
     Material,
-    MaterialAlternativePrice,
     MaterialCategory,
     MaterialClass,
     MaterialOperationLine,
@@ -40,18 +39,11 @@ admin.site.register(MaterialCategory, MaterialCategoryAdmin)
 
 
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ("name", "article", "category", "fnp_name", "base_price", "base_currency", "is_active")
+    list_display = ("name", "article", "category", "base_price", "base_currency", "is_active")
     list_filter = ("category", "rounding_mode", "is_active")
-    search_fields = ("name", "article", "fnp_name", "external_id")
+    search_fields = ("name", "article", "external_id")
     raw_id_fields = ("category", "uom")
     filter_horizontal = ("material_classes",)
-
-
-@admin.register(MaterialAlternativePrice)
-class MaterialAlternativePriceAdmin(admin.ModelAdmin):
-    list_display = ("material", "currency", "price")
-    list_filter = ("currency",)
-    search_fields = ("material__name", "currency")
 
 
 admin.site.register(Material, MaterialAdmin)

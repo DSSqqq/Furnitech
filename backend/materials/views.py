@@ -120,7 +120,6 @@ class MaterialViewSet(viewsets.ModelViewSet):
         .select_related("uom", "category")
         .prefetch_related(
             "material_classes",
-            "alternative_prices",
             "companion_items__related_material__uom",
             "operation_lines__uom",
         )
@@ -129,7 +128,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
     filter_backends = [filters.SearchFilter]
-    search_fields = ("name", "article", "fnp_name")
+    search_fields = ("name", "article")
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -209,15 +208,15 @@ class CalculatorHandleHoleDiameterViewSet(viewsets.ModelViewSet):
 
 
 class FacadeOrderViewSet(viewsets.ModelViewSet):
-    """Заказы калькулятора: создаёт клиент (multipart PDF + snapshot); список — свои; сотрудник — все; PATCH статуса — только staff."""
+    """Заказы калькулятора: создаёт клиент (multipart PDF + snapshot); список — свои; сотрудник — все; PATCH статуса и DELETE — только staff."""
 
     queryset = FacadeOrder.objects.all().select_related("user").order_by("-created_at")
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
-        if self.action in ("partial_update", "update"):
+        if self.action in ("partial_update", "update", "destroy"):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
@@ -250,3 +249,8 @@ class FacadeOrderViewSet(viewsets.ModelViewSet):
         ser.save()
         instance.refresh_from_db()
         return Response(FacadeOrderSerializer(instance, context=self.get_serializer_context()).data)
+
+    def perform_destroy(self, instance: FacadeOrder) -> None:
+        if instance.pdf_file:
+            instance.pdf_file.delete(save=False)
+        instance.delete()

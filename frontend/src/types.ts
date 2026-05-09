@@ -63,10 +63,8 @@ export type Material = {
   /** Артикул / внутр. код (сопоставление с учётом, 1С в т.ч.) */
   article?: string
   material_class_ids: number[]
-  fnp_name: string
   uom: UnitOfMeasure
   uom_id: number
-  unit_mass: string
   base_currency: string
   base_price: string
   /** Доп. параметры для будущего калькулятора. */
@@ -91,8 +89,6 @@ export type Material = {
   tex_specular_sharpness?: string
   tex_specular_brightness?: string
   tex_rotation_deg?: string
-  /** Сохранённые цены в каждой выбранной альтернативной валюте. */
-  alt_prices?: { currency: string; price: string }[]
   related_items?: MaterialRelatedItemDto[]
   operation_lines?: MaterialOperationLineDto[]
   note: string

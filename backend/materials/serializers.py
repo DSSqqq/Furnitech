@@ -16,7 +16,6 @@ from .models import (
     CalculatorProfileTypeColor,
     FacadeOrder,
     Material,
-    MaterialAlternativePrice,
     MaterialCategory,
     MaterialClass,
     MaterialOperationLine,
@@ -140,10 +139,8 @@ class MaterialSerializer(serializers.ModelSerializer):
             "name",
             "article",
             "material_class_ids",
-            "fnp_name",
             "uom",
             "uom_id",
-            "unit_mass",
             "base_currency",
             "base_price",
             "note",
@@ -193,10 +190,6 @@ class MaterialSerializer(serializers.ModelSerializer):
     def to_representation(self, instance) -> dict:
         data = super().to_representation(instance)
         data["material_class_ids"] = [c.pk for c in instance.material_classes.all()]
-        alts = instance.alternative_prices.all() if instance.pk else []
-        data["alt_prices"] = [
-            {"currency": x.currency, "price": str(x.price)} for x in alts
-        ]
         data["related_items"] = self._serialize_related_items(instance)
         data["operation_lines"] = self._serialize_operation_lines(instance)
         return data
@@ -333,55 +326,8 @@ class MaterialSerializer(serializers.ModelSerializer):
             kwargs["price_per_facade"] = bool(ppf)
             MaterialOperationLine.objects.create(**kwargs)
 
-    @staticmethod
-    def _replace_alternative_prices(material, items) -> None:
-        by_cur: dict[str, Decimal] = {}
-        for it in items:
-            c = str(it.get("currency", "")).upper().strip()[:3]
-            if not c:
-                raise serializers.ValidationError({"alt_prices": "У каждой строки должен быть код валюты."})
-            if c == "KZT":
-                raise serializers.ValidationError(
-                    {"alt_prices": "Базовая валюта KZT задаётся отдельно, не в альтернативных."}
-                )
-            p = it.get("price", 0)
-            d = p if isinstance(p, Decimal) else Decimal(str(p))
-            if d < 0:
-                raise serializers.ValidationError({"alt_prices": "Цена не может быть отрицательной."})
-            by_cur[c] = d
-        material.alternative_prices.all().delete()
-        for c, d in by_cur.items():
-            if d == 0:
-                continue
-            MaterialAlternativePrice.objects.create(material=material, currency=c, price=d)
-
-    def _get_alt_prices_from_request(self) -> list | object | None:
-        """None = в запросе нет ключа, не трогать. [] = сбросить. список = заменить."""
-        data = self.initial_data
-        if not isinstance(data, dict) or "alt_prices" not in data:
-            return None
-        ap = data["alt_prices"]
-        if ap is None:
-            return []
-        if isinstance(ap, list) and len(ap) == 1 and isinstance(ap[0], str):
-            ap = ap[0]
-        if isinstance(ap, str):
-            t = ap.strip()
-            if not t:
-                return []
-            try:
-                ap = json.loads(t)
-            except Exception as e:  # noqa: BLE001
-                raise serializers.ValidationError({"alt_prices": "Ожидается JSON-массив {currency, price}."}) from e
-        if not isinstance(ap, list):
-            raise serializers.ValidationError({"alt_prices": "Ожидается массив {currency, price}."})
-        return ap
-
     def create(self, validated_data):
         m2m_ids = validated_data.pop("material_class_ids", None) or []
-        ap = self._get_alt_prices_from_request()
-        if ap is None:
-            ap = []
         comp = self._list_from_request_key(self.initial_data, "related_items")
         ops = self._list_from_request_key(self.initial_data, "operation_lines")
         if comp is None:
@@ -402,7 +348,6 @@ class MaterialSerializer(serializers.ModelSerializer):
             if qs.count() != len(set(ids)):
                 raise serializers.ValidationError({"material_class_ids": "Некоторые id классов не найдены."})
             material.material_classes.set(qs)
-        self._replace_alternative_prices(material, ap)
         self._replace_companion_items(material, comp, material.id)
         self._replace_operation_lines(material, ops)
         return material
@@ -418,7 +363,6 @@ class MaterialSerializer(serializers.ModelSerializer):
             and self.initial_data["material_class_ids"] == []
         ):
             m2m_ids = []
-        ap = self._get_alt_prices_from_request()
         try:
             material = super().update(instance, validated_data)
         except IntegrityError as e:
@@ -436,8 +380,6 @@ class MaterialSerializer(serializers.ModelSerializer):
                 if qs.count() != len(set(ids)):
                     raise serializers.ValidationError({"material_class_ids": "Некоторые id классов не найдены."})
                 material.material_classes.set(qs)
-        if ap is not None:
-            self._replace_alternative_prices(material, ap)
         comp = self._list_from_request_key(self.initial_data, "related_items")
         if comp is not None:
             self._replace_companion_items(material, comp, material.id)
@@ -461,8 +403,6 @@ class MaterialSerializer(serializers.ModelSerializer):
                 )
         if mode in (RoundingMode.NONE, RoundingMode.CEIL_UNIT):
             attrs = {**attrs, "rounding_multiple": None}
-        if "unit_mass" in attrs and attrs["unit_mass"] is None:
-            attrs = {**attrs, "unit_mass": Decimal("0")}
         attrs = {**attrs, "base_currency": "KZT"}
         return attrs
 

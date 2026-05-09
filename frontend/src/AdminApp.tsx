@@ -22,7 +22,7 @@ import {
 } from './api'
 import { AdminOrdersPanel } from './AdminOrdersPanel'
 import type { Me } from './auth'
-import { ALTERNATIVE_CURRENCIES, BASE_CURRENCY } from './currencies'
+import { BASE_CURRENCY } from './currencies'
 import {
   capDecimalString,
   commitDecimalForApi,
@@ -84,22 +84,6 @@ function collectSubtreeCategoryIds(cat: MaterialCategory): Set<number> {
   }
   walk(cat)
   return ids
-}
-
-function mapFromAltPriceRows(
-  rows: { currency: string; price: string }[] | undefined
-): Record<string, string> {
-  const m: Record<string, string> = {}
-  for (const row of rows ?? []) {
-    m[row.currency] = capDecimalString(String(row.price), DECIMAL_FRACTION_DIGITS)
-  }
-  return m
-}
-
-function buildAltPricesPayload(altByCurrency: Record<string, string>) {
-  return Object.entries(altByCurrency)
-    .map(([currency, p]) => ({ currency, price: commitDecimalForApi(p) }))
-    .filter((x) => x.price !== '0')
 }
 
 type AdminProps = {
@@ -974,12 +958,8 @@ function MaterialForm({
   const [form, setForm] = useState({
     name: material?.name ?? '',
     article: material?.article ?? '',
-    fnp_name: material?.fnp_name ?? '',
     uom_id: (material as any)?.uom_id ?? (material as any)?.uom?.id ?? (uomList[0]?.id ?? 0),
-    unit_mass: formatDecimalStringForInput(String(material?.unit_mass ?? '0'), DECIMAL_FRACTION_DIGITS),
     base_price: formatDecimalStringForInput(String(material?.base_price ?? '0'), DECIMAL_FRACTION_DIGITS),
-    alt_currency: '',
-    alt_prices_map: mapFromAltPriceRows(material?.alt_prices),
     note: material?.note ?? '',
     rounding_mode: (material?.rounding_mode ?? 'none') as RoundingMode,
     rounding_multiple: material?.rounding_multiple ?? '',
@@ -1161,20 +1141,13 @@ function MaterialForm({
     }
     setSaving(true)
     setLocalErr(null)
-    const altMap = { ...form.alt_prices_map }
-    if (form.alt_currency) {
-      altMap[form.alt_currency] = normalizeDecimalOnBlur(altMap[form.alt_currency] ?? '0')
-    }
     const baseBody: Record<string, unknown> = {
       category: categoryId,
       name: form.name,
       article: form.article,
-      fnp_name: form.fnp_name,
       uom_id: form.uom_id,
-      unit_mass: commitDecimalForApi(form.unit_mass),
       base_price: commitDecimalForApi(form.base_price),
       base_currency: BASE_CURRENCY,
-      alt_prices: buildAltPricesPayload(altMap),
       note: form.note,
       rounding_mode: form.rounding_mode,
       rounding_multiple:
@@ -1411,14 +1384,6 @@ function MaterialForm({
         </div>
       </div>
       <label className="field">
-        <span>Наименование ФНП</span>
-        <input
-          className="admin-input"
-          value={form.fnp_name}
-          onChange={(e) => setField('fnp_name', e.target.value)}
-        />
-      </label>
-      <label className="field">
         <span>Ед. измерения *</span>
         <FtSelect
           value={String(form.uom_id)}
@@ -1427,18 +1392,6 @@ function MaterialForm({
             value: String(u.id),
             label: `${u.short_name || u.name} (${u.name})`,
           }))}
-        />
-      </label>
-      <label className="field">
-        <span>Масса на ед. изм.</span>
-        <input
-          className="admin-input"
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={form.unit_mass}
-          onChange={(e) => setField('unit_mass', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-          onBlur={(e) => setField('unit_mass', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))}
         />
       </label>
       <div className="field">
@@ -1459,71 +1412,6 @@ function MaterialForm({
           value={form.base_price}
           onChange={(e) => setField('base_price', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
           onBlur={(e) => setField('base_price', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))}
-        />
-      </label>
-      <div className="field">
-        <div className="field-label-row">
-          <span>Альтернативные валюты</span>
-          <HintButton text="Для каждой валюты цена хранится отдельно. Выберите валюту, введите цену, переключитесь — значения не теряются до сохранения." />
-        </div>
-      </div>
-      <label className="field">
-        <span>Валюта для ввода</span>
-        <FtSelect
-          value={form.alt_currency}
-          onChange={(next) => {
-            setForm((f) => {
-              const nextMap = { ...f.alt_prices_map }
-              if (f.alt_currency) {
-                nextMap[f.alt_currency] = normalizeDecimalOnBlur(
-                  nextMap[f.alt_currency] ?? '0'
-                )
-              }
-              return { ...f, alt_currency: next, alt_prices_map: nextMap }
-            })
-          }}
-          options={[
-            { value: '', label: 'Не выбрана (только просмотр / без ввода)' },
-            ...ALTERNATIVE_CURRENCIES.map((c) => ({ value: c.code, label: c.label })),
-          ]}
-        />
-      </label>
-      <label className="field">
-        <span>
-          Цена за ед. {form.alt_currency ? `в ${form.alt_currency}` : ''}
-          {form.alt_currency &&
-            (form.alt_prices_map[form.alt_currency] ? ' (сохранено в этой валюте)' : '')}
-        </span>
-        <input
-          className="admin-input"
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={form.alt_currency ? form.alt_prices_map[form.alt_currency] ?? '0' : '0'}
-          disabled={!form.alt_currency}
-          onChange={(e) => {
-            const cur = form.alt_currency
-            if (!cur) return
-            const v = filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
-            setForm((f) => ({
-              ...f,
-              alt_prices_map: { ...f.alt_prices_map, [cur]: v },
-            }))
-          }}
-          onBlur={() => {
-            setForm((f) => {
-              if (!f.alt_currency) return f
-              return {
-                ...f,
-                alt_prices_map: {
-                  ...f.alt_prices_map,
-                  [f.alt_currency]: normalizeDecimalOnBlur(
-                    f.alt_prices_map[f.alt_currency] ?? '0'
-                  ),
-                },
-              }
-            })
-          }}
         />
       </label>
       <label className="field">

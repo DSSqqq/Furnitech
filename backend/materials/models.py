@@ -116,21 +116,11 @@ class Material(models.Model):
         related_name="materials",
         verbose_name="Классы материала",
     )
-    fnp_name = models.CharField("Наименование ФНП", max_length=500, blank=True)
     uom = models.ForeignKey(
         UnitOfMeasure,
         on_delete=models.PROTECT,
         related_name="materials",
         verbose_name="Ед. изм.",
-    )
-    unit_mass = models.DecimalField(
-        "Масса на ед. изм.",
-        max_digits=14,
-        decimal_places=3,
-        default=Decimal("0"),
-        null=False,
-        blank=True,
-        validators=[MinValueValidator(Decimal("0"))],
     )
     base_currency = models.CharField("Код валюты (базовая)", max_length=3, default="KZT")
     base_price = models.DecimalField(
@@ -322,35 +312,6 @@ class Material(models.Model):
     def save(self, *args, **kwargs) -> None:
         self.article = (self.article or "").strip()
         super().save(*args, **kwargs)
-
-
-class MaterialAlternativePrice(models.Model):
-    """Сохранённая цена на единицу в каждой выбранной альтернативной валюте (не KZT)."""
-
-    material = models.ForeignKey(
-        "Material",
-        on_delete=models.CASCADE,
-        related_name="alternative_prices",
-        verbose_name="Материал",
-    )
-    currency = models.CharField("Код валюты (ISO 4217)", max_length=3, db_index=True)
-    price = models.DecimalField(
-        "Цена за ед. изм.",
-        max_digits=18,
-        decimal_places=3,
-        validators=[MinValueValidator(Decimal("0"))],
-    )
-
-    class Meta:
-        verbose_name = "Цена в альтернативной валюте"
-        verbose_name_plural = "Цены в альтернативных валютах"
-        ordering = ["currency"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["material", "currency"],
-                name="materials_mat_alt_currency_uniq",
-            )
-        ]
 
 
 class MaterialRelatedItem(models.Model):

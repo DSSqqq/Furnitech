@@ -464,6 +464,13 @@ export function patchFacadeOrderStatus(id: number, status: FacadeOrderStatus) {
   }).then((r) => json<FacadeOrder>(r))
 }
 
+/** Удаление заказа (только staff); у клиента запись пропадает из списка. */
+export function deleteFacadeOrder(id: number) {
+  return apiFetch(`/api/facade-orders/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
 /** Публичная регистрация (без JWT). */
 export async function registerAccount(body: { username: string; password: string; email?: string }) {
   const r = await fetch('/api/auth/register/', {
