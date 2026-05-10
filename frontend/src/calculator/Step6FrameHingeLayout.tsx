@@ -14,6 +14,8 @@ import {
   isFrameMortiseHingeSelected,
   isFrameStep2Ready,
   isFrameStep4Ready,
+  HINGE_LAYOUT_COUNT_MAX,
+  HINGE_LAYOUT_COUNT_MIN,
   readCalculatorPriceConfigKey,
   readFrameDimsMm,
   readHingeLayout,
@@ -61,8 +63,6 @@ const SIDES: { id: HingeMountSide; label: string }[] = [
   { id: 'bottom', label: 'Снизу' },
 ]
 
-const MAX_HINGES = 10
-
 /** Строки полей по умолчанию; при известной L — равномерная раскладка `defaultHingeAbsPositionsMm`. */
 function defaultHingeDistStrRow(L: number | null, count: number): string[] {
   if (L != null && Number.isFinite(L) && L > 0) {
@@ -88,7 +88,7 @@ function parsePositions(distStr: string[]): number[] {
 
 function initDistStrFromStorage(initialSide: HingeMountSide): string[] {
   const saved = readHingeLayout()
-  const c = clamp(saved?.count ?? 2, 1, MAX_HINGES)
+  const c = clamp(saved?.count ?? HINGE_LAYOUT_COUNT_MIN, HINGE_LAYOUT_COUNT_MIN, HINGE_LAYOUT_COUNT_MAX)
   const side = saved?.side ?? initialSide
   if (!saved || saved.positionsMm.length !== saved.count) {
     const { w, h } = readFrameDimsMm()
@@ -101,7 +101,9 @@ function initDistStrFromStorage(initialSide: HingeMountSide): string[] {
     const L = hingeEdgeLengthMm(saved.side, w, h)
     if (L > 0) return hingeAbsoluteToUserInputStrings(L, saved.positionsMm, saved.count)
   }
-  return saved.positionsMm.map((n) => String(Math.round(n * 1000) / 1000))
+  return saved.positionsMm.map((n) =>
+    Number.isFinite(n) ? String(Math.ceil(Math.max(0, n) - 1e-9)) : '',
+  )
 }
 
 function hingeDistanceFieldLabel(side: HingeMountSide, idx: number, count: number): string {
@@ -126,7 +128,9 @@ export function Step6FrameHingeLayout() {
   const savedOnce = useMemo(() => readHingeLayout(), [])
   const initialSide = savedOnce?.side ?? 'top'
   const [side, setSide] = useState<HingeMountSide>(initialSide)
-  const [count, setCount] = useState(() => clamp(savedOnce?.count ?? 2, 1, MAX_HINGES))
+  const [count, setCount] = useState(() =>
+    clamp(savedOnce?.count ?? HINGE_LAYOUT_COUNT_MIN, HINGE_LAYOUT_COUNT_MIN, HINGE_LAYOUT_COUNT_MAX),
+  )
   const [distStr, setDistStr] = useState<string[]>(() => initDistStrFromStorage(initialSide))
   const prevSideRef = useRef(side)
 
@@ -272,7 +276,7 @@ export function Step6FrameHingeLayout() {
 
   const setCountSafe = useCallback(
     (n: number) => {
-      const c = clamp(Math.trunc(n), 1, MAX_HINGES)
+      const c = clamp(Math.trunc(n), HINGE_LAYOUT_COUNT_MIN, HINGE_LAYOUT_COUNT_MAX)
       setCount(c)
       setDistStr((prev) => {
         if (c === prev.length) return prev
@@ -384,11 +388,9 @@ export function Step6FrameHingeLayout() {
   return (
     <div className="frame2">
       <section className="frame3-left calc-side-panel">
-        <h3 className="frame3-title">Шаг 6: расстояния</h3>
-        <p className="frame3-sub">
-          Укажите число отверстий и расстояния по парам от противоположных краёв. Каждое введённое расстояние должно быть меньше длины стороны (
-          {edgeL != null ? `${Math.round(edgeL)} мм` : 'см. шаг 3'}); в сумме пары от верха и от низа должно оставлять зазор между отверстиями.
-        </p>
+        <div className="frame3-title" role="heading" aria-level={3}>
+          Расстояния
+        </div>
 
         {widthMm == null || heightMm == null ? (
           <p className="admin-error" style={{ marginTop: '0.75rem' }}>
@@ -396,17 +398,18 @@ export function Step6FrameHingeLayout() {
           </p>
         ) : null}
 
+        <div className="calc-side-panel-scroll">
         <div className="frame3-field frame3-field--wide" style={{ marginTop: '1rem' }}>
           <div className="frame3-label">Количество отверстий под петли (шт.)</div>
           <input
             className="admin-input"
             type="number"
-            min={1}
-            max={MAX_HINGES}
+            min={HINGE_LAYOUT_COUNT_MIN}
+            max={HINGE_LAYOUT_COUNT_MAX}
             value={count}
             onChange={(e) => {
               const v = Number(e.target.value)
-              setCountSafe(Number.isFinite(v) ? v : 1)
+              setCountSafe(Number.isFinite(v) ? v : HINGE_LAYOUT_COUNT_MIN)
             }}
           />
         </div>
@@ -465,6 +468,7 @@ export function Step6FrameHingeLayout() {
             {layoutError}
           </div>
         ) : null}
+        </div>
 
         <div className="frame2-card-nav" style={{ marginTop: '1.25rem', paddingTop: '1rem' }}>
           <button type="button" className="admin-secondary" onClick={() => nav(step('frame/summary'))}>

@@ -10,6 +10,10 @@ export const CALC_LS_HINGE_MATERIAL_ID = 'calc_hinge_material_id'
 
 /** Раскладка петель (шаг 6): JSON `{ side, count, positionsMm }`. */
 export const CALC_LS_HINGE_LAYOUT = 'calc_hinge_layout'
+/** Минимальное число отверстий под петли (шаг 6). */
+export const HINGE_LAYOUT_COUNT_MIN = 2
+/** Максимальное число отверстий под петли (шаг 6). */
+export const HINGE_LAYOUT_COUNT_MAX = 10
 
 /** Отверстия под ручку (шаг 7): JSON см. `HandleHolesPersisted`. */
 export const CALC_LS_HANDLE_HOLES = 'calc_handle_holes'
@@ -120,11 +124,12 @@ export function hingeUserInputsToAbsoluteMm(L: number, count: number, parsed: nu
   return abs
 }
 
-/** Абсолютные координаты → строки для полей ввода (от начала / от конца по правилу пар). */
+/** Абсолютные координаты → строки для полей ввода (от начала / от конца по правилу пар). Округление вверх до целого мм. */
 export function hingeAbsoluteToUserInputStrings(L: number, abs: number[], count: number): string[] {
   return abs.map((a, i) => {
     const v = hingeMeasuresFromEdgeStart(i, count) ? a : L - a
-    return String(Math.round(v * 1000) / 1000)
+    if (!Number.isFinite(v)) return ''
+    return String(Math.ceil(Math.max(0, v) - 1e-9))
   })
 }
 
@@ -164,7 +169,7 @@ export function readHingeLayout(): HingeLayoutPersisted | null {
     const side = j.side
     if (side !== 'left' && side !== 'right' && side !== 'top' && side !== 'bottom') return null
     const count = Number(j.count)
-    if (!Number.isFinite(count) || count < 1 || count > 10) return null
+    if (!Number.isFinite(count) || count < HINGE_LAYOUT_COUNT_MIN || count > HINGE_LAYOUT_COUNT_MAX) return null
     const arr = Array.isArray(j.positionsMm) ? j.positionsMm.map((x) => Number(x)) : []
     if (arr.length !== count) return null
     if (arr.some((x) => !Number.isFinite(x))) return null

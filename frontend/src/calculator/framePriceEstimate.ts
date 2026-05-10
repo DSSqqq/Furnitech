@@ -73,15 +73,9 @@ function uomCode(u: UnitOfMeasure | undefined | null): string {
   return resolvePricingUomCode(u)
 }
 
-function effectivePricingUomCode(
-  material: Pick<Material, 'uom' | 'calc_type'> | null | undefined
-): string {
+function effectivePricingUomCode(material: Pick<Material, 'uom'> | null | undefined): string {
   if (!material) return 'm2'
-  const base = uomCode(material.uom)
-  // Для профильных «лент» цена почти всегда по периметру; если ед. изм. в базе случайно стоит "шт",
-  // всё равно считаем в м.п., иначе шаг 3 не влияет на сумму.
-  if (base === 'pc' && String(material.calc_type ?? '').trim().toLowerCase() === 'tape') return 'm'
-  return base
+  return uomCode(material.uom)
 }
 
 /**
@@ -97,7 +91,7 @@ export function unitsPerFacade(heightMm: number, widthMm: number, code: string):
 }
 
 export function pricedUnitsForMaterial(
-  material: Pick<Material, 'uom' | 'calc_type'> | null | undefined,
+  material: Pick<Material, 'uom'> | null | undefined,
   heightMm: number,
   widthMm: number,
   facadeCount: number

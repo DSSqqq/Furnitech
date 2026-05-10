@@ -44,6 +44,7 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
 
     uom = UnitOfMeasureSerializer(read_only=True)
     texture_library_item = serializers.IntegerField(source="texture_item_id", read_only=True)
+    texture_library_item_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
@@ -58,7 +59,13 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
             "texture_color",
             "texture_image",
             "texture_library_item",
+            "texture_library_item_name",
         )
+
+    def get_texture_library_item_name(self, obj: Material) -> str | None:
+        if obj.texture_item_id and obj.texture_item:
+            return obj.texture_item.name
+        return None
 
     def to_representation(self, instance) -> dict:
         data = super().to_representation(instance)
@@ -185,9 +192,6 @@ class MaterialSerializer(serializers.ModelSerializer):
             "min_length",
             "max_width",
             "min_width",
-            "designation",
-            "cut_coeff",
-            "calc_type",
             "texture_mode",
             "texture_color",
             "texture_image",
@@ -506,6 +510,8 @@ class CalculatorProfileSerializer(serializers.ModelSerializer):
 class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
     colors = serializers.SerializerMethodField(read_only=True)
     card_image = serializers.ImageField(required=False, allow_null=True)
+    card_image_2 = serializers.ImageField(required=False, allow_null=True)
+    card_image_3 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorProfileType
@@ -514,6 +520,8 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_image_2",
+            "card_image_3",
             "is_active",
             "sort_order",
             "colors",
@@ -576,6 +584,8 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
 class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
     materials = serializers.SerializerMethodField(read_only=True)
     card_image = serializers.ImageField(required=False, allow_null=True)
+    card_image_2 = serializers.ImageField(required=False, allow_null=True)
+    card_image_3 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorFillingType
@@ -584,6 +594,8 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_image_2",
+            "card_image_3",
             "is_active",
             "sort_order",
             "materials",
@@ -640,6 +652,8 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
 class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
     materials = serializers.SerializerMethodField(read_only=True)
     card_image = serializers.ImageField(required=False, allow_null=True)
+    card_image_2 = serializers.ImageField(required=False, allow_null=True)
+    card_image_3 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorHingeType
@@ -648,6 +662,8 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_image_2",
+            "card_image_3",
             "is_active",
             "sort_order",
             "materials",

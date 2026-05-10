@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Navigate, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { fetchCalculatorProfiles } from './api'
 import {
   CalcPathsProvider,
   facadeFromNormalized,
@@ -25,6 +24,7 @@ import { Step6FrameHingeLayout } from './calculator/Step6FrameHingeLayout'
 import { Step7FrameHandleHoles } from './calculator/Step7FrameHandleHoles'
 import { Step8FrameResult } from './calculator/Step8FrameResult'
 import { CalcPriceTotals } from './calculator/CalcPriceTotals'
+import './calculator/Step3FrameSizes.css'
 import './CalculatorPage.css'
 
 type FacadeType = 'frame' | 'mdf' | 'pvc'
@@ -42,11 +42,10 @@ function CalcRouteFallback() {
   return <Navigate to={home} replace />
 }
 
-function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean }) {
+function CalculatorPageInner() {
   const nav = useNavigate()
   const loc = useLocation()
   const { base, home, readOnly, step } = useCalcPaths()
-  const [profilesCount, setProfilesCount] = useState<number | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
   const routeMountRef = useRef(true)
 
@@ -85,13 +84,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
   const canOpenFrameStep8 = facade === 'frame' && frameStep4Ready
 
   useEffect(() => {
-    if (!showProfilesCount) return
-    fetchCalculatorProfiles()
-      .then((r) => setProfilesCount(r.results?.length ?? 0))
-      .catch(() => setProfilesCount(null))
-  }, [showProfilesCount])
-
-  useEffect(() => {
     if (routeMountRef.current) {
       routeMountRef.current = false
       return
@@ -107,11 +99,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
         <div className="admin-heading-row">
           <h2 className="admin-h2">{readOnly ? 'Подбор фасада' : 'Калькулятор'}</h2>
         </div>
-        {showProfilesCount && profilesCount != null && (
-          <p className="admin-muted" style={{ margin: '0.25rem 0 0' }}>
-            Доступно профилей: {profilesCount}
-          </p>
-        )}
 
         <div className="calc-steps-tabs" role="tablist" aria-label="Шаги калькулятора">
           <NavLink
@@ -292,10 +279,13 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-1" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Выбор фасада</h3>
-                          </div>
                           <div className="calc-side-panel">
+                            <div className="admin-heading-row calc-card-title-row">
+                              <div className="frame3-title" role="heading" aria-level={3}>
+                                Выберите тип фасада
+                              </div>
+                            </div>
+                            <div className="calc-side-panel-scroll">
                             <div className="calc-facade-grid" role="radiogroup" aria-label="Выбор фасада">
                               {(['frame', 'mdf', 'pvc'] as const).map((k) => (
                                 <label key={k} className="calc-facade">
@@ -315,6 +305,7 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                                 </label>
                               ))}
                             </div>
+                            </div>
                           </div>
                         </section>
                       </div>
@@ -324,9 +315,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-3" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад</h3>
-                          </div>
                           <Step3FrameSizes />
                         </section>
                       </div>
@@ -336,9 +324,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-4" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — наполнение</h3>
-                          </div>
                           <Step4FrameFilling />
                         </section>
                       </div>
@@ -348,9 +333,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-5" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — присадка</h3>
-                          </div>
                           <Step5FrameSummary />
                         </section>
                       </div>
@@ -360,9 +342,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-6" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — петли</h3>
-                          </div>
                           <Step6FrameHingeLayout />
                         </section>
                       </div>
@@ -372,9 +351,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-7" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — ручка</h3>
-                          </div>
                           <Step7FrameHandleHoles />
                         </section>
                       </div>
@@ -384,9 +360,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-8" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">Рамочный фасад — итог</h3>
-                          </div>
                           <Step8FrameResult />
                         </section>
                       </div>
@@ -396,9 +369,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">{FACADE_LABEL.frame}</h3>
-                          </div>
                           <Step2FrameFacade />
                         </section>
                       </div>
@@ -408,9 +378,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">{FACADE_LABEL.mdf}</h3>
-                          </div>
                           <Step2MdfFacade />
                         </section>
                       </div>
@@ -420,9 +387,6 @@ function CalculatorPageInner({ showProfilesCount }: { showProfilesCount: boolean
                     return (
                       <div className="calc-grid" id="calc-step-panel-2" role="tabpanel">
                         <section className="calc-card">
-                          <div className="admin-heading-row calc-card-title-row">
-                            <h3 className="calc-h3">{FACADE_LABEL.pvc}</h3>
-                          </div>
                           <Step2PvcFacade />
                         </section>
                       </div>
@@ -455,7 +419,7 @@ export function CalculatorPage({ variant = 'admin' }: CalculatorPageProps) {
   const readOnly = variant === 'public'
   return (
     <CalcPathsProvider base={calcBase} readOnly={readOnly}>
-      <CalculatorPageInner showProfilesCount={!readOnly} />
+      <CalculatorPageInner />
     </CalcPathsProvider>
   )
 }

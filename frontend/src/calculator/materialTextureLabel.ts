@@ -1,7 +1,10 @@
 import type { Material } from '../types'
 
 /** Поля для подписи «текстуры»; name может быть неполным у вложенных DTO. */
-export type MaterialTextureFields = Pick<Material, 'texture_mode' | 'texture_color' | 'texture_image'> & {
+export type MaterialTextureFields = Pick<
+  Material,
+  'texture_mode' | 'texture_color' | 'texture_image' | 'texture_library_item_name'
+> & {
   name?: string | null
 }
 
@@ -19,8 +22,8 @@ function mediaBasename(path: string): string {
 }
 
 /**
- * Подпись визуала материала в калькуляторе: не название записи в справочнике, а «текстура» —
- * HEX для режима color, имя файла (без расширения) для texture; если не задано — fallback на name.
+ * Подпись визуала материала в калькуляторе: для режима color — HEX; для текстуры с записью в базе
+ * текстур — имя из справочника; иначе имя файла (без расширения) или `name`.
  */
 export function materialTextureLabel(m: MaterialTextureFields | null | undefined): string {
   if (!m) return '—'
@@ -29,6 +32,8 @@ export function materialTextureLabel(m: MaterialTextureFields | null | undefined
     const c = (m.texture_color ?? '').trim()
     if (c) return c
   }
+  const libName = String(m.texture_library_item_name ?? '').trim()
+  if (libName) return libName
   const img = String(m.texture_image ?? '').trim()
   if (img) {
     const base = mediaBasename(img)

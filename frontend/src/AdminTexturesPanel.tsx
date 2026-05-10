@@ -233,7 +233,7 @@ function TextureTreeRow({
                       onMove(c)
                     }}
                   >
-                    Переместить…
+                    Переместить
                   </button>
                 </li>
                 <li role="none">
@@ -247,7 +247,7 @@ function TextureTreeRow({
                       onDelete(c)
                     }}
                   >
-                    Удалить…
+                    Удалить
                   </button>
                 </li>
               </ul>

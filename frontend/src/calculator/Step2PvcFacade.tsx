@@ -7,7 +7,9 @@ export function Step2PvcFacade() {
         <h3 className="calc-h3">Шаг 2 — ПВХ фасад</h3>
         <HintButton text="Шаги для ПВХ фасада будем разрабатывать отдельно (пока заглушка)." />
       </div>
-      <div className="calc-note">Дальнейшие шаги для «ПВХ фасад» пока не реализованы.</div>
+      <div className="calc-side-panel-scroll">
+        <div className="calc-note">Дальнейшие шаги для «ПВХ фасад» пока не реализованы.</div>
+      </div>
     </div>
   )
 }

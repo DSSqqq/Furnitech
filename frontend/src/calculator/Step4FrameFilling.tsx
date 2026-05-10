@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   createCalculatorFillingType,
@@ -16,7 +17,13 @@ import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
-import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
+import {
+  materialTextureLabel,
+  sketchFillingLine,
+  textureLabelDisplayWrap,
+  type MaterialTextureFields,
+} from './materialTextureLabel'
+import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
 import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -41,24 +48,13 @@ function blendScale(defaultScale: number, targetScale: number, strength: number)
   return defaultScale + (targetScale - defaultScale) * k
 }
 
-function matLabel(m: {
-  name: string
-  article?: string | null
-  texture_mode?: string
-  texture_color?: string
-  texture_image?: string | null
-}) {
+function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
   const lab = materialTextureLabel(m)
   return a ? `${lab} (${a})` : lab
 }
 
-function textureThumb(m: {
-  texture_image?: string | null
-  texture_color?: string
-  texture_mode?: string
-  name: string
-}) {
+function textureThumb(m: MaterialTextureFields & { name: string }) {
   const img = resolveMediaUrl(m.texture_image ?? '')
   const color = (m.texture_color ?? '').trim()
   const alt = materialTextureLabel(m)
@@ -70,19 +66,6 @@ function textureThumb(m: {
     )
   }
   return <div className="tile-thumb" style={color ? { backgroundColor: color } : undefined} />
-}
-
-function typeThumb(t: { name: string; image_url?: string; card_image?: string | null }) {
-  const raw = ((t.card_image ?? '') || (t.image_url ?? '')).trim()
-  const img = resolveMediaUrl(raw)
-  if (img) {
-    return (
-      <div className="tile-thumb tile-thumb--profile-type">
-        <img className="tile-thumb-img" src={img} alt={t.name} />
-      </div>
-    )
-  }
-  return <div className="tile-thumb tile-thumb--profile-type" />
 }
 
 function fillingPaperStyle(m: Material | null | undefined): CSSProperties {
@@ -134,15 +117,27 @@ export function Step4FrameFilling() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
-  const [createImageFile, setCreateImageFile] = useState<File | null>(null)
-  const cardImageInputRef = useRef<HTMLInputElement>(null)
+  const [createCardFiles, setCreateCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const fillingCardInputRef0 = useRef<HTMLInputElement>(null)
+  const fillingCardInputRef1 = useRef<HTMLInputElement>(null)
+  const fillingCardInputRef2 = useRef<HTMLInputElement>(null)
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
-  const [editFillingImageFile, setEditFillingImageFile] = useState<File | null>(null)
-  const editFillingImageRef = useRef<HTMLInputElement>(null)
+  const [editCardFiles, setEditCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const editFillingCardInputRef0 = useRef<HTMLInputElement>(null)
+  const editFillingCardInputRef1 = useRef<HTMLInputElement>(null)
+  const editFillingCardInputRef2 = useRef<HTMLInputElement>(null)
   const [editFillingMatHit, setEditFillingMatHit] = useState<Material[]>([])
   const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
 
@@ -153,6 +148,10 @@ export function Step4FrameFilling() {
     mclasses: MaterialClass[]
   }>(null)
   const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
+
+  const [gearMenuFillingTypeId, setGearMenuFillingTypeId] = useState<number | null>(null)
+  const fillingGearMenuWrapRef = useRef<HTMLDivElement | null>(null)
+  const [fillingTypeDeleteModal, setFillingTypeDeleteModal] = useState<CalculatorFillingType | null>(null)
 
   const closeMaterialSearch = useCallback(() => {
     materialSearchTargetRef.current = null
@@ -220,7 +219,16 @@ export function Step4FrameFilling() {
   const [modalSaving, setModalSaving] = useState(false)
 
   const [texByMaterialId, setTexByMaterialId] = useState<
-    Record<number, { texture_color?: string; texture_image?: string | null; name?: string }>
+    Record<
+      number,
+      {
+        texture_mode?: string
+        texture_color?: string
+        texture_image?: string | null
+        texture_library_item_name?: string | null
+        name?: string
+      }
+    >
   >({})
 
   const reload = useCallback(() => {
@@ -326,44 +334,90 @@ export function Step4FrameFilling() {
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, fillingTypes, selectedMaterialId])
 
-  const createImagePreview = useMemo(() => {
-    if (!createImageFile) return ''
-    return URL.createObjectURL(createImageFile)
-  }, [createImageFile])
+  const createPreview0 = useMemo(
+    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
+    [createCardFiles[0]],
+  )
+  const createPreview1 = useMemo(
+    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
+    [createCardFiles[1]],
+  )
+  const createPreview2 = useMemo(
+    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
+    [createCardFiles[2]],
+  )
 
   useEffect(() => {
     return () => {
-      if (createImagePreview) URL.revokeObjectURL(createImagePreview)
+      for (const u of [createPreview0, createPreview1, createPreview2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
     }
-  }, [createImagePreview])
-
-  const editFillingImagePreview = useMemo(() => {
-    if (!editFillingImageFile) return ''
-    return URL.createObjectURL(editFillingImageFile)
-  }, [editFillingImageFile])
-
-  useEffect(() => {
-    return () => {
-      if (editFillingImagePreview) URL.revokeObjectURL(editFillingImagePreview)
-    }
-  }, [editFillingImagePreview])
+  }, [createPreview0, createPreview1, createPreview2])
 
   const editingFilling = useMemo(
     () => (editFillingId != null ? fillingTypes.find((p) => p.id === editFillingId) ?? null : null),
     [editFillingId, fillingTypes]
   )
 
-  const editFillingExistingCardUrl = useMemo(() => {
-    if (!editingFilling) return ''
-    return resolveMediaUrl(((editingFilling.card_image ?? '') || (editingFilling.image_url ?? '')).trim())
+  const editFillingSlotExistingResolved = useMemo((): [string, string, string] => {
+    if (!editingFilling) return ['', '', '']
+    const s0 = ((editingFilling.card_image ?? '') || (editingFilling.image_url ?? '')).trim()
+    const s1 = (editingFilling.card_image_2 ?? '').trim()
+    const s2 = (editingFilling.card_image_3 ?? '').trim()
+    return [
+      s0 ? resolveMediaUrl(s0) : '',
+      s1 ? resolveMediaUrl(s1) : '',
+      s2 ? resolveMediaUrl(s2) : '',
+    ]
   }, [editingFilling])
+
+  const editBlob0 = useMemo(
+    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
+    [editCardFiles[0]],
+  )
+  const editBlob1 = useMemo(
+    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
+    [editCardFiles[1]],
+  )
+  const editBlob2 = useMemo(
+    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
+    [editCardFiles[2]],
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const u of [editBlob0, editBlob1, editBlob2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
+    }
+  }, [editBlob0, editBlob1, editBlob2])
+
+  const editFillingCardTileUrls = useMemo((): [string, string, string] => {
+    const blobs: [string, string, string] = [editBlob0, editBlob1, editBlob2]
+    return [
+      editCardFiles[0] ? blobs[0] : editFillingSlotExistingResolved[0] || '',
+      editCardFiles[1] ? blobs[1] : editFillingSlotExistingResolved[1] || '',
+      editCardFiles[2] ? blobs[2] : editFillingSlotExistingResolved[2] || '',
+    ]
+  }, [
+    editBlob0,
+    editBlob1,
+    editBlob2,
+    editCardFiles[0],
+    editCardFiles[1],
+    editCardFiles[2],
+    editFillingSlotExistingResolved,
+  ])
 
   const closeEditFilling = () => {
     closeMaterialSearch()
     setEditFillingId(null)
     setEditFillingName('')
-    setEditFillingImageFile(null)
-    if (editFillingImageRef.current) editFillingImageRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     setEditFillingMatIds({})
     setEditFillingMatHit([])
   }
@@ -374,8 +428,10 @@ export function Step4FrameFilling() {
     setErr(null)
     setEditFillingId(t.id)
     setEditFillingName(t.name)
-    setEditFillingImageFile(null)
-    if (editFillingImageRef.current) editFillingImageRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     const ids: Record<number, true> = {}
     for (const m of t.materials ?? []) ids[m.material_id] = true
     setEditFillingMatIds(ids)
@@ -399,13 +455,16 @@ export function Step4FrameFilling() {
     try {
       const materials = Object.keys(editFillingMatIds).map((id) => ({ material_id: Number(id) }))
       let updated: CalculatorFillingType
-      if (editFillingImageFile) {
+      const hasNewCardImages = editCardFiles.some(Boolean)
+      if (hasNewCardImages) {
         const fd = new FormData()
         fd.append('name', name)
         fd.append('is_active', String(t.is_active))
         fd.append('sort_order', String(t.sort_order))
         fd.append('materials', JSON.stringify(materials))
-        fd.append('card_image', editFillingImageFile)
+        if (editCardFiles[0]) fd.append('card_image', editCardFiles[0])
+        if (editCardFiles[1]) fd.append('card_image_2', editCardFiles[1])
+        if (editCardFiles[2]) fd.append('card_image_3', editCardFiles[2])
         updated = await updateCalculatorFillingType(editFillingId, fd)
       } else {
         updated = await updateCalculatorFillingType(editFillingId, {
@@ -436,14 +495,18 @@ export function Step4FrameFilling() {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(fillingTypes.length))
       fd.append('materials', JSON.stringify(materials))
-      if (createImageFile) fd.append('card_image', createImageFile)
+      if (createCardFiles[0]) fd.append('card_image', createCardFiles[0])
+      if (createCardFiles[1]) fd.append('card_image_2', createCardFiles[1])
+      if (createCardFiles[2]) fd.append('card_image_3', createCardFiles[2])
       const created = await createCalculatorFillingType(fd)
       setFillingTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateName('')
-      setCreateImageFile(null)
-      if (cardImageInputRef.current) cardImageInputRef.current.value = ''
+      setCreateCardFiles([null, null, null])
+      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setCreateMatHit([])
       setCreateMatIds({})
       closeMaterialSearch()
@@ -452,10 +515,10 @@ export function Step4FrameFilling() {
     }
   }
 
-  const deleteSelectedType = () => {
-    const selected = fillingTypes.find((p) => p.id === selectedTypeId) ?? null
+  const confirmDeleteFillingType = useCallback(() => {
+    const selected = fillingTypeDeleteModal
     if (!selected) return
-    if (!window.confirm('Удалить тип наполнения?')) return
+    setFillingTypeDeleteModal(null)
     setErr(null)
     deleteCalculatorFillingType(selected.id)
       .then(() => {
@@ -465,15 +528,54 @@ export function Step4FrameFilling() {
         setEditFillingId((prev) => (prev === selected.id ? null : prev))
       })
       .catch((e) => setErr(String(e)))
-  }
+  }, [fillingTypeDeleteModal])
+
+  const cancelDeleteFillingType = useCallback(() => {
+    setFillingTypeDeleteModal(null)
+  }, [])
+
+  useEffect(() => {
+    if (gearMenuFillingTypeId == null) {
+      fillingGearMenuWrapRef.current = null
+      return
+    }
+    const onDoc = (e: MouseEvent) => {
+      if (fillingGearMenuWrapRef.current && !fillingGearMenuWrapRef.current.contains(e.target as Node)) {
+        setGearMenuFillingTypeId(null)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGearMenuFillingTypeId(null)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [gearMenuFillingTypeId])
+
+  useEffect(() => {
+    if (!fillingTypeDeleteModal) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setFillingTypeDeleteModal(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [fillingTypeDeleteModal])
 
   useEffect(() => {
     if (editFillingId == null) return
     if (!fillingTypes.some((p) => p.id === editFillingId)) {
       setEditFillingId(null)
       setEditFillingName('')
-      setEditFillingImageFile(null)
-      if (editFillingImageRef.current) editFillingImageRef.current.value = ''
+      setEditCardFiles([null, null, null])
+      for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setEditFillingMatIds({})
       setEditFillingMatHit([])
     }
@@ -536,8 +638,10 @@ export function Step4FrameFilling() {
         for (const r of rows) {
           if (!r) continue
           next[r.id] = {
-            texture_color: (r.m as any).texture_color,
-            texture_image: (r.m as any).texture_image,
+            texture_mode: r.m.texture_mode,
+            texture_color: r.m.texture_color,
+            texture_image: r.m.texture_image ?? null,
+            texture_library_item_name: r.m.texture_library_item_name ?? null,
             name: r.m.name,
           }
         }
@@ -576,16 +680,16 @@ export function Step4FrameFilling() {
       <div className="frame2">
         <section className="frame2-card calc-side-panel">
           <div className="admin-heading-row calc-card-title-row">
-            <h3 className="calc-h3">Наполнение</h3>
+            <div className="frame3-title" role="heading" aria-level={3}>
+              Выберите тип наполнения
+            </div>
           </div>
-          <p className="admin-muted frame2-lead">Выберите тип наполнения и материалы для каталога калькулятора.</p>
 
           {err && <div className="admin-error">{err}</div>}
           {loading && <p className="admin-muted">Загрузка…</p>}
 
-          <div className="frame2-card-head">
-            <h4 className="frame2-h4">Типы наполнения</h4>
-            {!readOnly && (
+          {!readOnly && (
+            <div className="frame2-card-head">
               <div className="frame2-actions">
                 <button
                   type="button"
@@ -600,19 +704,11 @@ export function Step4FrameFilling() {
                 >
                   + Добавить тип наполнения
                 </button>
-                <button
-                  type="button"
-                  className="admin-secondary"
-                  disabled={!selectedType}
-                  onClick={deleteSelectedType}
-                  title={!selectedType ? 'Выберите тип' : undefined}
-                >
-                  Удалить тип
-                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
+          <div className="calc-side-panel-scroll">
           {!readOnly && createOpen && (
             <div className="frame2-create">
               <div className="frame2-create-head">
@@ -625,8 +721,10 @@ export function Step4FrameFilling() {
                       closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateName('')
-                      setCreateImageFile(null)
-                      if (cardImageInputRef.current) cardImageInputRef.current.value = ''
+                      setCreateCardFiles([null, null, null])
+                      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]) {
+                        if (r.current) r.current.value = ''
+                      }
                       setCreateMatHit([])
                       setCreateMatIds({})
                     }}
@@ -638,7 +736,7 @@ export function Step4FrameFilling() {
                   </button>
                 </div>
               </div>
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
                 <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип наполнения</div>
                   <input
@@ -649,21 +747,40 @@ export function Step4FrameFilling() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <label className="frame2-file-label" htmlFor="filling-type-card-image">
-                        Изображение для карточки
-                      </label>
-                      <HintButton text="Выберите изображение с компьютера. Обычно в диалоге можно открыть «Рабочий стол». Поддерживаются форматы изображений (PNG/JPG/WebP и т.п.)." />
+                      <span className="frame2-file-label">Изображения для карточки (до 3)</span>
+                      <HintButton text="До трёх фото на один тип наполнения. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
                     </div>
-                    <input
-                      id="filling-type-card-image"
-                      ref={cardImageInputRef}
-                      className="frame2-file-input frame2-file-input--sr"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
-                    />
+                    {(
+                      [
+                        [0, fillingCardInputRef0],
+                        [1, fillingCardInputRef1],
+                        [2, fillingCardInputRef2],
+                      ] as const
+                    ).map(([slot, refEl]) => (
+                      <input
+                        key={slot}
+                        id={`filling-type-card-image-${slot}`}
+                        ref={refEl}
+                        className="frame2-file-input frame2-file-input--sr"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setCreateCardFiles((prev) => {
+                            const next: [File | null, File | null, File | null] = [...prev]
+                            next[slot] = e.target.files?.[0] ?? null
+                            return next
+                          })
+                        }}
+                      />
+                    ))}
                   </div>
+                  <ProfileCardImageTileRow
+                    urls={[createPreview0, createPreview1, createPreview2]}
+                    inputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]}
+                    groupAriaLabel="Фото карточки наполнения, до трёх"
+                  />
                 </div>
+
                 <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Материалы</div>
                   <div className="frame2-material-search-row">
@@ -675,39 +792,12 @@ export function Step4FrameFilling() {
                       Поиск
                     </button>
                   </div>
-                </div>
-                <div className="frame2-create-ml">
-                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-file-btn"
-                      onClick={() => cardImageInputRef.current?.click()}
-                    >
-                      {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                    </button>
-                  </div>
-                </div>
-                <div className="frame2-create-mr">
-                  <div
-                    className={[
-                      'frame2-file-name',
-                      createImageFile ? '' : 'frame2-file-name--empty',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-live="polite"
-                  >
-                    {createImageFile ? createImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-                <div className="frame2-create-bl">
-                  {createImagePreview && (
-                    <div className="frame2-file-preview frame2-file-preview--cover">
-                      <img src={createImagePreview} alt="" />
+                  <div className="frame2-file-row frame2-colors-for-card-label">
+                    <div className="frame2-file-label-row">
+                      <span className="frame2-file-label">Материалы для карточки</span>
+                      <HintButton text="Отметьте материалы, которые будут доступны для этого типа наполнения в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
-                  )}
-                </div>
-                <div className="frame2-create-br">
+                  </div>
                   {createMatHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {createMatHit.map((m) => (
@@ -734,14 +824,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                              <MaterialCheckSwatch
-                                name={materialTextureLabel(m)}
-                                material={m}
-                                texExtra={texByMaterialId[m.id]}
-                              />
-                              <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                              </span>
+                            <MaterialCheckSwatch
+                              name={materialTextureLabel(m)}
+                              material={m}
+                              texExtra={texByMaterialId[m.id]}
+                            />
+                            <span className="frame2-check-name-wrap">
+                              <span className="frame2-check-name">{materialTextureLabel(m)}</span>
+                            </span>
                           </label>
                         </li>
                       ))}
@@ -768,7 +858,7 @@ export function Step4FrameFilling() {
                   </button>
                 </div>
               </div>
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
                 <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип наполнения</div>
                   <input
@@ -779,21 +869,40 @@ export function Step4FrameFilling() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <label className="frame2-file-label" htmlFor="filling-type-card-image-edit">
-                        Новое изображение (необязательно)
-                      </label>
-                      <HintButton text="Оставьте поле пустым, чтобы сохранить текущую картинку. Если выбрать файл — он заменит текущую картинку." />
+                      <span className="frame2-file-label">Карточка: до 3 фото</span>
+                      <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
-                    <input
-                      id="filling-type-card-image-edit"
-                      ref={editFillingImageRef}
-                      className="frame2-file-input frame2-file-input--sr"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setEditFillingImageFile(e.target.files?.[0] ?? null)}
-                    />
+                    {(
+                      [
+                        [0, editFillingCardInputRef0],
+                        [1, editFillingCardInputRef1],
+                        [2, editFillingCardInputRef2],
+                      ] as const
+                    ).map(([slot, refEl]) => (
+                      <input
+                        key={slot}
+                        id={`filling-type-card-image-edit-${slot}`}
+                        ref={refEl}
+                        className="frame2-file-input frame2-file-input--sr"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setEditCardFiles((prev) => {
+                            const next: [File | null, File | null, File | null] = [...prev]
+                            next[slot] = e.target.files?.[0] ?? null
+                            return next
+                          })
+                        }}
+                      />
+                    ))}
                   </div>
+                  <ProfileCardImageTileRow
+                    urls={editFillingCardTileUrls}
+                    inputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]}
+                    groupAriaLabel="Фото карточки наполнения, до трёх"
+                  />
                 </div>
+
                 <div className="frame2-block frame2-create-tr">
                   <div className="frame2-block-title">Материалы</div>
                   <div className="frame2-material-search-row">
@@ -805,39 +914,12 @@ export function Step4FrameFilling() {
                       Поиск
                     </button>
                   </div>
-                </div>
-                <div className="frame2-create-ml">
-                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-file-btn"
-                      onClick={() => editFillingImageRef.current?.click()}
-                    >
-                      {editFillingImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                    </button>
-                  </div>
-                </div>
-                <div className="frame2-create-mr">
-                  <div
-                    className={[
-                      'frame2-file-name',
-                      editFillingImageFile ? '' : 'frame2-file-name--empty',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-live="polite"
-                  >
-                    {editFillingImageFile ? editFillingImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-                <div className="frame2-create-bl">
-                  {(editFillingImagePreview || editFillingExistingCardUrl) && (
-                    <div className="frame2-file-preview frame2-file-preview--cover">
-                      <img src={editFillingImagePreview || editFillingExistingCardUrl} alt="" />
+                  <div className="frame2-file-row frame2-colors-for-card-label">
+                    <div className="frame2-file-label-row">
+                      <span className="frame2-file-label">Материалы для карточки</span>
+                      <HintButton text="Отметьте материалы, которые будут доступны для этого типа наполнения в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
-                  )}
-                </div>
-                <div className="frame2-create-br">
+                  </div>
                   {editFillingMatHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {editFillingMatHit.map((m) => (
@@ -864,14 +946,14 @@ export function Step4FrameFilling() {
                               }
                             />
                             <span className="frame2-check-article">{m.article || '—'}</span>
-                              <MaterialCheckSwatch
-                                name={materialTextureLabel(m)}
-                                material={m}
-                                texExtra={texByMaterialId[m.id]}
-                              />
-                              <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                              </span>
+                            <MaterialCheckSwatch
+                              name={materialTextureLabel(m)}
+                              material={m}
+                              texExtra={texByMaterialId[m.id]}
+                            />
+                            <span className="frame2-check-name-wrap">
+                              <span className="frame2-check-name">{materialTextureLabel(m)}</span>
+                            </span>
                           </label>
                         </li>
                       ))}
@@ -901,30 +983,80 @@ export function Step4FrameFilling() {
                     }}
                     title={title}
                   >
-                    {typeThumb({ name: title, image_url: t.image_url, card_image: t.card_image })}
+                    <CalculatorCardTileStriped
+                      title={title}
+                      versionKey={t.id}
+                      slot0={((t.card_image ?? '') || (t.image_url ?? '')).trim()}
+                      slot1={(t.card_image_2 ?? '').trim()}
+                      slot2={(t.card_image_3 ?? '').trim()}
+                    />
                     <div className="tile-title">{title}</div>
                     <div className="tile-sub">Материалов: {(t.materials ?? []).length}</div>
                   </button>
                   {!readOnly && (
-                    <button
-                      type="button"
-                      className="tile-gear"
-                      title="Редактировать тип"
-                      aria-label={`Редактировать тип «${title}»`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        openEditFilling(t)
+                    <div
+                      className="tile-gear-wrap"
+                      ref={(node) => {
+                        if (gearMenuFillingTypeId === t.id) fillingGearMenuWrapRef.current = node
                       }}
                     >
-                      <span className="tile-gear-ico" aria-hidden>
-                        ⚙
-                      </span>
-                    </button>
+                      <div className="tree-line-actions tile-gear-menu-anchor">
+                        <button
+                          type="button"
+                          className="tree-gear-btn"
+                          title="Действия с типом наполнения"
+                          aria-label={`Действия с типом «${title}»: редактировать или удалить`}
+                          aria-haspopup="menu"
+                          aria-expanded={gearMenuFillingTypeId === t.id}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setGearMenuFillingTypeId((id) => (id === t.id ? null : t.id))
+                          }}
+                        >
+                          <span className="tree-gear-ico" aria-hidden>
+                            ⚙
+                          </span>
+                        </button>
+                        {gearMenuFillingTypeId === t.id && (
+                          <ul className="tree-gear-menu" role="menu">
+                            <li role="none">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="tree-gear-menu-item"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setGearMenuFillingTypeId(null)
+                                  openEditFilling(t)
+                                }}
+                              >
+                                Редактировать
+                              </button>
+                            </li>
+                            <li role="none">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="tree-gear-menu-item tree-gear-menu-item--danger"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setGearMenuFillingTypeId(null)
+                                  setFillingTypeDeleteModal(t)
+                                }}
+                              >
+                                Удалить
+                              </button>
+                            </li>
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )
             })}
+          </div>
           </div>
 
           <div className="frame2-card-nav">
@@ -1061,6 +1193,17 @@ export function Step4FrameFilling() {
             <div className="tiles tiles--colors">
               {(modalType.materials ?? []).map((c) => {
                 const active = c.material_id === selectedMaterialId
+                const ex = texByMaterialId[c.material_id]
+                const mat = c.material
+                const merged: MaterialTextureFields & { name: string; article?: string } = {
+                  ...mat,
+                  texture_mode: mat.texture_mode ?? ex?.texture_mode,
+                  texture_color: mat.texture_color || ex?.texture_color || '',
+                  texture_image: mat.texture_image ?? ex?.texture_image ?? null,
+                  texture_library_item_name: mat.texture_library_item_name ?? ex?.texture_library_item_name ?? null,
+                  name: mat.name || ex?.name || '',
+                  article: mat.article,
+                }
                 return (
                   <div key={c.id} className="tile-cell">
                     <button
@@ -1071,21 +1214,12 @@ export function Step4FrameFilling() {
                         setSelectedTypeId(modalType.id)
                         setModalTypeId(null)
                       }}
-                      title={matLabel(c.material)}
+                      title={matLabel(merged)}
                     >
-                      {textureThumb({
-                        texture_mode: (c.material as any).texture_mode,
-                        texture_image:
-                          (c.material as any).texture_image ??
-                          texByMaterialId[c.material_id]?.texture_image ??
-                          null,
-                        texture_color:
-                          (c.material as any).texture_color ??
-                          texByMaterialId[c.material_id]?.texture_color ??
-                          '',
-                        name: c.material.name,
-                      })}
-                      <div className="tile-title">{materialTextureLabel(c.material)}</div>
+                      {textureThumb(merged)}
+                      <div className="tile-title tile-title--texture-wrap">
+                        {textureLabelDisplayWrap(materialTextureLabel(merged))}
+                      </div>
                       <div className="tile-sub">{c.material.article || '—'}</div>
                     </button>
                     {!readOnly && (
@@ -1128,6 +1262,42 @@ export function Step4FrameFilling() {
           onPick={handleMaterialPickedFromTree}
         />
       )}
+
+      {fillingTypeDeleteModal &&
+        createPortal(
+          <div
+            className="admin-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="filling-type-delete-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) cancelDeleteFillingType()
+            }}
+          >
+            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+              <h4 id="filling-type-delete-title" className="admin-modal-title">
+                Удалить тип наполнения?
+              </h4>
+              <p className="admin-modal-text">
+                Тип наполнения «{fillingTypeDeleteModal.name || `Тип #${fillingTypeDeleteModal.id}`}» будет удалён
+                безвозвратно вместе со списком материалов, привязанных к этому типу в калькуляторе. Продолжить?
+              </p>
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-secondary" onClick={cancelDeleteFillingType}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="admin-primary admin-modal-confirm"
+                  onClick={confirmDeleteFillingType}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   )
 }

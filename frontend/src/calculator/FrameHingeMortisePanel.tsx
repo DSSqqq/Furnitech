@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FtSelect, type FtSelectOption } from '../FtSelect'
 import { useCalcPaths } from './calcPathsContext'
 import {
   CALC_LS_FRAME_MORTISE,
@@ -9,6 +10,19 @@ import {
   writeHingeLayout,
 } from './frameCalcSession'
 import { FrameHingeCatalog } from './FrameHingeCatalog'
+import './Step3FrameSizes.css'
+import './FrameHingeMortisePanel.css'
+
+const MORTISE_OPTIONS: FtSelectOption[] = [
+  { value: 'none', label: 'Не требуется' },
+  { value: 'hinge', label: 'Присадки под петли' },
+]
+
+const HINGE_SOURCE_OPTIONS: FtSelectOption[] = [
+  { value: '', label: 'Выберите вариант' },
+  { value: 'production', label: 'Петли производства' },
+  { value: 'customer', label: 'Петли заказчика' },
+]
 
 export function FrameHingeMortisePanel() {
   const { readOnly } = useCalcPaths()
@@ -67,42 +81,35 @@ export function FrameHingeMortisePanel() {
   }
 
   return (
-    <div className="frame-mortise-panel" style={{ marginBottom: '1.1rem' }}>
-      <h4 className="frame2-h4">Присадка</h4>
-      <label className="admin-muted" style={{ display: 'block', marginBottom: '0.35rem' }} htmlFor="calc-mortise-select">
-        Вид работ
-      </label>
-      <select
-        id="calc-mortise-select"
-        className="admin-input"
-        value={mortise}
-        onChange={(e) => {
-          const v = e.target.value === 'hinge' ? 'hinge' : 'none'
-          persistMortise(v)
-        }}
-      >
-        <option value="none">Не требуется</option>
-        <option value="hinge">Присадки под петли</option>
-      </select>
+    <div className="frame-mortise-panel">
+      <div className="admin-heading-row calc-card-title-row">
+        <div className="frame3-title" role="heading" aria-level={3}>
+          Присадки
+        </div>
+      </div>
+      <div className="frame-mortise-field">
+        <div className="frame-mortise-label">Вид работ</div>
+        <FtSelect
+          id="calc-mortise-select"
+          value={mortise}
+          onChange={(v) => persistMortise(v === 'hinge' ? 'hinge' : 'none')}
+          options={MORTISE_OPTIONS}
+          aria-label="Вид работ: присадка"
+          menuStrategy="inline"
+        />
+      </div>
 
       {mortise === 'hinge' && (
-        <div style={{ marginTop: '0.85rem' }}>
-          <label className="admin-muted" style={{ display: 'block', marginBottom: '0.35rem' }} htmlFor="calc-hinge-source">
-            Петли
-          </label>
-          <select
+        <div className="frame-mortise-field frame-mortise-field--hinge">
+          <div className="frame-mortise-label">Петли</div>
+          <FtSelect
             id="calc-hinge-source"
-            className="admin-input"
             value={hingeSource}
-            onChange={(e) => {
-              const v = e.target.value
-              persistSource(v === 'customer' || v === 'production' ? v : '')
-            }}
-          >
-            <option value="">Выберите вариант</option>
-            <option value="production">Петли производства</option>
-            <option value="customer">Петли заказчика</option>
-          </select>
+            onChange={(v) => persistSource(v === 'customer' || v === 'production' ? v : '')}
+            options={HINGE_SOURCE_OPTIONS}
+            aria-label="Петли: производство или заказчик"
+            menuStrategy="inline"
+          />
 
           {hingeSource === 'customer' && (
             <p className="admin-muted" style={{ marginTop: '0.75rem' }}>

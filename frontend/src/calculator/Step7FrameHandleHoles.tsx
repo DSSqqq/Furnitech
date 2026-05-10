@@ -539,26 +539,9 @@ export function Step7FrameHandleHoles() {
   return (
     <div className="frame2">
       <section className="frame3-left calc-side-panel">
-        <p className="frame3-step-kicker" style={{ margin: 0, color: 'var(--ft-accent, #e8a23e)', fontWeight: 700, fontSize: '0.78rem' }}>
-          Шаг 7
-        </p>
-        <h3 className="frame3-title" style={{ marginTop: '0.35rem' }}>
+        <div className="frame3-title" role="heading" aria-level={3}>
           Отверстия под ручку
-        </h3>
-        <p className="frame3-sub">
-          Укажите количество отверстий под ручку и задайте их расположение.
-        </p>
-        <button
-          type="button"
-          className="admin-linkish"
-          style={{ marginTop: '0.5rem', padding: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ft-muted, #9aa3af)', fontSize: '0.88rem' }}
-          onClick={() => {
-            writeHandleHoles(null)
-            nav(step('frame/result'), { replace: true })
-          }}
-        >
-          Пропустить шаг →
-        </button>
+        </div>
 
         {widthMm == null || heightMm == null ? (
           <p className="admin-error" style={{ marginTop: '0.75rem' }}>
@@ -566,6 +549,7 @@ export function Step7FrameHandleHoles() {
           </p>
         ) : null}
 
+        <div className="calc-side-panel-scroll">
         <div className="frame3-field frame3-field--wide" style={{ marginTop: '1rem' }}>
           <div className="frame3-label">Количество отверстий под ручку (шт.)</div>
           <input
@@ -715,10 +699,6 @@ export function Step7FrameHandleHoles() {
           })}
         </div>
 
-        <p className="admin-muted" style={{ marginTop: '0.65rem', fontSize: '0.82rem' }}>
-          При вертикальной ручке нельзя выбрать сторону, где уже отверстия под петли (шаг 6). При горизонтальной — то же для верхней и нижней кромки.
-        </p>
-
         <hr style={{ border: 'none', borderTop: '1px dashed rgba(255,255,255,0.15)', margin: '1rem 0' }} />
 
         <div className="frame3-label">Задать межосевые расстояния:</div>
@@ -765,6 +745,7 @@ export function Step7FrameHandleHoles() {
             {layoutError}
           </div>
         ) : null}
+        </div>
 
         <div className="frame2-card-nav" style={{ marginTop: '1.25rem', paddingTop: '1rem' }}>
           <button

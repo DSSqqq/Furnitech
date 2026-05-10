@@ -418,6 +418,136 @@
   font-size: 0.85rem;
 }
 
+/* Несколько фото типа профиля: превью + полоски (наведение — смена кадра) */
+.tile-thumb-stack {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tile-thumb-stack .tile-thumb.tile-thumb--profile-type {
+  flex: 0 0 auto;
+}
+
+.tile-card-stripes {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  height: 6px;
+  min-height: 6px;
+  flex-shrink: 0;
+  padding: 0 1px;
+  box-sizing: border-box;
+}
+
+.tile-card-stripe {
+  flex: 1;
+  min-width: 0;
+  border-radius: 4px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ft-border);
+  box-sizing: border-box;
+  cursor: default;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+/* Текущий кадр — чуть теплее; без смены высоты (иначе прыгает заголовок плитки). */
+.tile-card-stripe--active {
+  background: rgba(203, 176, 121, 0.22);
+  border-color: rgba(203, 176, 121, 0.42);
+}
+
+.tile-card-stripe:hover {
+  background: rgba(203, 176, 121, 0.38);
+  border-color: rgba(203, 176, 121, 0.62);
+  box-shadow: 0 0 0 1px rgba(203, 176, 121, 0.2);
+}
+
+/* Плитки выбора фото карточки типа профиля (шаг 2) */
+.frame2-card-image-tile-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  align-items: flex-start;
+}
+
+.frame2-card-image-tile {
+  position: relative;
+  width: 4.75rem;
+  height: 4.75rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  overflow: hidden;
+  flex: 0 0 auto;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.frame2-card-image-tile:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.frame2-card-image-tile:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.55);
+  outline-offset: 2px;
+}
+
+.frame2-card-image-tile--filled {
+  border-color: rgba(203, 176, 121, 0.38);
+}
+
+.frame2-card-image-tile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.frame2-card-image-tile-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.65rem;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--ft-muted);
+}
+
+.frame2-card-image-tile-badge {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  min-width: 1rem;
+  padding: 0.1rem 0.28rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ft-text);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 /* Плитка + шестерёнка (шаги 2 и 4): правка типа без открытия модалки выбора */
 .tile-cell {
   position: relative;
@@ -546,13 +676,6 @@
   color: var(--ft-muted);
 }
 
-.frame2-lead {
-  margin: 0 0 0.85rem;
-  font-size: 0.92rem;
-  line-height: 1.4;
-  color: var(--ft-muted);
-}
-
 .tile--fill {
   box-sizing: border-box;
   width: 100%;
@@ -623,6 +746,9 @@
   border: 1px solid var(--ft-border);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .frame2-create-head {
@@ -646,6 +772,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.9rem;
   align-items: start;
+  min-width: 0;
 }
 
 /* Кнопка файла слева, поле имени справа — на одной линии; справа ширина как у «Поиск». */
@@ -656,6 +783,20 @@
     'create-tl create-tr'
     'create-ml create-mr'
     'create-bl create-br';
+}
+
+/* Шаг 2: тип профиля — одна строка двух колонок; цвета и чеклист в правой колонке под «Поиск» */
+.frame2-create-grid--file-status-pair.frame2-create-grid--profile-type-slim {
+  grid-template-rows: auto;
+  grid-template-areas: 'create-tl create-tr';
+}
+
+.frame2-create-grid--profile-type-slim .frame2-create-tr .frame2-colors-for-card-label {
+  margin-top: 0.5rem;
+}
+
+.frame2-create-grid--profile-type-slim .frame2-create-tr .frame2-checklist {
+  margin-top: 0.35rem;
 }
 
 .frame2-create-tl {
@@ -716,6 +857,12 @@
       'create-mr'
       'create-bl'
       'create-br';
+  }
+
+  .frame2-create-grid--file-status-pair.frame2-create-grid--profile-type-slim {
+    grid-template-areas:
+      'create-tl'
+      'create-tr';
   }
 }
 
@@ -820,6 +967,13 @@ button.admin-secondary.frame2-file-btn:active {
   margin: 0.45rem 0 0;
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.frame2-checklist > li {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .frame2-check-swatch {
@@ -852,6 +1006,10 @@ button.admin-secondary.frame2-file-btn:active {
   background: rgba(255, 255, 255, 0.04);
   color: var(--ft-text);
   cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
   transition:
     border-color 0.15s ease,
     background 0.15s ease,
@@ -912,15 +1070,20 @@ button.admin-secondary.frame2-file-btn:active {
 .frame2-check-name {
   font-weight: 700;
   color: var(--ft-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .frame2-check-name-wrap {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.2rem 0.35rem;
+  overflow: hidden;
 }
 
 .frame2-file-row {
@@ -1059,6 +1222,9 @@ button.admin-secondary.frame2-file-btn:active {
   display: flex;
   gap: 0.65rem;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: calc(100% - 2.45rem);
+  box-sizing: border-box;
 }
 
 .frame2-flag {

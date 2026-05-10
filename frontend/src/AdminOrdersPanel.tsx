@@ -83,7 +83,7 @@ export function AdminOrdersPanel() {
           <button type="button" className="admin-secondary admin-secondary--sm" onClick={() => void load()}>
             Обновить
           </button>
-          <HintButton text="Заказы создаются, когда клиент на сайте на шаге «Итог» нажимает «Отправить менеджеру». Статус меняйте по мере работы: созвон, подтверждение, сборка, готовность к выдаче, после выдачи — «Завершён»." />
+          <HintButton text="Заказы создаются, когда клиент на сайте на шаге «Итог» нажимает «Отправить». Статус меняйте по мере работы: созвон, подтверждение, сборка, готовность к выдаче, после выдачи — «Завершён»." />
         </div>
       </div>
       {err ? <div className="admin-error admin-error--compact">{err}</div> : null}

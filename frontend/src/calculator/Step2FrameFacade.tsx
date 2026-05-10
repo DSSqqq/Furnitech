@@ -22,28 +22,23 @@ import {
   subscribeFrameCalcSession,
 } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
-import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
+import {
+  materialTextureLabel,
+  textureLabelDisplayWrap,
+  type MaterialTextureFields,
+} from './materialTextureLabel'
+import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
 import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
+import './Step3FrameSizes.css'
 
-function matLabel(m: {
-  name: string
-  article?: string | null
-  texture_mode?: string
-  texture_color?: string
-  texture_image?: string | null
-}) {
+function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
   const lab = materialTextureLabel(m)
   return a ? `${lab} (${a})` : lab
 }
 
-function textureThumb(m: {
-  texture_image?: string | null
-  texture_color?: string
-  texture_mode?: string
-  name: string
-}) {
+function textureThumb(m: MaterialTextureFields & { name: string }) {
   const img = resolveMediaUrl(m.texture_image ?? '')
   const color = (m.texture_color ?? '').trim()
   const alt = materialTextureLabel(m)
@@ -55,19 +50,6 @@ function textureThumb(m: {
     )
   }
   return <div className="tile-thumb" style={color ? { backgroundColor: color } : undefined} />
-}
-
-function typeThumb(t: { name: string; image_url?: string; card_image?: string | null }) {
-  const raw = ((t.card_image ?? '') || (t.image_url ?? '')).trim()
-  const img = resolveMediaUrl(raw)
-  if (img) {
-    return (
-      <div className="tile-thumb tile-thumb--profile-type">
-        <img className="tile-thumb-img" src={img} alt={t.name} />
-      </div>
-    )
-  }
-  return <div className="tile-thumb tile-thumb--profile-type" />
 }
 
 type ColorFlags = { is_new: boolean; is_hit: boolean; is_sale: boolean }
@@ -85,13 +67,28 @@ export function Step2FrameFacade() {
   const [modalSaving, setModalSaving] = useState(false)
   const [removeColorConfirm, setRemoveColorConfirm] = useState<null | { id: number; name: string }>(null)
   const [texByMaterialId, setTexByMaterialId] = useState<
-    Record<number, { texture_color?: string; texture_image?: string | null; name?: string }>
+    Record<
+      number,
+      {
+        texture_mode?: string
+        texture_color?: string
+        texture_image?: string | null
+        texture_library_item_name?: string | null
+        name?: string
+      }
+    >
   >({})
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createTypeName, setCreateTypeName] = useState('')
-  const [createTypeImageFile, setCreateTypeImageFile] = useState<File | null>(null)
-  const cardImageInputRef = useRef<HTMLInputElement>(null)
+  const [createCardFiles, setCreateCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const cardImageInputRef0 = useRef<HTMLInputElement>(null)
+  const cardImageInputRef1 = useRef<HTMLInputElement>(null)
+  const cardImageInputRef2 = useRef<HTMLInputElement>(null)
 
   const [createColorsHit, setCreateColorsHit] = useState<Material[]>([])
   const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
@@ -99,8 +96,14 @@ export function Step2FrameFacade() {
 
   const [editTypeId, setEditTypeId] = useState<number | null>(null)
   const [editTypeName, setEditTypeName] = useState('')
-  const [editTypeImageFile, setEditTypeImageFile] = useState<File | null>(null)
-  const editImageInputRef = useRef<HTMLInputElement>(null)
+  const [editCardFiles, setEditCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const editImageInputRef0 = useRef<HTMLInputElement>(null)
+  const editImageInputRef1 = useRef<HTMLInputElement>(null)
+  const editImageInputRef2 = useRef<HTMLInputElement>(null)
   const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
   const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
 
@@ -277,8 +280,10 @@ export function Step2FrameFacade() {
         for (const r of rows) {
           if (!r) continue
           next[r.id] = {
-            texture_color: (r.m as any).texture_color,
-            texture_image: (r.m as any).texture_image,
+            texture_mode: r.m.texture_mode,
+            texture_color: r.m.texture_color,
+            texture_image: r.m.texture_image ?? null,
+            texture_library_item_name: r.m.texture_library_item_name ?? null,
             name: r.m.name,
           }
         }
@@ -287,37 +292,81 @@ export function Step2FrameFacade() {
     })
   }, [createColorsHit, editColorsHit, texByMaterialId])
 
-  const createTypeImagePreview = useMemo(() => {
-    if (!createTypeImageFile) return ''
-    return URL.createObjectURL(createTypeImageFile)
-  }, [createTypeImageFile])
+  const createPreview0 = useMemo(
+    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
+    [createCardFiles[0]],
+  )
+  const createPreview1 = useMemo(
+    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
+    [createCardFiles[1]],
+  )
+  const createPreview2 = useMemo(
+    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
+    [createCardFiles[2]],
+  )
 
   useEffect(() => {
     return () => {
-      if (createTypeImagePreview) URL.revokeObjectURL(createTypeImagePreview)
+      for (const u of [createPreview0, createPreview1, createPreview2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
     }
-  }, [createTypeImagePreview])
-
-  const editTypeImagePreview = useMemo(() => {
-    if (!editTypeImageFile) return ''
-    return URL.createObjectURL(editTypeImageFile)
-  }, [editTypeImageFile])
-
-  useEffect(() => {
-    return () => {
-      if (editTypeImagePreview) URL.revokeObjectURL(editTypeImagePreview)
-    }
-  }, [editTypeImagePreview])
+  }, [createPreview0, createPreview1, createPreview2])
 
   const editingType = useMemo(
     () => (editTypeId != null ? profileTypes.find((p) => p.id === editTypeId) ?? null : null),
     [editTypeId, profileTypes]
   )
 
-  const editExistingCardUrl = useMemo(() => {
-    if (!editingType) return ''
-    return resolveMediaUrl(((editingType.card_image ?? '') || (editingType.image_url ?? '')).trim())
+  const editSlotExistingResolved = useMemo((): [string, string, string] => {
+    if (!editingType) return ['', '', '']
+    const s0 = ((editingType.card_image ?? '') || (editingType.image_url ?? '')).trim()
+    const s1 = (editingType.card_image_2 ?? '').trim()
+    const s2 = (editingType.card_image_3 ?? '').trim()
+    return [
+      s0 ? resolveMediaUrl(s0) : '',
+      s1 ? resolveMediaUrl(s1) : '',
+      s2 ? resolveMediaUrl(s2) : '',
+    ]
   }, [editingType])
+
+  const editBlob0 = useMemo(
+    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
+    [editCardFiles[0]],
+  )
+  const editBlob1 = useMemo(
+    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
+    [editCardFiles[1]],
+  )
+  const editBlob2 = useMemo(
+    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
+    [editCardFiles[2]],
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const u of [editBlob0, editBlob1, editBlob2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
+    }
+  }, [editBlob0, editBlob1, editBlob2])
+
+  const editCardTileUrls = useMemo((): [string, string, string] => {
+    const blobs: [string, string, string] = [editBlob0, editBlob1, editBlob2]
+    return [
+      editCardFiles[0] ? blobs[0] : editSlotExistingResolved[0] || '',
+      editCardFiles[1] ? blobs[1] : editSlotExistingResolved[1] || '',
+      editCardFiles[2] ? blobs[2] : editSlotExistingResolved[2] || '',
+    ]
+  }, [
+    editBlob0,
+    editBlob1,
+    editBlob2,
+    editCardFiles[0],
+    editCardFiles[1],
+    editCardFiles[2],
+    editSlotExistingResolved,
+  ])
 
   const openEditType = (t: CalculatorProfileType) => {
     closeMaterialSearch()
@@ -325,8 +374,10 @@ export function Step2FrameFacade() {
     setErr(null)
     setEditTypeId(t.id)
     setEditTypeName(t.name)
-    setEditTypeImageFile(null)
-    if (editImageInputRef.current) editImageInputRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     const m: Record<number, ColorFlags> = {}
     for (const c of t.colors ?? []) {
       m[c.color_material_id] = {
@@ -348,8 +399,10 @@ export function Step2FrameFacade() {
     closeMaterialSearch()
     setEditTypeId(null)
     setEditTypeName('')
-    setEditTypeImageFile(null)
-    if (editImageInputRef.current) editImageInputRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     setEditColors({})
     setEditColorsHit([])
   }
@@ -371,13 +424,16 @@ export function Step2FrameFacade() {
         is_sale: !!f.is_sale,
       }))
       let updated: CalculatorProfileType
-      if (editTypeImageFile) {
+      const hasNewCardImages = editCardFiles.some(Boolean)
+      if (hasNewCardImages) {
         const fd = new FormData()
         fd.append('name', name)
         fd.append('is_active', String(t.is_active))
         fd.append('sort_order', String(t.sort_order))
         fd.append('colors', JSON.stringify(colors))
-        fd.append('card_image', editTypeImageFile)
+        if (editCardFiles[0]) fd.append('card_image', editCardFiles[0])
+        if (editCardFiles[1]) fd.append('card_image_2', editCardFiles[1])
+        if (editCardFiles[2]) fd.append('card_image_3', editCardFiles[2])
         updated = await updateCalculatorProfileType(editTypeId, fd)
       } else {
         updated = await updateCalculatorProfileType(editTypeId, {
@@ -413,14 +469,18 @@ export function Step2FrameFacade() {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(profileTypes.length))
       fd.append('colors', JSON.stringify(colors))
-      if (createTypeImageFile) fd.append('card_image', createTypeImageFile)
+      if (createCardFiles[0]) fd.append('card_image', createCardFiles[0])
+      if (createCardFiles[1]) fd.append('card_image_2', createCardFiles[1])
+      if (createCardFiles[2]) fd.append('card_image_3', createCardFiles[2])
       const created = await createCalculatorProfileType(fd)
       setProfileTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateTypeName('')
-      setCreateTypeImageFile(null)
-      if (cardImageInputRef.current) cardImageInputRef.current.value = ''
+      setCreateCardFiles([null, null, null])
+      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setCreateColorsHit([])
       setCreateColors({})
       closeMaterialSearch()
@@ -486,8 +546,10 @@ export function Step2FrameFacade() {
     if (!profileTypes.some((p) => p.id === editTypeId)) {
       setEditTypeId(null)
       setEditTypeName('')
-      setEditTypeImageFile(null)
-      if (editImageInputRef.current) editImageInputRef.current.value = ''
+      setEditCardFiles([null, null, null])
+      for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setEditColors({})
       setEditColorsHit([])
     }
@@ -553,8 +615,10 @@ export function Step2FrameFacade() {
         for (const r of rows) {
           if (!r) continue
           next[r.id] = {
-            texture_color: (r.m as any).texture_color,
-            texture_image: (r.m as any).texture_image,
+            texture_mode: r.m.texture_mode,
+            texture_color: r.m.texture_color,
+            texture_image: r.m.texture_image ?? null,
+            texture_library_item_name: r.m.texture_library_item_name ?? null,
             name: r.m.name,
           }
         }
@@ -572,8 +636,11 @@ export function Step2FrameFacade() {
     if (!fallback) return base
     return {
       ...base,
-      texture_color: (base as any).texture_color || fallback.texture_color,
-      texture_image: (base as any).texture_image || fallback.texture_image,
+      texture_mode: base.texture_mode ?? fallback.texture_mode,
+      texture_color: base.texture_color || fallback.texture_color,
+      texture_image: base.texture_image || fallback.texture_image,
+      texture_library_item_name:
+        base.texture_library_item_name ?? fallback.texture_library_item_name ?? null,
       name: base.name || fallback.name,
     }
   }, [selectedColorId, selectedType, texByMaterialId])
@@ -631,15 +698,16 @@ export function Step2FrameFacade() {
       <div className="frame2">
         <section className="frame2-card calc-side-panel">
           <div className="admin-heading-row calc-card-title-row">
-            <h3 className="calc-h3">Тип профиля и цвет</h3>
+            <div className="frame3-title" role="heading" aria-level={3}>
+              Выберите тип профиля и цвет
+            </div>
           </div>
 
           {err && <div className="admin-error">{err}</div>}
           {loading && <p className="admin-muted">Загрузка…</p>}
 
-          <div className="frame2-card-head">
-            <h4 className="frame2-h4">Типы профилей</h4>
-            {!readOnly && (
+          {!readOnly && (
+            <div className="frame2-card-head">
               <div className="frame2-actions">
                 <button
                   type="button"
@@ -655,9 +723,10 @@ export function Step2FrameFacade() {
                   + Добавить тип профиля
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
+          <div className="calc-side-panel-scroll">
           {!readOnly && createOpen && (
             <div className="frame2-create">
               <div className="frame2-create-head">
@@ -670,8 +739,10 @@ export function Step2FrameFacade() {
                       closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateTypeName('')
-                      setCreateTypeImageFile(null)
-                      if (cardImageInputRef.current) cardImageInputRef.current.value = ''
+                      setCreateCardFiles([null, null, null])
+                      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]) {
+                        if (r.current) r.current.value = ''
+                      }
                       setCreateColorsHit([])
                       setCreateColors({})
                     }}
@@ -684,7 +755,7 @@ export function Step2FrameFacade() {
                 </div>
               </div>
 
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
                 <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип профиля</div>
                   <input
@@ -695,23 +766,37 @@ export function Step2FrameFacade() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <label className="frame2-file-label" htmlFor="profile-type-card-image">
-                        Изображение для карточки
-                      </label>
-                      <HintButton text="Выберите изображение с компьютера. Обычно в диалоге можно открыть «Рабочий стол». Поддерживаются форматы изображений (PNG/JPG/WebP и т.п.)." />
+                      <span className="frame2-file-label">Изображения для карточки (до 3)</span>
+                      <HintButton text="До трёх фото на один тип профиля. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
                     </div>
-                    <input
-                      id="profile-type-card-image"
-                      ref={cardImageInputRef}
-                      className="frame2-file-input frame2-file-input--sr"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null
-                        setCreateTypeImageFile(f)
-                      }}
-                    />
+                    {(
+                      [
+                        [0, cardImageInputRef0],
+                        [1, cardImageInputRef1],
+                        [2, cardImageInputRef2],
+                      ] as const
+                    ).map(([slot, refEl]) => (
+                      <input
+                        key={slot}
+                        id={`profile-type-card-image-${slot}`}
+                        ref={refEl}
+                        className="frame2-file-input frame2-file-input--sr"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setCreateCardFiles((prev) => {
+                            const next: [File | null, File | null, File | null] = [...prev]
+                            next[slot] = e.target.files?.[0] ?? null
+                            return next
+                          })
+                        }}
+                      />
+                    ))}
                   </div>
+                  <ProfileCardImageTileRow
+                    urls={[createPreview0, createPreview1, createPreview2]}
+                    inputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]}
+                  />
                 </div>
 
                 <div className="frame2-block frame2-create-tr">
@@ -725,41 +810,12 @@ export function Step2FrameFacade() {
                       Поиск
                     </button>
                   </div>
-                </div>
-
-                <div className="frame2-create-ml">
-                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-file-btn"
-                      onClick={() => cardImageInputRef.current?.click()}
-                    >
-                      {createTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                    </button>
-                  </div>
-                </div>
-                <div className="frame2-create-mr">
-                  <div
-                    className={[
-                      'frame2-file-name',
-                      createTypeImageFile ? '' : 'frame2-file-name--empty',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-live="polite"
-                  >
-                    {createTypeImageFile ? createTypeImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-
-                <div className="frame2-create-bl">
-                  {createTypeImagePreview && (
-                    <div className="frame2-file-preview frame2-file-preview--cover">
-                      <img src={createTypeImagePreview} alt="" />
+                  <div className="frame2-file-row frame2-colors-for-card-label">
+                    <div className="frame2-file-label-row">
+                      <span className="frame2-file-label">Цвета для карточки</span>
+                      <HintButton text="Отметьте материалы, которые будут доступны как цвета этого типа в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
-                  )}
-                </div>
-                <div className="frame2-create-br">
+                  </div>
                   {createColorsHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {createColorsHit.map((m) => {
@@ -868,7 +924,7 @@ export function Step2FrameFacade() {
                 </div>
               </div>
 
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
                 <div className="frame2-block frame2-create-tl">
                   <div className="frame2-block-title">Тип профиля</div>
                   <input
@@ -879,20 +935,37 @@ export function Step2FrameFacade() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <label className="frame2-file-label" htmlFor="profile-type-card-image-edit">
-                        Новое изображение (необязательно)
-                      </label>
-                      <HintButton text="Оставьте поле пустым, чтобы сохранить текущую картинку. Если выбрать файл — он заменит текущую картинку." />
+                      <span className="frame2-file-label">Карточка: до 3 фото</span>
+                      <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
-                    <input
-                      id="profile-type-card-image-edit"
-                      ref={editImageInputRef}
-                      className="frame2-file-input frame2-file-input--sr"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setEditTypeImageFile(e.target.files?.[0] ?? null)}
-                    />
+                    {(
+                      [
+                        [0, editImageInputRef0],
+                        [1, editImageInputRef1],
+                        [2, editImageInputRef2],
+                      ] as const
+                    ).map(([slot, refEl]) => (
+                      <input
+                        key={slot}
+                        id={`profile-type-card-image-edit-${slot}`}
+                        ref={refEl}
+                        className="frame2-file-input frame2-file-input--sr"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          setEditCardFiles((prev) => {
+                            const next: [File | null, File | null, File | null] = [...prev]
+                            next[slot] = e.target.files?.[0] ?? null
+                            return next
+                          })
+                        }}
+                      />
+                    ))}
                   </div>
+                  <ProfileCardImageTileRow
+                    urls={editCardTileUrls}
+                    inputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2]}
+                  />
                 </div>
 
                 <div className="frame2-block frame2-create-tr">
@@ -906,41 +979,12 @@ export function Step2FrameFacade() {
                       Поиск
                     </button>
                   </div>
-                </div>
-
-                <div className="frame2-create-ml">
-                  <div className="frame2-file-picker-row frame2-file-picker-row--solo">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-file-btn"
-                      onClick={() => editImageInputRef.current?.click()}
-                    >
-                      {editTypeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
-                    </button>
-                  </div>
-                </div>
-                <div className="frame2-create-mr">
-                  <div
-                    className={[
-                      'frame2-file-name',
-                      editTypeImageFile ? '' : 'frame2-file-name--empty',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-live="polite"
-                  >
-                    {editTypeImageFile ? editTypeImageFile.name : 'Файл не выбран'}
-                  </div>
-                </div>
-
-                <div className="frame2-create-bl">
-                  {(editTypeImagePreview || editExistingCardUrl) && (
-                    <div className="frame2-file-preview frame2-file-preview--cover">
-                      <img src={editTypeImagePreview || editExistingCardUrl} alt="" />
+                  <div className="frame2-file-row frame2-colors-for-card-label">
+                    <div className="frame2-file-label-row">
+                      <span className="frame2-file-label">Цвета для карточки</span>
+                      <HintButton text="Отметьте материалы, которые будут доступны как цвета этого типа в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
-                  )}
-                </div>
-                <div className="frame2-create-br">
+                  </div>
                   {editColorsHit.length > 0 && (
                     <ul className="frame2-checklist">
                       {editColorsHit.map((m) => {
@@ -1054,7 +1098,13 @@ export function Step2FrameFacade() {
                     }}
                     title={title}
                   >
-                    {typeThumb({ name: title, image_url: t.image_url, card_image: t.card_image })}
+                    <CalculatorCardTileStriped
+                      title={title}
+                      versionKey={t.id}
+                      slot0={((t.card_image ?? '') || (t.image_url ?? '')).trim()}
+                      slot1={(t.card_image_2 ?? '').trim()}
+                      slot2={(t.card_image_3 ?? '').trim()}
+                    />
                     <div className="tile-title">{title}</div>
                     <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
                   </button>
@@ -1121,6 +1171,7 @@ export function Step2FrameFacade() {
                 </div>
               )
             })}
+          </div>
           </div>
 
           <div className="frame2-card-nav">
@@ -1206,6 +1257,20 @@ export function Step2FrameFacade() {
             <div className="tiles tiles--colors">
               {(modalType.colors ?? []).map((c) => {
                 const active = c.color_material_id === selectedColorId
+                const ex = texByMaterialId[c.color_material_id]
+                const cm = c.color_material
+                const merged: MaterialTextureFields & {
+                  name: string
+                  article?: string
+                } = {
+                  ...cm,
+                  texture_mode: cm.texture_mode ?? ex?.texture_mode,
+                  texture_color: cm.texture_color || ex?.texture_color || '',
+                  texture_image: cm.texture_image ?? ex?.texture_image ?? null,
+                  texture_library_item_name: cm.texture_library_item_name ?? ex?.texture_library_item_name ?? null,
+                  name: cm.name || ex?.name || '',
+                  article: cm.article,
+                }
                 return (
                   <div key={c.id} className="tile-cell">
                     <button
@@ -1215,22 +1280,11 @@ export function Step2FrameFacade() {
                         setSelectedColorId(c.color_material_id)
                         setModalTypeId(null)
                       }}
-                      title={matLabel(c.color_material)}
+                      title={matLabel(merged)}
                     >
-                      {textureThumb({
-                        texture_mode: (c.color_material as any).texture_mode,
-                        texture_image:
-                          (c.color_material as any).texture_image ??
-                          texByMaterialId[c.color_material_id]?.texture_image ??
-                          null,
-                        texture_color:
-                          (c.color_material as any).texture_color ??
-                          texByMaterialId[c.color_material_id]?.texture_color ??
-                          '',
-                        name: c.color_material.name,
-                      })}
+                      {textureThumb(merged)}
                       <div className="tile-title tile-title--texture-wrap">
-                        {textureLabelDisplayWrap(materialTextureLabel(c.color_material))}
+                        {textureLabelDisplayWrap(materialTextureLabel(merged))}
                       </div>
                       <div className="tile-sub">{c.color_material.article || '—'}</div>
                       {(c.is_new || c.is_hit || c.is_sale) && (

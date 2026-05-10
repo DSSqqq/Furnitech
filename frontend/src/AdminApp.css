@@ -508,13 +508,6 @@
   border: 1px solid var(--ft-border);
 }
 
-.material-search-filters-hint {
-  grid-column: 1 / -1;
-  margin: 0 0 0.15rem;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
 .material-search-field {
   margin: 0;
   display: flex;
@@ -601,6 +594,7 @@
     )
     minmax(80px, 1.1fr) 2.25rem;
   gap: 0.35rem;
+  align-items: center;
   padding: 0.4rem 0.5rem;
   font-size: 0.72rem;
   font-weight: 600;
@@ -640,6 +634,35 @@
 
 .material-search-result-line:last-child {
   border-bottom: 0;
+}
+
+.material-search-results-table--navigate .material-search-results-legend,
+.material-search-results-table--navigate .material-search-result-line {
+  grid-template-columns: minmax(72px, 0.9fr) minmax(100px, 1.4fr) minmax(88px, 0.85fr) minmax(
+      72px,
+      1fr
+    )
+    minmax(80px, 1.1fr);
+}
+
+.material-search-result-line--navigate {
+  cursor: pointer;
+  outline: none;
+}
+
+.material-search-result-line--navigate:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.material-search-result-line--navigate:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: -2px;
+}
+
+.material-search-result-line--selected {
+  border-color: rgba(203, 176, 121, 0.42);
+  background: rgba(203, 176, 121, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(203, 176, 121, 0.18);
 }
 
 .material-search-result-check {
@@ -881,6 +904,20 @@ button.folder-explorer-tile:hover {
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+button.folder-explorer-tile--folder[draggable='true'] {
+  cursor: grab;
+  user-select: none;
+}
+
+button.folder-explorer-tile--folder.folder-explorer-tile--drag-source:active {
+  cursor: grabbing;
+}
+
+.folder-explorer-tile--folder.folder-explorer-tile--drag-source {
+  border: 1px dashed rgba(203, 176, 121, 0.55);
+  background: rgba(203, 176, 121, 0.1);
+}
+
 .folder-explorer-tile-icon {
   font-size: 1.6rem;
   line-height: 1;
@@ -906,6 +943,20 @@ button.folder-explorer-tile:hover {
 
 .folder-explorer-tile--material {
   border-style: dashed;
+}
+
+.folder-explorer-tile--material.folder-explorer-tile--draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.folder-explorer-tile--material.folder-explorer-tile--draggable:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.folder-explorer-tile--material.folder-explorer-tile--draggable:active {
+  cursor: grabbing;
 }
 
 .folder-explorer-tile--info {
@@ -1208,15 +1259,15 @@ button.admin-primary.admin-modal-confirm:hover {
   padding: 0;
 }
 
-/* Разделитель: панель создания → дерево папок */
-.admin-aside .tree-root {
+/* Дерево папок в колонке материалов: без вложенной «коробки» .folder-explorer-tree; разделитель как у старого .tree-root */
+.admin-aside .admin-materials-tree-root {
   margin-top: 0.9rem;
   padding-top: 0.9rem;
   border-top: 1px solid var(--ft-border);
   position: relative;
 }
 
-.admin-aside .tree-root::before {
+.admin-aside .admin-materials-tree-root::before {
   content: '';
   position: absolute;
   top: -1px;
@@ -1303,6 +1354,8 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .tree-line:hover .tree-line-actions,
 .tree-line:focus-within .tree-line-actions,
+.folder-explorer-tree-line:hover .tree-line-actions,
+.folder-explorer-tree-line:focus-within .tree-line-actions,
 .tree-line-actions:has([aria-expanded='true']) {
   opacity: 1;
 }

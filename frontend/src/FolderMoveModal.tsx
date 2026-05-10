@@ -3,15 +3,19 @@ import { createPortal } from 'react-dom'
 import { fetchMaterials } from './api'
 import type { MaterialCategory, TextureCategory } from './types'
 
-const ROOT_LABEL = 'Все папки (корень)'
-const DND_TYPE = 'application/x-furnitech-folder-move'
+const ROOT_LABEL = 'Все папки'
+const DND_FOLDER = 'application/x-furnitech-folder-move'
+const DND_MATERIAL = 'application/x-furnitech-material-move'
+
+function isFolderDrag(e: DragEvent) {
+  return e.dataTransfer.types.includes(DND_FOLDER)
+}
+
+function isMaterialDrag(e: DragEvent) {
+  return e.dataTransfer.types.includes(DND_MATERIAL)
+}
 
 type FolderItemRow = { id: number; name: string; article?: string }
-
-function isOurDrag(e: DragEvent) {
-  const types = e.dataTransfer.types
-  return types.includes(DND_TYPE) || types.includes('text/plain')
-}
 
 type Props = {
   tree: MaterialCategory[] | TextureCategory[]
@@ -19,6 +23,8 @@ type Props = {
   onClose: () => void
   /** movingId — явно, чтобы родитель не зависел от стейта при закрытии модалки во время запроса */
   onMove: (newParentId: number | null, movingId: number) => Promise<void>
+  /** Перенос материала в другую папку (плитка 📄 → папка в дереве или справа). Только для дерева материалов. */
+  onMoveMaterial?: (materialId: number, newCategoryId: number) => Promise<void>
   /** Если задано — справа подгружаются эти элементы вместо материалов (например текстуры). */
   fetchItemsInFolder?: (categoryId: number) => Promise<{ results: FolderItemRow[] }>
   /** Подпись при загрузке списка справа (по умолчанию про материалы). */
@@ -70,13 +76,14 @@ function MoveTreeRow({
   expandedIds,
   onToggle,
   onSelect,
-  forbiddenIds,
-  dragging,
-  movingId,
+  forbiddenIdsForDrag,
+  draggingFolder,
+  draggingFolderId,
   submitting,
-  onDragStartMove,
-  onDragEndMove,
-  onDropOn,
+  onFolderDragStart,
+  onFolderDragEnd,
+  onFolderDropOnFolder,
+  onDropMaterial,
 }: {
   c: MaterialCategory
   depth: number
@@ -84,22 +91,29 @@ function MoveTreeRow({
   expandedIds: Set<number>
   onToggle: (id: number) => void
   onSelect: (id: number | null) => void
-  forbiddenIds: Set<number>
-  dragging: boolean
-  movingId: number
+  forbiddenIdsForDrag: Set<number>
+  draggingFolder: boolean
+  draggingFolderId: number | null
   submitting: boolean
-  onDragStartMove: (e: DragEvent) => void
-  onDragEndMove: () => void
-  onDropOn: (targetParentId: number | null) => void
+  onFolderDragStart: (e: DragEvent, folderId: number) => void
+  onFolderDragEnd: () => void
+  onFolderDropOnFolder: (e: DragEvent, targetFolderId: number) => void
+  onDropMaterial?: (materialId: number, targetFolderId: number) => void
 }) {
   const hasKids = (c.children?.length ?? 0) > 0
   const isExpanded = hasKids ? expandedIds.has(c.id) : false
   const isSel = selectedId === c.id
-  const canDrop = !forbiddenIds.has(c.id)
-  const isMovingSource = c.id === movingId
+  const canDropFolderHere = !forbiddenIdsForDrag.has(c.id)
+  const isDragSource = c.id === draggingFolderId
 
   const onDragOverRow = (e: DragEvent) => {
-    if (!isOurDrag(e) || !canDrop) return
+    if (onDropMaterial && isMaterialDrag(e)) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = 'move'
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
     e.preventDefault()
     e.stopPropagation()
     e.dataTransfer.dropEffect = 'move'
@@ -108,26 +122,32 @@ function MoveTreeRow({
   const onDropRow = (e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!isOurDrag(e) || !canDrop) return
-    onDropOn(c.id)
+    if (onDropMaterial && isMaterialDrag(e)) {
+      const raw = e.dataTransfer.getData(DND_MATERIAL)
+      const mid = parseInt(raw, 10)
+      if (Number.isFinite(mid)) onDropMaterial(mid, c.id)
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
+    onFolderDropOnFolder(e, c.id)
   }
 
   const lineClass =
     (isSel ? 'folder-explorer-tree-line folder-explorer-tree-line--active' : 'folder-explorer-tree-line') +
-    (dragging && !canDrop ? ' folder-explorer-tree-line--move-blocked' : '') +
-    (isMovingSource ? ' folder-explorer-tree-line--drag-source' : '')
+    (draggingFolder && !canDropFolderHere ? ' folder-explorer-tree-line--move-blocked' : '') +
+    (isDragSource ? ' folder-explorer-tree-line--drag-source' : '')
 
   return (
     <li className="folder-explorer-tree-item">
       <div
         className={lineClass}
         style={{ paddingLeft: 6 + depth * 14 }}
-        draggable={isMovingSource && !submitting}
-        onDragStart={isMovingSource ? onDragStartMove : undefined}
-        onDragEnd={isMovingSource ? onDragEndMove : undefined}
-        onDragOver={canDrop ? onDragOverRow : undefined}
-        onDrop={canDrop ? onDropRow : undefined}
-        title={isMovingSource ? 'Удерживайте и перетащите на другую папку или на «Все папки (корень)»' : c.path}
+        draggable={!submitting}
+        onDragStart={(e) => onFolderDragStart(e, c.id)}
+        onDragEnd={onFolderDragEnd}
+        onDragOver={onDragOverRow}
+        onDrop={onDropRow}
+        title={isDragSource ? 'Удерживайте и перетащите на другую папку или на «Все папки»' : c.path}
       >
         {hasKids ? (
           <button
@@ -173,13 +193,14 @@ function MoveTreeRow({
               expandedIds={expandedIds}
               onToggle={onToggle}
               onSelect={onSelect}
-              forbiddenIds={forbiddenIds}
-              dragging={dragging}
-              movingId={movingId}
+              forbiddenIdsForDrag={forbiddenIdsForDrag}
+              draggingFolder={draggingFolder}
+              draggingFolderId={draggingFolderId}
               submitting={submitting}
-              onDragStartMove={onDragStartMove}
-              onDragEndMove={onDragEndMove}
-              onDropOn={onDropOn}
+              onFolderDragStart={onFolderDragStart}
+              onFolderDragEnd={onFolderDragEnd}
+              onFolderDropOnFolder={onFolderDropOnFolder}
+              onDropMaterial={onDropMaterial}
             />
           ))}
         </ul>
@@ -193,6 +214,7 @@ export function FolderMoveModal({
   folderToMove,
   onClose,
   onMove,
+  onMoveMaterial,
   fetchItemsInFolder,
   itemsLoadingLabel = 'Загрузка материалов…',
   itemsEmptySuffix = 'материалов',
@@ -207,10 +229,19 @@ export function FolderMoveModal({
   const [loadingFolderIds, setLoadingFolderIds] = useState<Set<number>>(new Set())
   const [submitting, setSubmitting] = useState(false)
   const [localErr, setLocalErr] = useState<string | null>(null)
-  const [dragging, setDragging] = useState(false)
+  const [draggingFolder, setDraggingFolder] = useState(false)
+  const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null)
+  const [draggingMaterial, setDraggingMaterial] = useState(false)
   const moveInflight = useRef(false)
+  const folderDragIdRef = useRef<number | null>(null)
 
-  const forbiddenIds = useMemo(() => collectSubtreeIds(folderToMove), [folderToMove])
+  const matTree = tree as MaterialCategory[]
+
+  const forbiddenIdsForDrag = useMemo(() => {
+    if (draggingFolderId == null) return new Set<number>()
+    const node = findInTree(matTree, draggingFolderId)
+    return node ? collectSubtreeIds(node) : new Set<number>()
+  }, [draggingFolderId, matTree])
 
   const selectedFolder = useMemo(
     () => (selectedId == null ? null : findInTree(tree, selectedId)),
@@ -224,16 +255,14 @@ export function FolderMoveModal({
 
   const childFolders: MaterialCategory[] = selectedFolder ? selectedFolder.children ?? [] : tree
 
-  const currentParentId = folderToMove.parent
-
-  const isAllowedTarget = useCallback(
-    (targetParentId: number | null) => {
-      if (targetParentId !== null && forbiddenIds.has(targetParentId)) return false
-      if (targetParentId === currentParentId) return false
-      return true
-    },
-    [forbiddenIds, currentParentId]
-  )
+  const isAllowedTarget = useCallback((targetParentId: number | null, movingId: number) => {
+    const node = findInTree(matTree, movingId)
+    if (!node) return false
+    const forb = collectSubtreeIds(node)
+    if (targetParentId !== null && forb.has(targetParentId)) return false
+    if (targetParentId === node.parent) return false
+    return true
+  }, [matTree])
 
   useEffect(() => {
     if (selectedId == null) return
@@ -266,14 +295,14 @@ export function FolderMoveModal({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !submitting && !dragging) {
+      if (e.key === 'Escape' && !submitting && !draggingFolder && !draggingMaterial) {
         e.preventDefault()
         onClose()
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, submitting, dragging])
+  }, [onClose, submitting, draggingFolder, draggingMaterial])
 
   const onToggle = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -302,11 +331,12 @@ export function FolderMoveModal({
     [onSelectFolder]
   )
 
-  const runMove = useCallback(
-    (newParentId: number | null) => {
+  const executeFolderMove = useCallback(
+    (newParentId: number | null, movingId: number) => {
       if (moveInflight.current) return
-      if (!isAllowedTarget(newParentId)) {
-        if (newParentId === currentParentId) {
+      if (!isAllowedTarget(newParentId, movingId)) {
+        const node = findInTree(matTree, movingId)
+        if (node && newParentId === node.parent) {
           setLocalErr('Папка уже находится в этом расположении.')
         } else {
           setLocalErr('Сюда перенести нельзя (сама папка или её вложенность).')
@@ -316,11 +346,11 @@ export function FolderMoveModal({
       moveInflight.current = true
       setSubmitting(true)
       setLocalErr(null)
-      onMove(newParentId, folderToMove.id)
+      onMove(newParentId, movingId)
         .then(() => {
           moveInflight.current = false
           setSubmitting(false)
-          onClose()
+          setMaterialsByFolder({})
         })
         .catch((e) => {
           moveInflight.current = false
@@ -328,43 +358,120 @@ export function FolderMoveModal({
           setSubmitting(false)
         })
     },
-    [isAllowedTarget, currentParentId, onMove, onClose, folderToMove.id]
+    [isAllowedTarget, matTree, onMove]
   )
 
-  const onDragStartSource = (e: DragEvent) => {
-    e.dataTransfer.setData(DND_TYPE, String(folderToMove.id))
-    e.dataTransfer.setData('text/plain', String(folderToMove.id))
+  const resetFolderDragState = useCallback(() => {
+    folderDragIdRef.current = null
+    setDraggingFolderId(null)
+    setDraggingFolder(false)
+  }, [])
+
+  const onFolderDragStart = (e: DragEvent, id: number) => {
+    e.dataTransfer.setData(DND_FOLDER, String(id))
+    e.dataTransfer.setData('text/plain', String(id))
     e.dataTransfer.effectAllowed = 'move'
-    setDragging(true)
+    folderDragIdRef.current = id
+    setDraggingFolderId(id)
+    setDraggingFolder(true)
   }
 
-  const onDragEndSource = () => {
-    setDragging(false)
-  }
+  const onFolderDragEnd = resetFolderDragState
 
-  const onDropOn = useCallback(
-    (targetId: number | null) => {
-      runMove(targetId)
-      setDragging(false)
+  const onFolderDropOnFolder = useCallback(
+    (e: DragEvent, targetFolderId: number) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      executeFolderMove(targetFolderId, movingId)
     },
-    [runMove]
+    [executeFolderMove, resetFolderDragState]
+  )
+
+  const onFolderDropOnRoot = useCallback(
+    (e: DragEvent) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      executeFolderMove(null, movingId)
+    },
+    [executeFolderMove, resetFolderDragState]
   )
 
   const rootDragOver = (e: DragEvent) => {
-    if (!isOurDrag(e) || !isAllowedTarget(null)) return
+    if (onMoveMaterial && isMaterialDrag(e)) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'none'
+      return
+    }
+    const mid = folderDragIdRef.current
+    if (!isFolderDrag(e) || mid == null || !isAllowedTarget(null, mid)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
   }
 
   const rootDrop = (e: DragEvent) => {
     e.preventDefault()
-    if (!isOurDrag(e)) return
-    onDropOn(null)
+    if (onMoveMaterial && isMaterialDrag(e)) {
+      setLocalErr('Материал можно перенести только в папку — выберите папку в дереве или плитку справа.')
+      return
+    }
+    if (!isFolderDrag(e)) return
+    onFolderDropOnRoot(e)
   }
+
+  const onMaterialDragStart = (e: DragEvent, materialId: number) => {
+    if (!onMoveMaterial || submitting) return
+    e.dataTransfer.setData(DND_MATERIAL, String(materialId))
+    e.dataTransfer.effectAllowed = 'move'
+    setDraggingMaterial(true)
+  }
+
+  const onMaterialDragEnd = () => {
+    setDraggingMaterial(false)
+  }
+
+  const handleDropMaterial = useCallback(
+    (materialId: number, targetFolderId: number) => {
+      if (!onMoveMaterial) return
+      if (selectedId == null) {
+        setLocalErr('Откройте папку-источник справа (хлебные крошки), откуда переносите материал.')
+        return
+      }
+      if (targetFolderId === selectedId) {
+        setLocalErr('Материал уже в этой папке.')
+        return
+      }
+      if (moveInflight.current) return
+      moveInflight.current = true
+      setSubmitting(true)
+      setLocalErr(null)
+      onMoveMaterial(materialId, targetFolderId)
+        .then(() => {
+          setMaterialsByFolder((prev) => {
+            const next = { ...prev }
+            delete next[selectedId]
+            delete next[targetFolderId]
+            return next
+          })
+        })
+        .catch((err) => {
+          setLocalErr(err instanceof Error ? err.message : String(err))
+        })
+        .finally(() => {
+          moveInflight.current = false
+          setSubmitting(false)
+        })
+    },
+    [onMoveMaterial, selectedId]
+  )
 
   const folderItems = selectedId == null ? [] : materialsByFolder[selectedId] ?? []
   const isFolderLoading = selectedId != null && loadingFolderIds.has(selectedId)
-  const canCommitSelection = isAllowedTarget(selectedId)
 
   return createPortal(
     <div
@@ -373,17 +480,24 @@ export function FolderMoveModal({
       aria-modal="true"
       aria-labelledby="folder-move-title"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !submitting && !dragging) onClose()
+        if (e.target === e.currentTarget && !submitting && !draggingFolder && !draggingMaterial) onClose()
       }}
     >
       <div className="admin-modal admin-modal--explorer" role="document" onClick={(e) => e.stopPropagation()}>
         <h4 id="folder-move-title" className="admin-modal-title">
-          Переместить папку «{folderToMove.name}»
+          Перемещение папок
         </h4>
 
         <p className="folder-move-hint">
-          В левом дереве найдите эту папку (подсвечена) и перетащите её строку на папку назначения или на «Все папки
-          (корень)». Справа можно бросить на плитку папки.
+          Перетащите <strong>любую</strong> строку папки в дереве на цель или на «Все папки». Справа можно бросить на
+          плитку 📁.           Хлебные крошки переключают просмотр содержимого папки; плитки 📁 справа тоже можно тащить, как строки
+          дерева. После переноса окно остаётся открытым — нажмите «Закрыть», когда закончите.
+          {onMoveMaterial ? (
+            <>
+              {' '}
+              Материалы (📄) в открытой папке можно перетащить на другую папку в дереве или на плитку 📁 справа.
+            </>
+          ) : null}
         </p>
 
         <div className="folder-explorer-breadcrumb" aria-label="Путь к выбранной папке">
@@ -448,13 +562,14 @@ export function FolderMoveModal({
                   expandedIds={expandedIds}
                   onToggle={onToggle}
                   onSelect={onSelectFolder}
-                  forbiddenIds={forbiddenIds}
-                  dragging={dragging}
-                  movingId={folderToMove.id}
+                  forbiddenIdsForDrag={forbiddenIdsForDrag}
+                  draggingFolder={draggingFolder}
+                  draggingFolderId={draggingFolderId}
                   submitting={submitting}
-                  onDragStartMove={onDragStartSource}
-                  onDragEndMove={onDragEndSource}
-                  onDropOn={onDropOn}
+                  onFolderDragStart={onFolderDragStart}
+                  onFolderDragEnd={onFolderDragEnd}
+                  onFolderDropOnFolder={onFolderDropOnFolder}
+                  onDropMaterial={onMoveMaterial ? handleDropMaterial : undefined}
                 />
               ))}
             </ul>
@@ -470,9 +585,15 @@ export function FolderMoveModal({
             ) : (
               <ul className="folder-explorer-grid">
                 {childFolders.map((f) => {
-                  const dropOk = !forbiddenIds.has(f.id)
                   const onTileDragOver = (e: DragEvent) => {
-                    if (!isOurDrag(e) || !dropOk) return
+                    if (onMoveMaterial && isMaterialDrag(e)) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      e.dataTransfer.dropEffect = 'move'
+                      return
+                    }
+                    const mid = folderDragIdRef.current
+                    if (!isFolderDrag(e) || mid == null || !isAllowedTarget(f.id, mid)) return
                     e.preventDefault()
                     e.stopPropagation()
                     e.dataTransfer.dropEffect = 'move'
@@ -480,18 +601,29 @@ export function FolderMoveModal({
                   const onTileDrop = (e: DragEvent) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    if (!isOurDrag(e) || !dropOk) return
-                    onDropOn(f.id)
+                    if (onMoveMaterial && isMaterialDrag(e)) {
+                      const raw = e.dataTransfer.getData(DND_MATERIAL)
+                      const mid = Number.parseInt(raw, 10)
+                      if (Number.isFinite(mid)) handleDropMaterial(mid, f.id)
+                      return
+                    }
+                    if (!isFolderDrag(e)) return
+                    onFolderDropOnFolder(e, f.id)
                   }
                   return (
                     <li key={`f-${f.id}`}>
                       <button
                         type="button"
-                        className="folder-explorer-tile folder-explorer-tile--folder"
-                        draggable={false}
+                        className={
+                          'folder-explorer-tile folder-explorer-tile--folder' +
+                          (draggingFolderId === f.id ? ' folder-explorer-tile--drag-source' : '')
+                        }
+                        draggable={!submitting}
+                        onDragStart={(e) => onFolderDragStart(e, f.id)}
+                        onDragEnd={onFolderDragEnd}
                         onClick={() => onSelectFolder(f.id)}
                         onDoubleClick={() => onOpenFolder(f.id)}
-                        title={f.path}
+                        title={`${f.path} — перетащите на другую папку или «Все папки»`}
                         onDragOver={onTileDragOver}
                         onDrop={onTileDrop}
                       >
@@ -508,7 +640,17 @@ export function FolderMoveModal({
                 ) : null}
                 {folderItems.map((m) => (
                   <li key={`m-${m.id}`}>
-                    <div className="folder-explorer-tile folder-explorer-tile--material" title={m.name}>
+                    <div
+                      className={
+                        onMoveMaterial
+                          ? 'folder-explorer-tile folder-explorer-tile--material folder-explorer-tile--draggable'
+                          : 'folder-explorer-tile folder-explorer-tile--material'
+                      }
+                      title={onMoveMaterial ? `${m.name} — перетащите на папку` : m.name}
+                      draggable={Boolean(onMoveMaterial) && !submitting}
+                      onDragStart={(e) => onMaterialDragStart(e, m.id)}
+                      onDragEnd={onMaterialDragEnd}
+                    >
                       <span className="folder-explorer-tile-icon" aria-hidden>
                         📄
                       </span>
@@ -525,16 +667,13 @@ export function FolderMoveModal({
         {localErr ? <div className="admin-error admin-error--compact">{localErr}</div> : null}
 
         <div className="admin-modal-actions">
-          <button type="button" className="admin-secondary" disabled={submitting} onClick={onClose}>
-            Отмена
-          </button>
           <button
             type="button"
             className="admin-primary admin-modal-confirm"
-            disabled={submitting || !canCommitSelection}
-            onClick={() => runMove(selectedId)}
+            disabled={submitting || draggingFolder || draggingMaterial}
+            onClick={onClose}
           >
-            {submitting ? 'Перенос…' : 'Переместить сюда'}
+            Закрыть
           </button>
         </div>
       </div>

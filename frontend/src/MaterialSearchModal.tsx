@@ -1,18 +1,38 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { fetchMaterialsFiltered, type MaterialsListFilterParams } from './api'
 import { DECIMAL_FRACTION_DIGITS, filterDecimalInput, formatDecimalStringForUi } from './floatInput'
 import type { Material, MaterialCategory, MaterialClass } from './types'
 
-type Props = {
+type BaseProps = {
   tree: MaterialCategory[]
   mclasses: MaterialClass[]
   onClose: () => void
-  /** Вызывается по кнопке «Добавить» — все материалы с отмеченными флажками (порядок как в таблице). */
+}
+
+export type MultiPickMaterialSearchProps = BaseProps & {
+  mode?: 'multiPick'
+  /** Калькулятор (шаги 2 и 4): флажки и кнопка «Добавить». */
   onPick: (materials: Material[]) => void
 }
 
-const ROOT_LABEL = 'Все папки (корень)'
+export type NavigateMaterialSearchProps = BaseProps & {
+  mode: 'navigate'
+  /** Админка материалов: выбор строки кликом и кнопка «Перейти». */
+  onNavigate: (material: Material) => void
+}
+
+export type MaterialSearchModalProps = MultiPickMaterialSearchProps | NavigateMaterialSearchProps
+
+const ROOT_LABEL = 'Все папки'
 
 function findPathToId(nodes: MaterialCategory[], id: number): number[] | null {
   const walk = (list: MaterialCategory[], path: number[]): number[] | null => {
@@ -142,7 +162,11 @@ function collectIdsWithChildren(nodes: MaterialCategory[]): Set<number> {
   return out
 }
 
-export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) {
+export function MaterialSearchModal(props: MaterialSearchModalProps) {
+  const { tree, mclasses, onClose } = props
+  const isNavigate = props.mode === 'navigate'
+  const onPick = !isNavigate ? props.onPick : undefined
+  const onNavigate = isNavigate ? props.onNavigate : undefined
   const [filterFolderName, setFilterFolderName] = useState('')
   const [filterArticle, setFilterArticle] = useState('')
   const [filterName, setFilterName] = useState('')
@@ -154,7 +178,10 @@ export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) 
   const [results, setResults] = useState<Material[]>([])
   const [loading, setLoading] = useState(false)
   const [localErr, setLocalErr] = useState<string | null>(null)
-  const [pickedIds, setPickedIds] = useState<Set<number>>(() => new Set())
+  /** Накопление выбора при смене папки/фильтров (шаги 2 и 4 калькулятора). */
+  const [pickedMaterials, setPickedMaterials] = useState<Map<number, Material>>(() => new Map())
+  /** Админка: одна подсвеченная строка перед «Перейти». */
+  const [navigateRowId, setNavigateRowId] = useState<number | null>(null)
 
   const sortedClasses = useMemo(
     () => [...mclasses].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
@@ -252,23 +279,72 @@ export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) 
   ])
 
   useEffect(() => {
-    setPickedIds(new Set())
-  }, [results])
+    if (isNavigate) {
+      setNavigateRowId((prev) => {
+        if (prev == null) return null
+        return results.some((m) => m.id === prev) ? prev : null
+      })
+      return
+    }
+    if (results.length === 0) return
+    setPickedMaterials((prev) => {
+      if (prev.size === 0) return prev
+      let changed = false
+      const next = new Map(prev)
+      for (const m of results) {
+        if (next.has(m.id) && next.get(m.id) !== m) {
+          next.set(m.id, m)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [results, isNavigate])
 
-  const toggleRowPick = useCallback((id: number) => {
-    setPickedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+  const toggleRowPick = useCallback((m: Material) => {
+    setPickedMaterials((prev) => {
+      const next = new Map(prev)
+      if (next.has(m.id)) next.delete(m.id)
+      else next.set(m.id, m)
       return next
     })
   }, [])
 
+  const allResultsPicked =
+    results.length > 0 && results.every((m) => pickedMaterials.has(m.id))
+  const someResultsPicked = results.some((m) => pickedMaterials.has(m.id))
+
+  const pickAllHeaderRef = useRef<HTMLInputElement>(null)
+  useLayoutEffect(() => {
+    if (isNavigate) return
+    const el = pickAllHeaderRef.current
+    if (!el) return
+    el.indeterminate = someResultsPicked && !allResultsPicked
+  }, [isNavigate, someResultsPicked, allResultsPicked, results])
+
+  const togglePickAllInResults = useCallback(() => {
+    setPickedMaterials((prev) => {
+      const next = new Map(prev)
+      const every = results.length > 0 && results.every((m) => next.has(m.id))
+      if (every) {
+        for (const m of results) next.delete(m.id)
+      } else {
+        for (const m of results) next.set(m.id, m)
+      }
+      return next
+    })
+  }, [results])
+
   const confirmPick = useCallback(() => {
-    const selected = results.filter((m) => pickedIds.has(m.id))
-    if (selected.length === 0) return
-    onPick(selected)
-  }, [results, pickedIds, onPick])
+    if (!onPick || pickedMaterials.size === 0) return
+    onPick([...pickedMaterials.values()])
+  }, [pickedMaterials, onPick])
+
+  const confirmNavigate = useCallback(() => {
+    if (!onNavigate || navigateRowId == null) return
+    const m = results.find((x) => x.id === navigateRowId)
+    if (m) onNavigate(m)
+  }, [results, navigateRowId, onNavigate])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -303,10 +379,6 @@ export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) 
           role="search"
           onSubmit={(e: FormEvent) => e.preventDefault()}
         >
-          <p className="material-search-filters-hint admin-muted">
-            Регистр не важен; несколько слов — все должны встретиться в строке. Допускаются опечатки (нечёткое
-            совпадение).
-          </p>
           <label className="material-search-field">
             <span className="material-search-label">Название папки</span>
             <input
@@ -425,43 +497,119 @@ export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) 
                 <p className="material-search-results-count admin-muted">
                   Найдено: {results.length}
                   {results.length >= 100 ? ' (не более 100 за запрос)' : ''}
+                  {!isNavigate && pickedMaterials.size > 0
+                    ? ` · Всего отмечено: ${pickedMaterials.size}${
+                        [...pickedMaterials.keys()].some((id) => !results.some((m) => m.id === id))
+                          ? ' (в т.ч. вне текущего списка)'
+                          : ''
+                      }`
+                    : ''}
+                  {isNavigate && results.length > 0 && navigateRowId == null
+                    ? ' · Кликните по строке, затем «Перейти».'
+                    : ''}
                 </p>
-                <div className="material-search-results-table" role="grid" aria-label="Таблица результатов">
+                <div
+                  className={[
+                    'material-search-results-table',
+                    isNavigate ? 'material-search-results-table--navigate' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  role="grid"
+                  aria-label="Таблица результатов"
+                >
                   <div className="material-search-results-legend" role="row">
                     <span role="columnheader">Артикул</span>
                     <span role="columnheader">Наименование</span>
                     <span role="columnheader">Цена</span>
                     <span role="columnheader">Классы</span>
                     <span role="columnheader">Папка</span>
-                    <span role="columnheader" className="material-search-legend-pick" aria-label="Выбрать" />
-                  </div>
-                  <ul className="material-search-results-list">
-                    {results.map((m) => (
-                      <li key={m.id} className="material-search-result-line" role="row">
-                        <span className="material-search-result-cell">{m.article?.trim() || '—'}</span>
-                        <span className="material-search-result-cell material-search-result-cell--name">
-                          {m.name}
-                        </span>
-                        <span className="material-search-result-cell">
-                          {formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)}{' '}
-                          {m.base_currency || ''}
-                        </span>
-                        <span className="material-search-result-cell material-search-result-cell--classes">
-                          {classLabels(m, mclasses)}
-                        </span>
-                        <span className="material-search-result-cell material-search-result-cell--path">
-                          {categoryPathString(tree, m.category) || '—'}
-                        </span>
-                        <label className="material-search-result-check">
+                    {!isNavigate && (
+                      <span role="columnheader" className="material-search-legend-pick">
+                        <label className="material-search-result-check material-search-legend-check">
                           <input
+                            ref={pickAllHeaderRef}
                             type="checkbox"
-                            checked={pickedIds.has(m.id)}
-                            onChange={() => toggleRowPick(m.id)}
-                            aria-label={`Выбрать: ${m.name}`}
+                            checked={allResultsPicked}
+                            disabled={loading || results.length === 0}
+                            onChange={togglePickAllInResults}
+                            aria-label="Выбрать все в текущем списке"
                           />
                         </label>
-                      </li>
-                    ))}
+                      </span>
+                    )}
+                  </div>
+                  <ul className="material-search-results-list">
+                    {results.map((m) =>
+                      isNavigate ? (
+                        <li
+                          key={m.id}
+                          role="row"
+                          tabIndex={0}
+                          className={[
+                            'material-search-result-line',
+                            'material-search-result-line--navigate',
+                            navigateRowId === m.id ? 'material-search-result-line--selected' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => setNavigateRowId(m.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              if (navigateRowId === m.id) confirmNavigate()
+                              else setNavigateRowId(m.id)
+                              return
+                            }
+                            if (e.key === ' ') {
+                              e.preventDefault()
+                              setNavigateRowId(m.id)
+                            }
+                          }}
+                          aria-selected={navigateRowId === m.id}
+                        >
+                          <span className="material-search-result-cell">{m.article?.trim() || '—'}</span>
+                          <span className="material-search-result-cell material-search-result-cell--name">
+                            {m.name}
+                          </span>
+                          <span className="material-search-result-cell">
+                            {formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)}{' '}
+                            {m.base_currency || ''}
+                          </span>
+                          <span className="material-search-result-cell material-search-result-cell--classes">
+                            {classLabels(m, mclasses)}
+                          </span>
+                          <span className="material-search-result-cell material-search-result-cell--path">
+                            {categoryPathString(tree, m.category) || '—'}
+                          </span>
+                        </li>
+                      ) : (
+                        <li key={m.id} className="material-search-result-line" role="row">
+                          <span className="material-search-result-cell">{m.article?.trim() || '—'}</span>
+                          <span className="material-search-result-cell material-search-result-cell--name">
+                            {m.name}
+                          </span>
+                          <span className="material-search-result-cell">
+                            {formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)}{' '}
+                            {m.base_currency || ''}
+                          </span>
+                          <span className="material-search-result-cell material-search-result-cell--classes">
+                            {classLabels(m, mclasses)}
+                          </span>
+                          <span className="material-search-result-cell material-search-result-cell--path">
+                            {categoryPathString(tree, m.category) || '—'}
+                          </span>
+                          <label className="material-search-result-check">
+                            <input
+                              type="checkbox"
+                              checked={pickedMaterials.has(m.id)}
+                              onChange={() => toggleRowPick(m)}
+                              aria-label={`Выбрать: ${m.name}`}
+                            />
+                          </label>
+                        </li>
+                      ),
+                    )}
                   </ul>
                 </div>
               </div>
@@ -470,15 +618,26 @@ export function MaterialSearchModal({ tree, mclasses, onClose, onPick }: Props) 
         </div>
 
         <div className="admin-modal-actions">
-          <button
-            type="button"
-            className="admin-primary"
-            disabled={loading || pickedIds.size === 0}
-            onClick={confirmPick}
-          >
-            Добавить
-            {pickedIds.size > 0 ? ` (${pickedIds.size})` : ''}
-          </button>
+          {isNavigate ? (
+            <button
+              type="button"
+              className="admin-primary"
+              disabled={loading || navigateRowId == null}
+              onClick={confirmNavigate}
+            >
+              Перейти
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="admin-primary"
+              disabled={loading || pickedMaterials.size === 0}
+              onClick={confirmPick}
+            >
+              Добавить
+              {pickedMaterials.size > 0 ? ` (${pickedMaterials.size})` : ''}
+            </button>
+          )}
           <button type="button" className="admin-secondary" disabled={loading} onClick={onClose}>
             Закрыть
           </button>

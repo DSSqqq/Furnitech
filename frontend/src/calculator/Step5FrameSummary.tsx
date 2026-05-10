@@ -201,10 +201,9 @@ export function Step5FrameSummary() {
   return (
     <div className="frame2">
       <section className="frame2-card calc-side-panel">
-        <div className="admin-heading-row calc-card-title-row">
-          <h3 className="calc-h3">Итоговый эскиз</h3>
+        <div className="calc-side-panel-scroll">
+          <FrameHingeMortisePanel />
         </div>
-        <FrameHingeMortisePanel />
         <div className="frame2-card-nav">
           <button type="button" className="admin-secondary" onClick={() => nav(step('frame/filling'))}>
             ← Предыдущий шаг

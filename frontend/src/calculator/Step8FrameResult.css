@@ -12,19 +12,14 @@
   }
 }
 
-.step8-result__kicker {
-  margin: 0;
-  color: var(--ft-accent, #e8a23e);
-  font-weight: 700;
-  font-size: 0.78rem;
-}
-
-.step8-result__title {
-  margin-top: 0.35rem;
-}
-
 .step8-result__contact {
   min-width: 0;
+}
+
+/* С calc-side-panel (шаг 8 в калькуляторе): колонка — flex, прокрутка в .calc-side-panel-scroll */
+.step8-result__contact.calc-side-panel {
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 @media (min-width: 1025px) {
@@ -36,6 +31,13 @@
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
+  }
+
+  .step8-result__contact.calc-side-panel {
+    position: static;
+    align-self: stretch;
+    max-height: none;
+    overflow-y: hidden;
   }
 }
 
@@ -67,22 +69,6 @@
   line-height: 1.45;
 }
 
-.step8-form__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  margin-top: 0.35rem;
-}
-
-.step8-form__submit {
-  flex: 1 1 auto;
-  min-width: 10rem;
-}
-
-.step8-form__pdf {
-  flex: 0 1 auto;
-}
-
 .step8-form__hint {
   margin: 0;
   font-size: 0.82rem;
@@ -93,6 +79,43 @@
 .step8-result__nav {
   margin-top: 1rem;
   padding-top: 1rem;
+}
+
+/* Один ряд: отменяем min-width: 12rem у .frame2-card-nav button и запрет переноса */
+.step8-result__nav.frame2-card-nav {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.step8-result__nav.frame2-card-nav > button.admin-secondary {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.step8-result__nav.frame2-card-nav button {
+  min-width: 0;
+}
+
+.step8-result__nav-end {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.step8-result__nav .step8-form__submit {
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.step8-result__nav .step8-form__pdf {
+  flex: 0 1 auto;
+  white-space: nowrap;
 }
 
 .step8-result__details {
@@ -131,6 +154,10 @@
     position: static;
     max-height: none;
     overflow: visible;
+  }
+
+  .step8-result__contact.calc-side-panel {
+    overflow: hidden;
   }
 
   .step8-result__details {

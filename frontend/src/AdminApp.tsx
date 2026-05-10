@@ -173,12 +173,19 @@ function TreeRow({
   }
 
   return (
-    <li className="tree-item">
-      <div className="tree-line" style={{ paddingLeft: 8 + depth * 12 }}>
+    <li className="folder-explorer-tree-item">
+      <div
+        className={
+          isSel && !editing
+            ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
+            : 'folder-explorer-tree-line'
+        }
+        style={{ paddingLeft: 6 + depth * 14 }}
+      >
         {hasKids ? (
           <button
             type="button"
-            className="tree-expander"
+            className="folder-explorer-tree-expander"
             aria-label={isExpanded ? 'Свернуть папку' : 'Развернуть папку'}
             aria-expanded={isExpanded}
             onClick={(e) => {
@@ -189,7 +196,7 @@ function TreeRow({
             <span aria-hidden>{isExpanded ? '▾' : '▸'}</span>
           </button>
         ) : (
-          <span className="tree-expander tree-expander--spacer" aria-hidden />
+          <span className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer" aria-hidden />
         )}
         {editing ? (
           <input
@@ -214,11 +221,14 @@ function TreeRow({
         ) : (
           <button
             type="button"
-            className={isSel ? 'tree-link tree-link-active' : 'tree-link'}
+            className="folder-explorer-tree-link"
             onClick={() => onSelect(c.id)}
             title={c.path}
           >
-            {c.name}
+            <span className="folder-explorer-icon" aria-hidden>
+              📁
+            </span>
+            <span className="folder-explorer-tree-name">{c.name}</span>
           </button>
         )}
         {!editing && (
@@ -267,7 +277,7 @@ function TreeRow({
                       onMove(c)
                     }}
                   >
-                    Переместить…
+                    Переместить
                   </button>
                 </li>
                 <li role="none">
@@ -281,7 +291,7 @@ function TreeRow({
                       onDelete(c)
                     }}
                   >
-                    Удалить…
+                    Удалить
                   </button>
                 </li>
               </ul>
@@ -290,7 +300,7 @@ function TreeRow({
         )}
       </div>
       {hasKids && isExpanded && (
-        <ul className="tree-children">
+        <ul className="folder-explorer-tree-children">
           {(c.children ?? []).map((ch) => (
             <TreeRow
               key={ch.id}
@@ -444,17 +454,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       .catch((e) => setErr(String(e)))
   }, [selected])
 
-  const handleMaterialPickedFromSearch = useCallback((materials: Material[]) => {
-    if (materials.length === 0) return
-    setErr(null)
-    setMaterialSearchOpen(false)
-    const m = materials[0]
-    setSelected(m.category)
-    fetchMaterial(m.id)
-      .then((full) => setEditing(full))
-      .catch((e) => setErr(String(e)))
-  }, [])
-
   const submitNewFolder = useCallback(
     (parent: number | null, name: string) => {
       setErr(null)
@@ -510,6 +509,20 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     })
     setSelected(movingId)
   }, [reloadTree])
+
+  const applyMaterialMove = useCallback(async (materialId: number, newCategoryId: number) => {
+    setErr(null)
+    await updateMaterial(materialId, { category: newCategoryId })
+    if (selected != null) {
+      const r = await fetchMaterials(selected)
+      setMaterials(r.results)
+    }
+    const cur = editing
+    if (cur && cur !== 'new' && cur.id === materialId) {
+      const full = await fetchMaterial(materialId)
+      setEditing(full)
+    }
+  }, [selected, editing])
 
   const confirmDeleteFolder = useCallback(() => {
     const cat = folderDeleteModal
@@ -689,7 +702,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать, переместить (окно с деревом и перетаскиванием) или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. «Создать папку» — окно с деревом как в проводнике. «Поиск» — такое же окно: фильтры сверху (папка, артикул, наименование, цена, классы), дерево слева, результаты справа; клик по строке открывает материал." />
+              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать, переместить (окно с деревом и перетаскиванием) или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. «Создать папку» — окно с деревом как в проводнике. «Поиск» — фильтры, дерево папок и таблица материалов; клик по строке выделяет её, кнопка «Перейти» открывает карточку в выбранной папке." />
             </div>
             <div className="admin-stack">
               <button
@@ -707,7 +720,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 Поиск
               </button>
             </div>
-            <ul className="tree-root">
+            <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок">
               {tree.map((c) => (
                 <TreeRow
                   key={c.id}
@@ -929,14 +942,23 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         folderToMove={folderMoveTarget}
         onClose={() => setFolderMoveTarget(null)}
         onMove={applyFolderMove}
+        onMoveMaterial={applyMaterialMove}
       />
     ) : null}
     {materialSearchOpen ? (
       <MaterialSearchModal
+        mode="navigate"
         tree={tree}
         mclasses={mclasses}
         onClose={() => setMaterialSearchOpen(false)}
-        onPick={handleMaterialPickedFromSearch}
+        onNavigate={(m) => {
+          setErr(null)
+          setMaterialSearchOpen(false)
+          setSelected(m.category)
+          fetchMaterial(m.id)
+            .then((full) => setEditing(full))
+            .catch((e) => setErr(String(e)))
+        }}
       />
     ) : null}
     {folderDeleteModal &&
@@ -1062,16 +1084,12 @@ function MaterialForm({
     note: material?.note ?? '',
     rounding_mode: (material?.rounding_mode ?? 'none') as RoundingMode,
     rounding_multiple: material?.rounding_multiple ?? '',
-    is_active: material?.is_active ?? true,
     material_class_ids: normalizeMaterialClassIds(material?.material_class_ids),
     thickness: formatDecimalStringForInput(String(material?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
     min_length: formatDecimalStringForInput(String((material as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
     max_length: formatDecimalStringForInput(String(material?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
     min_width: formatDecimalStringForInput(String((material as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
     max_width: formatDecimalStringForInput(String(material?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
-    designation: material?.designation ?? '',
-    cut_coeff: formatDecimalStringForInput(String(material?.cut_coeff ?? '1'), 6),
-    calc_type: material?.calc_type ?? 'tape',
 
     texture_mode: (material?.texture_mode ?? 'texture') as string,
     texture_color: material?.texture_color ?? '#ffffff',
@@ -1246,16 +1264,13 @@ function MaterialForm({
         form.rounding_mode === 'ceil_multiple' && form.rounding_multiple !== ''
           ? form.rounding_multiple
           : null,
-      is_active: form.is_active,
+      is_active: material?.is_active ?? true,
       material_class_ids: form.material_class_ids,
       thickness: commitDecimalForApi(form.thickness),
       min_length: commitDecimalForApi((form as any).min_length),
       max_length: commitDecimalForApi(form.max_length),
       min_width: commitDecimalForApi((form as any).min_width),
       max_width: commitDecimalForApi(form.max_width),
-      designation: form.designation,
-      cut_coeff: commitDecimalForApi(form.cut_coeff),
-      calc_type: form.calc_type,
       texture_mode: form.texture_mode,
       texture_color: form.texture_color,
       tex_offset_x: commitDecimalForApi(form.tex_offset_x),
@@ -1509,14 +1524,6 @@ function MaterialForm({
           />
         </label>
       )}
-      <label className="field inline">
-        <input
-          type="checkbox"
-          checked={form.is_active}
-          onChange={(e) => setField('is_active', e.target.checked)}
-        />
-        <span>Активен</span>
-      </label>
       <div className="admin-row mat-form-actions">
         <button
           type="button"
@@ -1655,39 +1662,6 @@ function MaterialForm({
                 )
               }
               placeholder="например 100"
-            />
-          </label>
-
-          <label className="field">
-            <span>Обозначение</span>
-            <input
-              className="admin-input"
-              value={form.designation}
-              onChange={(e) => setField('designation', e.target.value)}
-              placeholder="например ЛДСП 16мм, белый"
-            />
-          </label>
-
-          <label className="field">
-            <span>Коэф. с учётом раскроя</span>
-            <input
-              className="admin-input"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={form.cut_coeff}
-              onChange={(e) => setField('cut_coeff', filterDecimalInput(e.target.value, 6))}
-              onBlur={(e) => setField('cut_coeff', normalizeDecimalForInput(e.currentTarget.value, 6))}
-              placeholder="например 1.12"
-            />
-          </label>
-
-          <label className="field">
-            <span>Тип</span>
-            <FtSelect
-              value={form.calc_type}
-              onChange={(v) => setField('calc_type', v)}
-              options={[{ value: 'tape', label: 'Лента' }]}
             />
           </label>
 

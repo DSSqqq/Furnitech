@@ -1,0 +1,23 @@
+.frame-mortise-panel {
+  margin-bottom: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.frame-mortise-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.frame-mortise-field--hinge {
+  margin-top: 0.85rem;
+}
+
+.frame-mortise-label {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--ft-muted);
+}

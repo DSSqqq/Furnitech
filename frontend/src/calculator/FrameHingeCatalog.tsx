@@ -3,11 +3,13 @@ import {
   createCalculatorHingeType,
   deleteCalculatorHingeType,
   fetchCalculatorHingeTypes,
+  fetchCategoryTree,
   fetchMaterial,
-  searchMaterials,
+  fetchMaterialClasses,
   updateCalculatorHingeType,
 } from '../api'
-import type { CalculatorHingeType, Material } from '../types'
+import { MaterialSearchModal } from '../MaterialSearchModal'
+import type { CalculatorHingeType, Material, MaterialCategory, MaterialClass } from '../types'
 import { HintButton } from '../HintButton'
 import {
   CALC_LS_HINGE_MATERIAL_ID,
@@ -15,12 +17,15 @@ import {
   notifyFrameCalcSession,
 } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
+import { materialTextureLabel, type MaterialTextureFields } from './materialTextureLabel'
 import { resolveMediaUrl } from './sketchFrame'
 import './Step2FrameFacade.css'
 
-function matLabel(m: { name: string; article?: string | null }) {
+function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
-  return a ? `${m.name} (${a})` : m.name
+  const lab = materialTextureLabel(m)
+  return a ? `${lab} (${a})` : lab
 }
 
 function textureThumb(m: { texture_image?: string | null; texture_color?: string; name: string }) {
@@ -34,19 +39,6 @@ function textureThumb(m: { texture_image?: string | null; texture_color?: string
     )
   }
   return <div className="tile-thumb" style={color ? { backgroundColor: color } : undefined} />
-}
-
-function typeThumb(t: { name: string; image_url?: string; card_image?: string | null }) {
-  const raw = ((t.card_image ?? '') || (t.image_url ?? '')).trim()
-  const img = resolveMediaUrl(raw)
-  if (img) {
-    return (
-      <div className="tile-thumb tile-thumb--profile-type">
-        <img className="tile-thumb-img" src={img} alt={t.name} />
-      </div>
-    )
-  }
-  return <div className="tile-thumb tile-thumb--profile-type" />
 }
 
 export type FrameHingeCatalogProps = {
@@ -66,27 +58,115 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
-  const [createImageFile, setCreateImageFile] = useState<File | null>(null)
-  const cardImageInputRef = useRef<HTMLInputElement>(null)
-  const [createMatQ, setCreateMatQ] = useState('')
+  const [createCardFiles, setCreateCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const hingeCardInputRef0 = useRef<HTMLInputElement>(null)
+  const hingeCardInputRef1 = useRef<HTMLInputElement>(null)
+  const hingeCardInputRef2 = useRef<HTMLInputElement>(null)
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
-  const [createMatPicking, setCreateMatPicking] = useState(false)
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editHingeId, setEditHingeId] = useState<number | null>(null)
   const [editHingeName, setEditHingeName] = useState('')
-  const [editHingeImageFile, setEditHingeImageFile] = useState<File | null>(null)
-  const editHingeImageRef = useRef<HTMLInputElement>(null)
-  const [editHingeMatQ, setEditHingeMatQ] = useState('')
+  const [editCardFiles, setEditCardFiles] = useState<[File | null, File | null, File | null]>([
+    null,
+    null,
+    null,
+  ])
+  const editHingeCardInputRef0 = useRef<HTMLInputElement>(null)
+  const editHingeCardInputRef1 = useRef<HTMLInputElement>(null)
+  const editHingeCardInputRef2 = useRef<HTMLInputElement>(null)
   const [editHingeMatHit, setEditHingeMatHit] = useState<Material[]>([])
-  const [editHingeMatPicking, setEditHingeMatPicking] = useState(false)
   const [editHingeMatIds, setEditHingeMatIds] = useState<Record<number, true>>({})
+
+  const [folderTreeCache, setFolderTreeCache] = useState<MaterialCategory[]>([])
+  const [materialClassesCache, setMaterialClassesCache] = useState<MaterialClass[]>([])
+  const [materialSearchOverlay, setMaterialSearchOverlay] = useState<null | {
+    tree: MaterialCategory[]
+    mclasses: MaterialClass[]
+  }>(null)
+  const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
 
   const [modalSaving, setModalSaving] = useState(false)
 
   const [texByMaterialId, setTexByMaterialId] = useState<
-    Record<number, { texture_color?: string; texture_image?: string | null; name?: string }>
+    Record<
+      number,
+      {
+        texture_mode?: string
+        texture_color?: string
+        texture_image?: string | null
+        texture_library_item_name?: string | null
+        name?: string
+      }
+    >
   >({})
+
+  const closeMaterialSearch = useCallback(() => {
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+  }, [])
+
+  const openMaterialTreeSearch = useCallback(
+    async (target: 'create' | 'edit') => {
+      setErr(null)
+      try {
+        let tree = folderTreeCache
+        let mclasses = materialClassesCache
+        if (tree.length === 0 || mclasses.length === 0) {
+          const [t, mcRes] = await Promise.all([fetchCategoryTree(), fetchMaterialClasses()])
+          tree = t
+          mclasses = mcRes.results ?? []
+          setFolderTreeCache(t)
+          setMaterialClassesCache(mclasses)
+        }
+        materialSearchTargetRef.current = target
+        setMaterialSearchOverlay({ tree, mclasses })
+      } catch (e) {
+        setErr(String(e))
+      }
+    },
+    [folderTreeCache, materialClassesCache],
+  )
+
+  const handleMaterialPickedFromTree = useCallback((materials: Material[]) => {
+    if (materials.length === 0) return
+    const target = materialSearchTargetRef.current
+    materialSearchTargetRef.current = null
+    setMaterialSearchOverlay(null)
+    if (target === 'create') {
+      setCreateMatHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setCreateMatIds((prev) => {
+        const next = { ...prev }
+        for (const m of materials) next[m.id] = true
+        return next
+      })
+    } else if (target === 'edit') {
+      setEditHingeMatHit((prev) => {
+        let next = prev
+        for (let i = materials.length - 1; i >= 0; i--) {
+          const m = materials[i]!
+          if (!next.some((x) => x.id === m.id)) next = [m, ...next]
+        }
+        return next
+      })
+      setEditHingeMatIds((prev) => {
+        const next = { ...prev }
+        for (const m of materials) next[m.id] = true
+        return next
+      })
+    }
+  }, [])
 
   const reload = useCallback(() => {
     setErr(null)
@@ -159,94 +239,113 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, hingeTypes, selectedMaterialId])
 
-  useEffect(() => {
-    if (!createOpen) return
-    const q = createMatQ.trim()
-    const id = window.setTimeout(() => {
-      if (!q) {
-        setCreateMatHit([])
-        return
-      }
-      setCreateMatPicking(true)
-      searchMaterials(q)
-        .then((r) => setCreateMatHit(r.results ?? []))
-        .catch(() => setCreateMatHit([]))
-        .finally(() => setCreateMatPicking(false))
-    }, 250)
-    return () => clearTimeout(id)
-  }, [createMatQ, createOpen])
-
-  useEffect(() => {
-    if (editHingeId == null) return
-    const q = editHingeMatQ.trim()
-    const id = window.setTimeout(() => {
-      if (!q) {
-        setEditHingeMatHit([])
-        return
-      }
-      setEditHingeMatPicking(true)
-      searchMaterials(q)
-        .then((r) => setEditHingeMatHit(r.results ?? []))
-        .catch(() => setEditHingeMatHit([]))
-        .finally(() => setEditHingeMatPicking(false))
-    }, 250)
-    return () => clearTimeout(id)
-  }, [editHingeMatQ, editHingeId])
-
-  const createImagePreview = useMemo(() => {
-    if (!createImageFile) return ''
-    return URL.createObjectURL(createImageFile)
-  }, [createImageFile])
+  const createPreview0 = useMemo(
+    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
+    [createCardFiles[0]],
+  )
+  const createPreview1 = useMemo(
+    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
+    [createCardFiles[1]],
+  )
+  const createPreview2 = useMemo(
+    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
+    [createCardFiles[2]],
+  )
 
   useEffect(() => {
     return () => {
-      if (createImagePreview) URL.revokeObjectURL(createImagePreview)
+      for (const u of [createPreview0, createPreview1, createPreview2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
     }
-  }, [createImagePreview])
-
-  const editHingeImagePreview = useMemo(() => {
-    if (!editHingeImageFile) return ''
-    return URL.createObjectURL(editHingeImageFile)
-  }, [editHingeImageFile])
-
-  useEffect(() => {
-    return () => {
-      if (editHingeImagePreview) URL.revokeObjectURL(editHingeImagePreview)
-    }
-  }, [editHingeImagePreview])
+  }, [createPreview0, createPreview1, createPreview2])
 
   const editingHinge = useMemo(
     () => (editHingeId != null ? hingeTypes.find((p) => p.id === editHingeId) ?? null : null),
-    [editHingeId, hingeTypes]
+    [editHingeId, hingeTypes],
   )
 
-  const editHingeExistingCardUrl = useMemo(() => {
-    if (!editingHinge) return ''
-    return resolveMediaUrl(((editingHinge.card_image ?? '') || (editingHinge.image_url ?? '')).trim())
+  const editHingeSlotExistingResolved = useMemo((): [string, string, string] => {
+    if (!editingHinge) return ['', '', '']
+    const s0 = ((editingHinge.card_image ?? '') || (editingHinge.image_url ?? '')).trim()
+    const s1 = (editingHinge.card_image_2 ?? '').trim()
+    const s2 = (editingHinge.card_image_3 ?? '').trim()
+    return [
+      s0 ? resolveMediaUrl(s0) : '',
+      s1 ? resolveMediaUrl(s1) : '',
+      s2 ? resolveMediaUrl(s2) : '',
+    ]
   }, [editingHinge])
 
+  const editBlob0 = useMemo(
+    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
+    [editCardFiles[0]],
+  )
+  const editBlob1 = useMemo(
+    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
+    [editCardFiles[1]],
+  )
+  const editBlob2 = useMemo(
+    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
+    [editCardFiles[2]],
+  )
+
+  useEffect(() => {
+    return () => {
+      for (const u of [editBlob0, editBlob1, editBlob2]) {
+        if (u) URL.revokeObjectURL(u)
+      }
+    }
+  }, [editBlob0, editBlob1, editBlob2])
+
+  const editHingeCardTileUrls = useMemo((): [string, string, string] => {
+    const blobs: [string, string, string] = [editBlob0, editBlob1, editBlob2]
+    return [
+      editCardFiles[0] ? blobs[0] : editHingeSlotExistingResolved[0] || '',
+      editCardFiles[1] ? blobs[1] : editHingeSlotExistingResolved[1] || '',
+      editCardFiles[2] ? blobs[2] : editHingeSlotExistingResolved[2] || '',
+    ]
+  }, [
+    editBlob0,
+    editBlob1,
+    editBlob2,
+    editCardFiles[0],
+    editCardFiles[1],
+    editCardFiles[2],
+    editHingeSlotExistingResolved,
+  ])
+
   const closeEditHinge = () => {
+    closeMaterialSearch()
     setEditHingeId(null)
     setEditHingeName('')
-    setEditHingeImageFile(null)
-    if (editHingeImageRef.current) editHingeImageRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     setEditHingeMatIds({})
-    setEditHingeMatQ('')
     setEditHingeMatHit([])
   }
 
   const openEditHinge = (t: CalculatorHingeType) => {
+    closeMaterialSearch()
     setCreateOpen(false)
     setErr(null)
     setEditHingeId(t.id)
     setEditHingeName(t.name)
-    setEditHingeImageFile(null)
-    if (editHingeImageRef.current) editHingeImageRef.current.value = ''
+    setEditCardFiles([null, null, null])
+    for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2]) {
+      if (r.current) r.current.value = ''
+    }
     const ids: Record<number, true> = {}
     for (const m of t.materials ?? []) ids[m.material_id] = true
     setEditHingeMatIds(ids)
-    setEditHingeMatQ('')
     setEditHingeMatHit([])
+    void Promise.all(
+      (t.materials ?? []).map((row) => fetchMaterial(row.material_id).catch(() => null)),
+    ).then((rows) => {
+      setEditHingeMatHit(rows.filter((x): x is Material => x != null))
+    })
   }
 
   const submitEditHinge = async () => {
@@ -261,13 +360,16 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     try {
       const materials = Object.keys(editHingeMatIds).map((id) => ({ material_id: Number(id) }))
       let updated: CalculatorHingeType
-      if (editHingeImageFile) {
+      const hasNewCardImages = editCardFiles.some(Boolean)
+      if (hasNewCardImages) {
         const fd = new FormData()
         fd.append('name', name)
         fd.append('is_active', String(t.is_active))
         fd.append('sort_order', String(t.sort_order))
         fd.append('materials', JSON.stringify(materials))
-        fd.append('card_image', editHingeImageFile)
+        if (editCardFiles[0]) fd.append('card_image', editCardFiles[0])
+        if (editCardFiles[1]) fd.append('card_image_2', editCardFiles[1])
+        if (editCardFiles[2]) fd.append('card_image_3', editCardFiles[2])
         updated = await updateCalculatorHingeType(editHingeId, fd)
       } else {
         updated = await updateCalculatorHingeType(editHingeId, {
@@ -298,17 +400,21 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(hingeTypes.length))
       fd.append('materials', JSON.stringify(materials))
-      if (createImageFile) fd.append('card_image', createImageFile)
+      if (createCardFiles[0]) fd.append('card_image', createCardFiles[0])
+      if (createCardFiles[1]) fd.append('card_image_2', createCardFiles[1])
+      if (createCardFiles[2]) fd.append('card_image_3', createCardFiles[2])
       const created = await createCalculatorHingeType(fd)
       setHingeTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateName('')
-      setCreateImageFile(null)
-      if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-      setCreateMatQ('')
+      setCreateCardFiles([null, null, null])
+      for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setCreateMatHit([])
       setCreateMatIds({})
+      closeMaterialSearch()
     } catch (e) {
       setErr(String(e))
     }
@@ -334,22 +440,23 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     if (!hingeTypes.some((p) => p.id === editHingeId)) {
       setEditHingeId(null)
       setEditHingeName('')
-      setEditHingeImageFile(null)
-      if (editHingeImageRef.current) editHingeImageRef.current.value = ''
+      setEditCardFiles([null, null, null])
+      for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2]) {
+        if (r.current) r.current.value = ''
+      }
       setEditHingeMatIds({})
-      setEditHingeMatQ('')
       setEditHingeMatHit([])
     }
   }, [editHingeId, hingeTypes])
 
   const selectedType = useMemo(
     () => hingeTypes.find((p) => p.id === selectedTypeId) ?? null,
-    [hingeTypes, selectedTypeId]
+    [hingeTypes, selectedTypeId],
   )
 
   const modalType = useMemo(
     () => hingeTypes.find((p) => p.id === modalTypeId) ?? null,
-    [hingeTypes, modalTypeId]
+    [hingeTypes, modalTypeId],
   )
 
   useEffect(() => {
@@ -372,8 +479,10 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
         for (const r of rows) {
           if (!r) continue
           next[r.id] = {
-            texture_color: (r.m as any).texture_color,
-            texture_image: (r.m as any).texture_image,
+            texture_mode: r.m.texture_mode,
+            texture_color: r.m.texture_color,
+            texture_image: r.m.texture_image ?? null,
+            texture_library_item_name: r.m.texture_library_item_name ?? null,
             name: r.m.name,
           }
         }
@@ -413,7 +522,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
       {loading && <p className="admin-muted">Загрузка…</p>}
 
       <div className="frame2-card-head">
-        <h4 className="frame2-h4">Типы петель</h4>
+        <h4 className="frame2-h4">Тип петель</h4>
         {!readOnly && (
           <div className="frame2-actions">
             <button
@@ -451,11 +560,13 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                 type="button"
                 className="admin-secondary"
                 onClick={() => {
+                  closeMaterialSearch()
                   setCreateOpen(false)
                   setCreateName('')
-                  setCreateImageFile(null)
-                  if (cardImageInputRef.current) cardImageInputRef.current.value = ''
-                  setCreateMatQ('')
+                  setCreateCardFiles([null, null, null])
+                  for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2]) {
+                    if (r.current) r.current.value = ''
+                  }
                   setCreateMatHit([])
                   setCreateMatIds({})
                 }}
@@ -467,7 +578,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               </button>
             </div>
           </div>
-          <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+          <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
             <div className="frame2-block frame2-create-tl">
               <div className="frame2-block-title">Тип петель</div>
               <input
@@ -478,69 +589,66 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               />
               <div className="frame2-file-row">
                 <div className="frame2-file-label-row">
-                  <label className="frame2-file-label" htmlFor="hinge-type-card-image">
-                    Изображение для карточки
-                  </label>
-                  <HintButton text="Выберите изображение с компьютера. Поддерживаются PNG/JPG/WebP и т.п." />
+                  <span className="frame2-file-label">Изображения для карточки (до 3)</span>
+                  <HintButton text="До трёх фото на один тип петель. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
                 </div>
-                <input
-                  id="hinge-type-card-image"
-                  ref={cardImageInputRef}
-                  className="frame2-file-input frame2-file-input--sr"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setCreateImageFile(e.target.files?.[0] ?? null)}
-                />
+                {(
+                  [
+                    [0, hingeCardInputRef0],
+                    [1, hingeCardInputRef1],
+                    [2, hingeCardInputRef2],
+                  ] as const
+                ).map(([slot, refEl]) => (
+                  <input
+                    key={slot}
+                    id={`hinge-type-card-image-${slot}`}
+                    ref={refEl}
+                    className="frame2-file-input frame2-file-input--sr"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      setCreateCardFiles((prev) => {
+                        const next: [File | null, File | null, File | null] = [...prev]
+                        next[slot] = e.target.files?.[0] ?? null
+                        return next
+                      })
+                    }}
+                  />
+                ))}
               </div>
+              <ProfileCardImageTileRow
+                urls={[createPreview0, createPreview1, createPreview2]}
+                inputRefs={[hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2]}
+                groupAriaLabel="Фото карточки типа петель, до трёх"
+              />
             </div>
+
             <div className="frame2-block frame2-create-tr">
               <div className="frame2-block-title">Материалы (петли)</div>
-              <input
-                className="admin-input"
-                value={createMatQ}
-                onChange={(e) => setCreateMatQ(e.target.value)}
-                placeholder="Поиск материалов…"
-              />
-              {createMatPicking && <p className="admin-muted">Поиск…</p>}
-            </div>
-            <div className="frame2-create-ml">
-              <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+              <div className="frame2-material-search-row">
                 <button
                   type="button"
-                  className="admin-secondary frame2-file-btn"
-                  onClick={() => cardImageInputRef.current?.click()}
+                  className="admin-secondary frame2-material-tree-search-btn"
+                  onClick={() => void openMaterialTreeSearch('create')}
                 >
-                  {createImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                  Поиск
                 </button>
               </div>
-            </div>
-            <div className="frame2-create-mr">
-              <div
-                className={[
-                  'frame2-file-name',
-                  createImageFile ? '' : 'frame2-file-name--empty',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                aria-live="polite"
-              >
-                {createImageFile ? createImageFile.name : 'Файл не выбран'}
-              </div>
-            </div>
-            <div className="frame2-create-bl">
-              {createImagePreview && (
-                <div className="frame2-file-preview frame2-file-preview--cover">
-                  <img src={createImagePreview} alt="" />
+              <div className="frame2-file-row frame2-colors-for-card-label">
+                <div className="frame2-file-label-row">
+                  <span className="frame2-file-label">Материалы для карточки</span>
+                  <HintButton text="Отметьте материалы, которые будут доступны для этого типа петель в калькуляторе. Добавляйте через «Поиск»." />
                 </div>
-              )}
-            </div>
-            <div className="frame2-create-br">
+              </div>
               {createMatHit.length > 0 && (
                 <ul className="frame2-checklist">
                   {createMatHit.map((m) => (
                     <li key={m.id}>
                       <label
-                        className={['frame2-checkrow', createMatIds[m.id] ? 'frame2-checkrow--checked' : '']
+                        className={[
+                          'frame2-checkrow',
+                          createMatIds[m.id] ? 'frame2-checkrow--checked' : '',
+                        ]
                           .filter(Boolean)
                           .join(' ')}
                         title={matLabel(m)}
@@ -558,9 +666,13 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                           }
                         />
                         <span className="frame2-check-article">{m.article || '—'}</span>
-                        <MaterialCheckSwatch name={m.name} material={m} texExtra={texByMaterialId[m.id]} />
+                        <MaterialCheckSwatch
+                          name={materialTextureLabel(m)}
+                          material={m}
+                          texExtra={texByMaterialId[m.id]}
+                        />
                         <span className="frame2-check-name-wrap">
-                          <span className="frame2-check-name">{m.name}</span>
+                          <span className="frame2-check-name">{materialTextureLabel(m)}</span>
                         </span>
                       </label>
                     </li>
@@ -588,7 +700,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               </button>
             </div>
           </div>
-          <div className="frame2-create-grid frame2-create-grid--file-status-pair">
+          <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
             <div className="frame2-block frame2-create-tl">
               <div className="frame2-block-title">Тип петель</div>
               <input
@@ -599,69 +711,66 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               />
               <div className="frame2-file-row">
                 <div className="frame2-file-label-row">
-                  <label className="frame2-file-label" htmlFor="hinge-type-card-image-edit">
-                    Новое изображение (необязательно)
-                  </label>
-                  <HintButton text="Оставьте пустым, чтобы сохранить текущую картинку." />
+                  <span className="frame2-file-label">Карточка: до 3 фото</span>
+                  <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                 </div>
-                <input
-                  id="hinge-type-card-image-edit"
-                  ref={editHingeImageRef}
-                  className="frame2-file-input frame2-file-input--sr"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setEditHingeImageFile(e.target.files?.[0] ?? null)}
-                />
+                {(
+                  [
+                    [0, editHingeCardInputRef0],
+                    [1, editHingeCardInputRef1],
+                    [2, editHingeCardInputRef2],
+                  ] as const
+                ).map(([slot, refEl]) => (
+                  <input
+                    key={slot}
+                    id={`hinge-type-card-image-edit-${slot}`}
+                    ref={refEl}
+                    className="frame2-file-input frame2-file-input--sr"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      setEditCardFiles((prev) => {
+                        const next: [File | null, File | null, File | null] = [...prev]
+                        next[slot] = e.target.files?.[0] ?? null
+                        return next
+                      })
+                    }}
+                  />
+                ))}
               </div>
+              <ProfileCardImageTileRow
+                urls={editHingeCardTileUrls}
+                inputRefs={[editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2]}
+                groupAriaLabel="Фото карточки типа петель, до трёх"
+              />
             </div>
+
             <div className="frame2-block frame2-create-tr">
               <div className="frame2-block-title">Материалы</div>
-              <input
-                className="admin-input"
-                value={editHingeMatQ}
-                onChange={(e) => setEditHingeMatQ(e.target.value)}
-                placeholder="Поиск материалов…"
-              />
-              {editHingeMatPicking && <p className="admin-muted">Поиск…</p>}
-            </div>
-            <div className="frame2-create-ml">
-              <div className="frame2-file-picker-row frame2-file-picker-row--solo">
+              <div className="frame2-material-search-row">
                 <button
                   type="button"
-                  className="admin-secondary frame2-file-btn"
-                  onClick={() => editHingeImageRef.current?.click()}
+                  className="admin-secondary frame2-material-tree-search-btn"
+                  onClick={() => void openMaterialTreeSearch('edit')}
                 >
-                  {editHingeImageFile ? 'Изменить файл…' : 'Выбрать файл…'}
+                  Поиск
                 </button>
               </div>
-            </div>
-            <div className="frame2-create-mr">
-              <div
-                className={[
-                  'frame2-file-name',
-                  editHingeImageFile ? '' : 'frame2-file-name--empty',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                aria-live="polite"
-              >
-                {editHingeImageFile ? editHingeImageFile.name : 'Файл не выбран'}
-              </div>
-            </div>
-            <div className="frame2-create-bl">
-              {(editHingeImagePreview || editHingeExistingCardUrl) && (
-                <div className="frame2-file-preview frame2-file-preview--cover">
-                  <img src={editHingeImagePreview || editHingeExistingCardUrl} alt="" />
+              <div className="frame2-file-row frame2-colors-for-card-label">
+                <div className="frame2-file-label-row">
+                  <span className="frame2-file-label">Материалы для карточки</span>
+                  <HintButton text="Отметьте материалы, которые будут доступны для этого типа петель в калькуляторе. Добавляйте через «Поиск»." />
                 </div>
-              )}
-            </div>
-            <div className="frame2-create-br">
+              </div>
               {editHingeMatHit.length > 0 && (
                 <ul className="frame2-checklist">
                   {editHingeMatHit.map((m) => (
                     <li key={m.id}>
                       <label
-                        className={['frame2-checkrow', editHingeMatIds[m.id] ? 'frame2-checkrow--checked' : '']
+                        className={[
+                          'frame2-checkrow',
+                          editHingeMatIds[m.id] ? 'frame2-checkrow--checked' : '',
+                        ]
                           .filter(Boolean)
                           .join(' ')}
                         title={matLabel(m)}
@@ -679,9 +788,13 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                           }
                         />
                         <span className="frame2-check-article">{m.article || '—'}</span>
-                        <MaterialCheckSwatch name={m.name} material={m} texExtra={texByMaterialId[m.id]} />
+                        <MaterialCheckSwatch
+                          name={materialTextureLabel(m)}
+                          material={m}
+                          texExtra={texByMaterialId[m.id]}
+                        />
                         <span className="frame2-check-name-wrap">
-                          <span className="frame2-check-name">{m.name}</span>
+                          <span className="frame2-check-name">{materialTextureLabel(m)}</span>
                         </span>
                       </label>
                     </li>
@@ -696,7 +809,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
         </div>
       )}
 
-      <div className="tiles" aria-label="Типы петель">
+      <div className="tiles" aria-label="Тип петель">
         {hingeTypes.length === 0 && !loading && <p className="admin-muted">Типов петель пока нет.</p>}
         {hingeTypes.map((t) => {
           const title = t.name || `Тип #${t.id}`
@@ -712,7 +825,13 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                 }}
                 title={title}
               >
-                {typeThumb({ name: title, image_url: t.image_url, card_image: t.card_image })}
+                <CalculatorCardTileStriped
+                  title={title}
+                  versionKey={t.id}
+                  slot0={((t.card_image ?? '') || (t.image_url ?? '')).trim()}
+                  slot1={(t.card_image_2 ?? '').trim()}
+                  slot2={(t.card_image_3 ?? '').trim()}
+                />
                 <div className="tile-title">{title}</div>
                 <div className="tile-sub">Материалов: {(t.materials ?? []).length}</div>
               </button>
@@ -821,6 +940,15 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
             )}
           </div>
         </div>
+      )}
+
+      {materialSearchOverlay && (
+        <MaterialSearchModal
+          tree={materialSearchOverlay.tree}
+          mclasses={materialSearchOverlay.mclasses}
+          onClose={closeMaterialSearch}
+          onPick={handleMaterialPickedFromTree}
+        />
       )}
     </>
   )

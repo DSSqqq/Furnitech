@@ -150,12 +150,14 @@ export function Step3FrameSizes() {
   return (
     <div className="frame3">
       <section className="frame3-left calc-side-panel">
-        <div className="frame3-title">Задать габаритные размеры</div>
-        <div className="frame3-sub">Укажите габаритные размеры фасада</div>
+        <div className="frame3-title" role="heading" aria-level={3}>
+          Укажите габаритные размеры
+        </div>
 
         {err && <div className="admin-error" style={{ margin: '0.75rem 0 0' }}>{err}</div>}
         {loading && <p className="admin-muted" style={{ margin: '0.75rem 0 0' }}>Загрузка…</p>}
 
+        <div className="calc-side-panel-scroll">
         <div className="frame3-grid">
           <label className="frame3-field">
             <div className="frame3-label">Высота фасада (мм)</div>
@@ -219,6 +221,7 @@ export function Step3FrameSizes() {
           <div className="frame3-limits-row">
             Максимальные размеры: {limits.maxH || '—'}×{limits.maxW || '—'} мм.
           </div>
+        </div>
         </div>
 
         <div className="frame2-card-nav">

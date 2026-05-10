@@ -10,7 +10,7 @@ type Props = {
   onCreate: (parentId: number | null, name: string) => Promise<void>
 }
 
-const ROOT_LABEL = 'Все папки (корень)'
+const ROOT_LABEL = 'Все папки'
 
 function findInTree(nodes: MaterialCategory[], id: number): MaterialCategory | null {
   for (const n of nodes) {

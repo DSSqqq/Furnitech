@@ -215,12 +215,26 @@ a.calc-step-tab.calc-step-tab--active:visited {
   margin-bottom: 0.65rem;
 }
 
-/* Одна и та же «левая» высота панели на шагах; при переполнении — прокрутка внутри */
+/* Одна и та же «левая» высота панели: шапка и подвал фиксированы, прокрутка только середины */
 .calc-side-panel {
   box-sizing: border-box;
   --calc-side-h: min(520px, max(300px, calc(100dvh - 14rem)));
   height: var(--calc-side-h);
   max-height: var(--calc-side-h);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow-x: hidden;
+}
+
+.calc-side-panel > *:not(.calc-side-panel-scroll) {
+  flex-shrink: 0;
+}
+
+.calc-side-panel-scroll {
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;

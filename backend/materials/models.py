@@ -246,15 +246,6 @@ class Material(models.Model):
         default=Decimal("0"),
         validators=[MinValueValidator(Decimal("0"))],
     )
-    designation = models.CharField("Обозначение", max_length=255, blank=True)
-    cut_coeff = models.DecimalField(
-        "Коэф. с учётом раскроя",
-        max_digits=18,
-        decimal_places=6,
-        default=Decimal("1"),
-        validators=[MinValueValidator(Decimal("0"))],
-    )
-    calc_type = models.CharField("Тип (калькулятор)", max_length=32, default="tape")
 
     # Вкладка «Параметры текстуры» (задел для калькулятора/эскиза).
     texture_mode = models.CharField(
@@ -502,6 +493,20 @@ class CalculatorProfileType(models.Model):
         null=True,
         blank=True,
     )
+    card_image_2 = models.ImageField(
+        "Картинка 2 (файл)",
+        upload_to="profile_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_image_3 = models.ImageField(
+        "Картинка 3 (файл)",
+        upload_to="profile_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField("Активен", default=True)
     sort_order = models.PositiveIntegerField("Порядок", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -569,6 +574,20 @@ class CalculatorFillingType(models.Model):
         null=True,
         blank=True,
     )
+    card_image_2 = models.ImageField(
+        "Картинка 2 (файл)",
+        upload_to="filling_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_image_3 = models.ImageField(
+        "Картинка 3 (файл)",
+        upload_to="filling_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField("Активен", default=True)
     sort_order = models.PositiveIntegerField("Порядок", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -628,6 +647,20 @@ class CalculatorHingeType(models.Model):
     )
     card_image = models.ImageField(
         "Картинка (файл)",
+        upload_to="hinge_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_image_2 = models.ImageField(
+        "Картинка 2 (файл)",
+        upload_to="hinge_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_image_3 = models.ImageField(
+        "Картинка 3 (файл)",
         upload_to="hinge_types/",
         max_length=300,
         null=True,

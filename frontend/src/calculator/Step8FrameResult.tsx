@@ -483,14 +483,14 @@ export function Step8FrameResult() {
   return (
     <>
     <div className="frame2 step8-result">
-      <section className="step8-result__contact frame2-card">
-        <p className="frame3-step-kicker step8-result__kicker">Шаг 8</p>
-        <h3 className="frame3-title step8-result__title">Итог</h3>
+      <section className="step8-result__contact frame2-card calc-side-panel">
+        <h3 className="frame3-title">Итог</h3>
         <p className="frame3-sub">
           Проверьте детали и ориентировочную стоимость. Отправьте заявку менеджеру или сохраните расчёт для печати.
         </p>
 
-        <form className="step8-form" onSubmit={onSubmitManager}>
+        <div className="calc-side-panel-scroll">
+        <form id="step8-contact-form" className="step8-form" onSubmit={onSubmitManager}>
           <div className="step8-form__head">Контактные данные</div>
           <label className="frame3-field">
             <span className="frame3-label">
@@ -545,13 +545,21 @@ export function Step8FrameResult() {
             />
           </label>
           {sendHint ? <p className="step8-form__hint">{sendHint}</p> : null}
-          <div className="step8-form__actions">
+        </form>
+        </div>
+
+        <div className="frame2-card-nav step8-result__nav">
+          <button type="button" className="admin-secondary" onClick={() => nav(step('frame/handle-holes'))}>
+            ← Назад
+          </button>
+          <div className="step8-result__nav-end">
             <button
               type="submit"
+              form="step8-contact-form"
               className="admin-primary step8-form__submit"
               disabled={submitToManagerDisabled}
             >
-              {submitBusy ? 'Отправка…' : 'Отправить менеджеру'}
+              {submitBusy ? 'Отправка…' : 'Отправить'}
             </button>
             <button
               type="button"
@@ -559,15 +567,9 @@ export function Step8FrameResult() {
               disabled={pdfBusy}
               onClick={() => void onOpenClientPdfInNewTab()}
             >
-              {pdfBusy ? 'Формируем PDF…' : 'Открыть PDF…'}
+              {pdfBusy ? 'Формируем PDF' : 'Открыть PDF'}
             </button>
           </div>
-        </form>
-
-        <div className="frame2-card-nav step8-result__nav">
-          <button type="button" className="admin-secondary" onClick={() => nav(step('frame/handle-holes'))}>
-            ← Назад
-          </button>
         </div>
       </section>
 
@@ -657,7 +659,7 @@ export function Step8FrameResult() {
 
           <div className="step8-result__footer-actions">
           <button type="button" className="admin-primary" onClick={() => nav(step('frame'))}>
-            Добавить ещё фасад или полку
+            Добавить фасад
           </button>
           <button type="button" className="admin-primary" onClick={onNewCalc}>
             Новый расчёт
@@ -683,8 +685,8 @@ export function Step8FrameResult() {
               </h4>
               <p className="admin-modal-text">
                 Чтобы отправить заявку менеджеру и получить заказ в «Мои заказы», нужен аккаунт клиента.
-                Войдите или зарегистрируйтесь — после входа вернитесь к этому шагу и нажмите «Отправить
-                менеджеру» снова.
+                Войдите или зарегистрируйтесь — после входа вернитесь к этому шагу и нажмите «Отправить»
+                снова.
               </p>
               <div className="admin-modal-actions">
                 <button type="button" className="admin-secondary" onClick={closeAuthWallModal}>

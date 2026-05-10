@@ -73,9 +73,6 @@ export type Material = {
   max_length?: string
   min_width?: string
   max_width?: string
-  designation?: string
-  cut_coeff?: string
-  calc_type?: string
   /** Текстура/цвет (параметры отображения в будущих эскизах). */
   texture_mode?: 'color' | 'texture' | string
   texture_color?: string
@@ -113,6 +110,8 @@ export type CalculatorProfileColorDto = {
     texture_mode?: 'color' | 'texture' | string
     texture_color?: string
     texture_image?: string | null
+    texture_library_item?: number | null
+    texture_library_item_name?: string | null
   }
 }
 
@@ -129,6 +128,8 @@ export type CalculatorProfile = {
     texture_mode?: 'color' | 'texture' | string
     texture_color?: string
     texture_image?: string | null
+    texture_library_item?: number | null
+    texture_library_item_name?: string | null
   } | null
   is_active: boolean
   sort_order: number
@@ -150,6 +151,8 @@ export type CalculatorProfileTypeColorDto = {
     texture_mode?: 'color' | 'texture' | string
     texture_color?: string
     texture_image?: string | null
+    texture_library_item?: number | null
+    texture_library_item_name?: string | null
   }
   is_new: boolean
   is_hit: boolean
@@ -162,6 +165,8 @@ export type CalculatorProfileType = {
   image_url: string
   /** Загруженный файл (URL с бэкенда, обычно /media/...) */
   card_image?: string | null
+  card_image_2?: string | null
+  card_image_3?: string | null
   is_active: boolean
   sort_order: number
   colors: CalculatorProfileTypeColorDto[]
@@ -182,6 +187,8 @@ export type CalculatorFillingTypeMaterialDto = {
     texture_mode?: 'color' | 'texture' | string
     texture_color?: string
     texture_image?: string | null
+    texture_library_item?: number | null
+    texture_library_item_name?: string | null
   }
 }
 
@@ -190,6 +197,8 @@ export type CalculatorFillingType = {
   name: string
   image_url: string
   card_image?: string | null
+  card_image_2?: string | null
+  card_image_3?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorFillingTypeMaterialDto[]
@@ -204,6 +213,8 @@ export type CalculatorHingeType = {
   name: string
   image_url: string
   card_image?: string | null
+  card_image_2?: string | null
+  card_image_3?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorHingeTypeMaterialDto[]
