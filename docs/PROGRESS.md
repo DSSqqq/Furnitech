@@ -1,6 +1,6 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-11 (деплой: пошаговый сценарий в [DEPLOY.md](DEPLOY.md); `runtime.txt`, health check в `render.yaml`, безопасный импорт `dj-database-url`, `scripts/generate_django_secret.py`)
+**Последнее обновление:** 2026-05-11 (деплой: GitHub заказчика, free tier, MCP — раздел в [DEPLOY.md](DEPLOY.md))
 
 ### Изменения 2026-05-10 (импорт/экспорт — переименование)
 
