@@ -203,3 +203,10 @@ SIMPLE_JWT = {
 
 _cors = os.environ.get("CORS_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173")
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors.split(",") if o.strip()]
+
+# Опционально: любой хост *.vercel.app (превью/деплой без перечисления каждого URL).
+# Свой домен на Vercel всё равно добавьте в CORS_ALLOWED_ORIGINS явно.
+if os.environ.get("CORS_ALLOW_VERCEL", "").lower() in ("1", "true", "yes"):
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://[a-zA-Z0-9\-]+\.vercel\.app$",
+    ]

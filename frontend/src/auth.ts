@@ -46,12 +46,20 @@ export async function refreshAccessToken(): Promise<boolean> {
   return true
 }
 
+const NETWORK_HINT =
+  'Не удалось связаться с сервером. Если открыт сайт с Vercel: в Render добавьте в CORS_ALLOWED_ORIGINS и DJANGO_CSRF_TRUSTED_ORIGINS точный адрес фронта (https://…, без слэша в конце) и перезапустите бэкенд. Либо задайте CORS_ALLOW_VERCEL=true. На бесплатном Render первый запрос после сна может занять ~минуту.'
+
 export async function loginRequest(username: string, password: string) {
-  const r = await fetch(apiUrl('/api/auth/token/'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
+  let r: Response
+  try {
+    r = await fetch(apiUrl('/api/auth/token/'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+  } catch {
+    throw new Error(NETWORK_HINT)
+  }
   if (!r.ok) {
     let msg = r.statusText
     const raw = await r.text().catch(() => '')
