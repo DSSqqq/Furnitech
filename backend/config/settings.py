@@ -92,11 +92,19 @@ if _database_url:
             "Задан DATABASE_URL, но не установлен пакет dj-database-url. "
             "Выполните: pip install -r requirements.txt"
         )
-    DATABASES["default"] = dj_database_url.parse(
-        _database_url,
-        conn_max_age=int(os.environ.get("DATABASE_CONN_MAX_AGE", "600")),
-        conn_health_checks=True,
-    )
+    try:
+        DATABASES["default"] = dj_database_url.parse(
+            _database_url,
+            conn_max_age=int(os.environ.get("DATABASE_CONN_MAX_AGE", "600")),
+            conn_health_checks=True,
+        )
+    except dj_database_url.ParseError as exc:
+        raise RuntimeError(
+            "DATABASE_URL не удалось разобрать (часто пароль БД содержит @, #, %, :, + и т.п. "
+            "без URL-кодирования). Закодируйте только пароль: "
+            "py scripts/quote_pg_password_for_url.py \"ВАШ_ПАРОЛЬ\" "
+            "и вставьте вывод в URI между ':' и '@'. Подробнее: docs/DEPLOY.md (ParseError)."
+        ) from exc
     engine = DATABASES["default"].get("ENGINE", "")
     if "postgresql" in engine:
         if os.environ.get("DATABASE_PGBOUNCER", "").lower() in ("1", "true", "yes"):

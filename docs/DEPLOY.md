@@ -55,6 +55,20 @@
    `from urllib.parse import quote; quote("ваш_пароль", safe="")`
 4. Нигде в git не сохраняйте полную строку — только в **Environment** на Render.
 
+#### Ошибка на Render: `dj_database_url.ParseError` / «not a valid url»
+
+Supabase копирует пароль в URI как есть. Если в пароле есть **`@` `#` `%` `:` `+`** и другие спецсимволы, **`dj-database-url`** не сможет разобрать строку.
+
+**Что сделать:** закодируйте **только пароль** (не весь URI):
+
+```text
+py scripts/quote_pg_password_for_url.py "ваш_сырой_пароль_из_Supabase"
+```
+
+Подставьте **вывод команды** в `DATABASE_URL` на место пароля (между последним `:` перед хостом и символом `@`).
+
+Пример: было `postgresql://postgres.abc:pa@ss#word@host...` → пароль заменить на результат `quote`, например `pa%40ss%23word`.
+
 ### Шаг 2 — Render (бэкенд)
 
 1. **New → Blueprint** (укажите репозиторий с файлом `render.yaml`) **или** **Web Service** вручную с командами из раздела ниже.
