@@ -334,6 +334,10 @@ npm run dev
 
 `backend/.env` — CORS, `DEBUG`, `SECRET_KEY`, **`DJANGO_ALLOWED_HOSTS`** и т.д.
 
+## Git: несколько удалённых репозиториев
+
+В типичном клоне два **remote**: **`origin`** (основная разработка, чаще HTTPS) и **`customer`** (копия для заказчика, отдельный GitHub-аккаунт). Пуши выполняются **раздельно**: `git push origin main` и `git push customer main` (или алиасы **`push-mine`** / **`push-customer`** в `.git/config` этого репо). У **`customer`** при двух аккаунтах на одном ПК удобен SSH с псевдонимом хоста в `~/.ssh/config` (например **`github.com-furnitech`**) и отдельным ключом; подробности и предупреждение про **`git branch --set-upstream-to=origin/main main`** — в [README.md](../README.md). Подсказки агенту в Cursor: «запуш в origin» / «запуш в customer».
+
 ## Handoff
 
 `py scripts/furnitech_status.py` — шапки документов. Актуальное состояние и чеклист: [PROGRESS.md](PROGRESS.md). План продукта: [PLAN.md](PLAN.md).

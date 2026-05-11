@@ -63,6 +63,23 @@
 
 Подробные таблицы API, правил удаления папок, **артикула** и **`is_active`**, вёрстки и UI — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); **текущий прогресс и чеклист** — в [docs/PROGRESS.md](docs/PROGRESS.md).
 
+## Git: основной репозиторий и копия для заказчика
+
+В клоне настроены **два remote**; выкладка — **отдельными командами** (не один общий «пуш во всё сразу»):
+
+| Remote | Назначение | Пример |
+|--------|------------|--------|
+| **`origin`** | Основной репозиторий (HTTPS, ваш аккаунт) | `git push origin main` |
+| **`customer`** | Репозиторий заказчика (**`furnitechdev-maker/Furnitech_Calc`**), SSH с **отдельным ключом** | `git push customer main` |
+
+В этом репозитории заданы алиасы (см. `.git/config`): **`git push-mine`** → `git push origin HEAD`, **`git push-customer`** → `git push customer HEAD`.
+
+Для второго аккаунта GitHub на Windows: в **`%USERPROFILE%\.ssh\config`** — псевдоним хоста **`github.com-furnitech`** (`HostName github.com`, свой `IdentityFile`), а у **`customer`** URL вида `git@github.com-furnitech:furnitechdev-maker/Furnitech_Calc.git`. Проверка: `ssh -T git@github.com-furnitech`.
+
+Если после **`git push -u customer …`** ветка **`main`** начала отслеживать **`customer`** и **`git pull`** тянет не тот репозиторий, верните привязку: **`git branch --set-upstream-to=origin/main main`**.
+
+В Cursor можно явно попросить агента: «запуш в **origin**» или «запуш в **customer**».
+
 ## UI / дизайн (тёмная тема + дерево)
 
 Во фронтенде внедрена единая дизайн‑система в стиле «тёмный премиум» (чёрный фон + золотой акцент) + текстура дерева на заднем плане.

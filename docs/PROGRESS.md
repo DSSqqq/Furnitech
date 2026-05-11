@@ -1,6 +1,6 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-10 (импорт/экспорт каталога материалов: нейтральные имена в API и коде)
+**Последнее обновление:** 2026-05-10 (импорт/экспорт каталога материалов; документация про **два remote** — `origin` и `customer`)
 
 ### Изменения 2026-05-10 (импорт/экспорт — переименование)
 
@@ -450,6 +450,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 - **Миграция `0021`:** после обновления кода выполнить `py backend\manage.py migrate` (поля сопутствующих).
 - **Миграции `0038`–`0039`:** снимок строки таблицы импорта/экспорта на карточке материала — **`modus_snapshot`** → **`import_export_snapshot`**; без **`migrate`** возможны 500 при обращении к **`Material`**. См. **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
 - **Миграция `0032`:** удаление модели операций у материала — выполнить `migrate`.
+- **Два remote (`origin` + `customer`):** основной репозиторий и копия для заказчика — пуши **отдельно** (`git push origin main`, `git push customer main` или **`git push-mine`** / **`git push-customer`**). SSH для заказчика: псевдоним **`github.com-furnitech`** в `~/.ssh/config`. Если **`git push -u customer`** сбил отслеживание **`main`**, выполнить **`git branch --set-upstream-to=origin/main main`**. Сводка в [README.md](../README.md) и [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Ручная проверка расчёта (сопутствующие)
 
