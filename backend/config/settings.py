@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -84,27 +85,63 @@ DATABASES = {
     }
 }
 
-# Supabase / Render: задайте DATABASE_URL (PostgreSQL). Пулер Supabase (порт 6543): см. DEPLOY.md.
-_database_url = os.environ.get("DATABASE_URL", "").strip()
-if _database_url:
+
+def _postgres_url_from_discrete_env() -> str | None:
+    """Собрать URI без ручного quote пароля (удобно для Render: отдельные секреты)."""
+    host = (os.environ.get("DATABASE_HOST") or os.environ.get("PGHOST") or "").strip()
+    if not host:
+        return None
+    user = (os.environ.get("DATABASE_USER") or os.environ.get("PGUSER") or "postgres").strip()
+    password = os.environ.get("DATABASE_PASSWORD") or os.environ.get("PGPASSWORD") or ""
+    port = (os.environ.get("DATABASE_PORT") or os.environ.get("PGPORT") or "5432").strip()
+    dbname = (os.environ.get("DATABASE_NAME") or os.environ.get("PGDATABASE") or "postgres").strip()
+    base = (
+        f"postgresql://{quote(user, safe='')}:{quote(password, safe='')}"
+        f"@{host}:{port}/{dbname}"
+    )
+    if "supabase" in host.lower():
+        base += "?sslmode=require"
+    elif os.environ.get("DATABASE_SSLMODE", "").strip().lower() in ("require", "1", "true", "yes"):
+        base += "?sslmode=require"
+    return base
+
+
+# Supabase / Render: DATABASE_URL **или** отдельные переменные (см. DEPLOY.md).
+_raw_database_url = os.environ.get("DATABASE_URL", "").strip()
+_parts_database_url = _postgres_url_from_discrete_env()
+_database_url_candidates: list[str] = []
+if _raw_database_url:
+    _database_url_candidates.append(_raw_database_url)
+if _parts_database_url and _parts_database_url not in _database_url_candidates:
+    _database_url_candidates.append(_parts_database_url)
+
+if _database_url_candidates:
     if dj_database_url is None:
         raise ImportError(
-            "Задан DATABASE_URL, но не установлен пакет dj-database-url. "
+            "Задана конфигурация PostgreSQL, но не установлен пакет dj-database-url. "
             "Выполните: pip install -r requirements.txt"
         )
-    try:
-        DATABASES["default"] = dj_database_url.parse(
-            _database_url,
-            conn_max_age=int(os.environ.get("DATABASE_CONN_MAX_AGE", "600")),
-            conn_health_checks=True,
-        )
-    except dj_database_url.ParseError as exc:
+    _last_parse_error: BaseException | None = None
+    for _candidate in _database_url_candidates:
+        try:
+            DATABASES["default"] = dj_database_url.parse(
+                _candidate,
+                conn_max_age=int(os.environ.get("DATABASE_CONN_MAX_AGE", "600")),
+                conn_health_checks=True,
+            )
+            _last_parse_error = None
+            break
+        except dj_database_url.ParseError as exc:
+            _last_parse_error = exc
+    if _last_parse_error is not None:
         raise RuntimeError(
-            "DATABASE_URL не удалось разобрать (часто пароль БД содержит @, #, %, :, + и т.п. "
-            "без URL-кодирования). Закодируйте только пароль: "
-            "py scripts/quote_pg_password_for_url.py \"ВАШ_ПАРОЛЬ\" "
-            "и вставьте вывод в URI между ':' и '@'. Подробнее: docs/DEPLOY.md (ParseError)."
-        ) from exc
+            "Не удалось разобрать строку подключения к Postgres (ParseError). "
+            "Варианты: (1) Закодируйте пароль в URI: "
+            "py scripts/quote_pg_password_for_url.py \"ПАРОЛЬ\" — см. docs/DEPLOY.md. "
+            "(2) Удалите неверный DATABASE_URL и задайте на Render отдельно: "
+            "DATABASE_HOST, DATABASE_USER, DATABASE_PASSWORD, DATABASE_PORT, DATABASE_NAME "
+            "(пароль можно вставлять как есть)."
+        ) from _last_parse_error
     engine = DATABASES["default"].get("ENGINE", "")
     if "postgresql" in engine:
         if os.environ.get("DATABASE_PGBOUNCER", "").lower() in ("1", "true", "yes"):

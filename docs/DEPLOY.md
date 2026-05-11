@@ -69,6 +69,18 @@ py scripts/quote_pg_password_for_url.py "ваш_сырой_пароль_из_Sup
 
 Пример: было `postgresql://postgres.abc:pa@ss#word@host...` → пароль заменить на результат `quote`, например `pa%40ss%23word`.
 
+**Проще на Render:** не используйте `DATABASE_URL`, а задайте **отдельные** переменные (пароль копируется из Supabase **без** ручного кодирования):
+
+| Переменная | Пример |
+|------------|--------|
+| `DATABASE_HOST` | `db.xxxxx.supabase.co` (из Supabase, вкладка Database) |
+| `DATABASE_PORT` | `5432` (direct) или `6543` (pooler — тогда ещё `DATABASE_PGBOUNCER=true`) |
+| `DATABASE_USER` | часто `postgres` или `postgres.xxxxx` |
+| `DATABASE_PASSWORD` | пароль проекта |
+| `DATABASE_NAME` | обычно `postgres` |
+
+При хосте с `supabase` в имени к строке автоматически добавляется `sslmode=require`. Переменную **`DATABASE_URL`** в этом случае **удалите** или оставьте пустой, чтобы не мешала.
+
 ### Шаг 2 — Render (бэкенд)
 
 1. **New → Blueprint** (укажите репозиторий с файлом `render.yaml`) **или** **Web Service** вручную с командами из раздела ниже.
