@@ -1,3 +1,5 @@
+import { apiUrl } from './apiBase'
+
 const KEY_ACCESS = 'furnitech_access'
 const KEY_REFRESH = 'furnitech_refresh'
 
@@ -30,7 +32,7 @@ export type Me = {
 export async function refreshAccessToken(): Promise<boolean> {
   const ref = localStorage.getItem(KEY_REFRESH)
   if (!ref) return false
-  const r = await fetch('/api/auth/token/refresh/', {
+  const r = await fetch(apiUrl('/api/auth/token/refresh/'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh: ref }),
@@ -45,7 +47,7 @@ export async function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function loginRequest(username: string, password: string) {
-  const r = await fetch('/api/auth/token/', {
+  const r = await fetch(apiUrl('/api/auth/token/'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
@@ -78,7 +80,7 @@ export function login(username: string, password: string) {
 export async function fetchMe(): Promise<Me | null> {
   const read = async (token: string | null) => {
     if (!token) return null
-    const r = await fetch('/api/auth/me/', { headers: { Authorization: `Bearer ${token}` } })
+    const r = await fetch(apiUrl('/api/auth/me/'), { headers: { Authorization: `Bearer ${token}` } })
     if (!r.ok) return null
     return r.json() as Promise<Me>
   }

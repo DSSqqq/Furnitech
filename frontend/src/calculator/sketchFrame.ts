@@ -1,13 +1,18 @@
 import type { CSSProperties } from 'react'
 
-/** URL медиа с учётом dev (Vite :5173 → backend :8000 для /media/). */
+import { API_ORIGIN, apiUrl } from '../apiBase'
+
+/** URL медиа: production — префикс бэкенда (`VITE_API_ORIGIN`); dev на :5173 — прокси или прямой :8000. */
 export function resolveMediaUrl(url: string) {
   const u = url.trim()
   if (!u) return ''
   if (u.startsWith('http://') || u.startsWith('https://')) return u
   if (u.startsWith('data:')) return u
-  if (u.startsWith('/media/') && window.location.origin.includes(':5173')) {
-    return `http://127.0.0.1:8000${u}`
+  if (u.startsWith('/media/')) {
+    if (API_ORIGIN) return apiUrl(u)
+    if (typeof window !== 'undefined' && window.location.origin.includes(':5173')) {
+      return `http://127.0.0.1:8000${u}`
+    }
   }
   return u
 }

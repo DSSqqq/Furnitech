@@ -12,6 +12,7 @@ import type {
   UnitOfMeasure,
 } from './types'
 import { getAccessToken, refreshAccessToken } from './auth'
+import { apiUrl } from './apiBase'
 
 const FIELD_LABELS: Record<string, string> = {
   article: 'Артикул',
@@ -84,6 +85,9 @@ async function parseJsonError(r: Response): Promise<never> {
 }
 
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const resolved: RequestInfo | URL =
+    typeof input === 'string' ? apiUrl(input) : input instanceof URL ? input : input
+
   const withAuth = async (token: string | null) => {
     const h = new Headers(init.headers)
     const isForm = typeof FormData !== 'undefined' && init.body instanceof FormData
@@ -91,7 +95,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
       h.set('Content-Type', h.get('Content-Type') || 'application/json')
     }
     if (token) h.set('Authorization', `Bearer ${token}`)
-    return fetch(input, { ...init, headers: h })
+    return fetch(resolved, { ...init, headers: h })
   }
   let acc = getAccessToken()
   if (!acc) await refreshAccessToken()
@@ -610,7 +614,7 @@ export function deleteFacadeOrder(id: number) {
 
 /** Публичная регистрация (без JWT). */
 export async function registerAccount(body: { username: string; password: string; email?: string }) {
-  const r = await fetch('/api/auth/register/', {
+  const r = await fetch(apiUrl('/api/auth/register/'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

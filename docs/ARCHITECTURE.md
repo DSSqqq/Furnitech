@@ -21,7 +21,7 @@
 Furnitech/
   backend/          # проект `config/`, приложение `materials/`, `manage.py`
   frontend/         # Vite SPA, `src/` — см. [PROGRESS](PROGRESS.md)
-  docs/             # PLAN, PROGRESS, ARCHITECTURE, MATERIALS_IMPORT_EXPORT
+  docs/             # PLAN, PROGRESS, ARCHITECTURE, MATERIALS_IMPORT_EXPORT, DEPLOY
   scripts/          # furnitech_status.py
   .venv/            # venv (локально, не в git)
 ```
@@ -337,6 +337,10 @@ npm run dev
 ## Git: несколько удалённых репозиториев
 
 В типичном клоне два **remote**: **`origin`** (основная разработка, чаще HTTPS) и **`customer`** (копия для заказчика, отдельный GitHub-аккаунт). Пуши выполняются **раздельно**: `git push origin main` и `git push customer main` (или алиасы **`push-mine`** / **`push-customer`** в `.git/config` этого репо). У **`customer`** при двух аккаунтах на одном ПК удобен SSH с псевдонимом хоста в `~/.ssh/config` (например **`github.com-furnitech`**) и отдельным ключом; подробности и предупреждение про **`git branch --set-upstream-to=origin/main main`** — в [README.md](../README.md). Подсказки агенту в Cursor: «запуш в origin» / «запуш в customer».
+
+## Деплой (production)
+
+Краткая схема и переменные окружения: **[DEPLOY.md](DEPLOY.md)** (Vercel + Render + Supabase Postgres). Фронт в production использует **`VITE_API_ORIGIN`** для API и `/media`.
 
 ## Handoff
 

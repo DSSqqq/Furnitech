@@ -1,0 +1,18 @@
+# Render Blueprint: Web Service для Django (корень репозитория = этот файл).
+# Обязательно задайте в панели секреты: DATABASE_URL, DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS,
+# CORS_ALLOWED_ORIGINS, DJANGO_CSRF_TRUSTED_ORIGINS — см. docs/DEPLOY.md
+
+services:
+  - type: web
+    name: furnitech-backend
+    runtime: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt && python backend/manage.py collectstatic --noinput && python backend/manage.py migrate
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /api/calculator-profile-types/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DJANGO_DEBUG
+        value: "False"

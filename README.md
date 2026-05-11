@@ -60,6 +60,7 @@
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **Текущий прогресс** — что сделано, чеклист, типовые сбои (обновляйте в конце сессии) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Стек, каталоги, REST API (в т.ч. **анонимное чтение** для калькулятора), модели, маршруты SPA, UI (в т.ч. **калькулятор**: карточки 2/4/5, петли **2…10**, обёртка **`CalculatorPage`**) |
 | [docs/MATERIALS_IMPORT_EXPORT.md](docs/MATERIALS_IMPORT_EXPORT.md) | **Импорт и экспорт** каталога материалов (**XLSX** / **XML**), эндпоинты, колонки, поле **`import_export_snapshot`** |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | **Деплой:** Vercel (React), Render (Django), Supabase (PostgreSQL); переменные окружения, ограничения по **media** |
 
 Подробные таблицы API, правил удаления папок, **артикула** и **`is_active`**, вёрстки и UI — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); **текущий прогресс и чеклист** — в [docs/PROGRESS.md](docs/PROGRESS.md).
 
@@ -79,6 +80,8 @@
 Если после **`git push -u customer …`** ветка **`main`** начала отслеживать **`customer`** и **`git pull`** тянет не тот репозиторий, верните привязку: **`git branch --set-upstream-to=origin/main main`**.
 
 В Cursor можно явно попросить агента: «запуш в **origin**» или «запуш в **customer**».
+
+После регистрации на **Vercel / Render / Supabase** откройте **[docs/DEPLOY.md](docs/DEPLOY.md)** — там пошаговый порядок и таблица переменных окружения.
 
 ## UI / дизайн (тёмная тема + дерево)
 

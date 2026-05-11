@@ -1,6 +1,6 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-10 (импорт/экспорт каталога материалов; документация про **два remote** — `origin` и `customer`)
+**Последнее обновление:** 2026-05-11 (деплой: пошаговый сценарий в [DEPLOY.md](DEPLOY.md); `runtime.txt`, health check в `render.yaml`, безопасный импорт `dj-database-url`, `scripts/generate_django_secret.py`)
 
 ### Изменения 2026-05-10 (импорт/экспорт — переименование)
 
@@ -467,6 +467,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 | [PLAN.md](PLAN.md) | План этапов продукта. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Стек, API, модели, UI, соглашения. |
 | [MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md) | Импорт/экспорт каталога (XLSX/XML), API, колонки, снимок строки. |
+| [DEPLOY.md](DEPLOY.md) | Production: Vercel, Render, Supabase, env. |
 | [../README.md](../README.md) | Быстрый старт, роли, пользователи. |
 | `scripts/furnitech_status.py` | Handoff, шапки `docs/*`. |
 | `.cursor/skills/furnitech-handoff/` | Напоминание агенту. |
