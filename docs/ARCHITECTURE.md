@@ -21,7 +21,7 @@
 Furnitech/
   backend/          # проект `config/`, приложение `materials/`, `manage.py`
   frontend/         # Vite SPA, `src/` — см. [PROGRESS](PROGRESS.md)
-  docs/             # PLAN, PROGRESS, ARCHITECTURE
+  docs/             # PLAN, PROGRESS, ARCHITECTURE, MATERIALS_IMPORT_EXPORT
   scripts/          # furnitech_status.py
   .venv/            # venv (локально, не в git)
 ```
@@ -32,6 +32,7 @@ Furnitech/
 |---------|------------|
 | `/admin/django/` | Django admin (staff) |
 | `/api/auth/token/`, `token/refresh/`, `me/`, **`register/`**, **`admin-users/`**, **`admin-users/<id>/`** | JWT; **`POST /api/auth/token/`** обслуживает **`FurnitechTokenObtainPairView`** — в поле **`username`** можно передать **email** (поиск пользователя по **`email__iexact`**, см. `materials/jwt_auth.py`); публичная регистрация; для сотрудника SPA: список пользователей, PATCH `is_staff`, DELETE учётной записи (см. `materials/user_admin_views.py`) |
+| **`/api/materials-export/`**, **`/api/materials-import/`** | Импорт и экспорт каталога материалов (таблица **XLSX** / **XML**). Маршруты в **`config/urls.py`** **выше** **`path("api/", include("materials.urls"))`**, чтобы не пересекаться с **`/api/materials/<pk>/`**. Подробно: **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**. |
 | `/api/` | DRF router — см. ниже |
 | `/media/` | Файлы (dev): текстуры материалов (`DEBUG=1`) |
 
@@ -126,6 +127,8 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `/api/uom/`, `/api/uom/{id}/` | CRUD | **JWT.** |
 | `/api/material-classes/`, `/{id}/` | CRUD, DELETE | **JWT.** |
 | `/api/materials/`, `/{id}/` | CRUD, list | Пагинация 100. **GET — анонимно; запись — JWT + model perms.** Параметры list (см. **`MaterialViewSet.get_queryset`**): **`category`** (id папки; при задании **`folder_name`** игнорируется), **`search`** (одна строка — **имя или артикул**, гибкий поиск), **`folder_name`** (по имени **`MaterialCategory`**), **`article`**, **`name`**, **`price`** (точное **`base_price`**, запятая нормализуется), **`material_class_ids`** (id через запятую — **хотя бы один** из классов у материала). Логика «гибкого» текста — **`materials/flexible_search.py`** (токены, **`icontains`**, при необходимости **rapidfuzz** на подмножестве pk). |
+| **`/api/materials-export/`** | **GET** | Экспорт **XLSX** или **XML**. Query: **`export_format`** = `xlsx` \| `xml` (**не** `format` — конфликт с DRF), опционально **`category`**. **JWT** + **`MaterialExportPermission`**. См. **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**. |
+| **`/api/materials-import/`** | **POST** | Импорт `.xlsx` / `.xml`, поле **`file`**. **JWT** + **`MaterialImportPermission`**. JSON: `created`, `updated`, `skipped`, `errors`. |
 | `/api/calculator-profiles/`, `/{id}/` | CRUD | Профили калькулятора (профиль = материал) + «цвета». **Только JWT.** |
 | `/api/calculator-profile-types/`, `/{id}/` | CRUD | Типы профилей + цвета (материалы) + флаги + `card_image`, `card_image_2`, `card_image_3`. **GET — анонимно; запись — JWT + model perms.** |
 | `/api/calculator-filling-types/`, `/{id}/` | CRUD | Типы наполнения + материалы + **`card_image`**, **`card_image_2`**, **`card_image_3`** (шаг 4). **GET — анонимно; запись — JWT + model perms.** |
@@ -162,6 +165,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 - **Артикул (`article`):** хранение с `strip` в `save`/`clean`; **ограничение БД:** `UniqueConstraint` на `article` с условием `article != ""` (несколько **пустых** артикулов **могут** существовать). Дублирование **непустого** — ошибка 400.
 - **Активен (`is_active`, default `True`):** булево «карточка действующая / выключенная». В **SPA карточки материала** переключателя нет: при **POST/PATCH** из формы уходит **`material?.is_active ?? true`** (новый — активен; существующий — флаг не меняется из этой формы). Редактирование **`is_active`** вручную — **Django admin** (`/admin/django/`). Фильтрация каталога калькулятора по **`is_active`** — см. [PROGRESS](PROGRESS.md).
+- **`import_export_snapshot`:** JSON-объект с полями строки таблицы импорта/экспорта (тег → строка), чтобы не терять колонки без отдельных полей в БД. См. **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
 
 ### Взаимосвязи
 

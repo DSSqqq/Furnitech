@@ -11,6 +11,7 @@ frontend/dist/
 # Временные / секреты
 tmp_*.txt
 tmp_*.png
+backend/_xlsx_headers.txt
 
 # Загруженные файлы Django (текстуры, картинки профилей)
 backend/media/

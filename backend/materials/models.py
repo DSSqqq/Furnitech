@@ -209,6 +209,12 @@ class Material(models.Model):
     is_active = models.BooleanField("Активен", default=True)
     external_id = models.CharField("ID 1С", max_length=64, blank=True, null=True, unique=True, db_index=True)
     last_synced_at = models.DateTimeField("Синхронизирован", null=True, blank=True)
+    import_export_snapshot = models.JSONField(
+        "Снимок строки импорта/экспорта",
+        default=dict,
+        blank=True,
+        help_text="Полная строка таблицы (XML/XLSX) для повторного экспорта без потери колонок.",
+    )
 
     # Вкладка «Доп. параметры» (задел для калькулятора).
     thickness = models.DecimalField(

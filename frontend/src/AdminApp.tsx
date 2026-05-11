@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -9,12 +9,14 @@ import {
   deleteMaterial,
   deleteMaterialClass,
   deleteAdminUser,
+  downloadMaterialsExport,
   fetchAdminUsers,
   fetchMaterial,
   fetchCategoryTree,
   fetchMaterialClasses,
   fetchMaterials,
   fetchUom,
+  importMaterialsTable,
   patchAdminUserStaff,
   updateCategory,
   updateMaterial,
@@ -74,6 +76,47 @@ function findPathToId(tree: MaterialCategory[], id: number): number[] | null {
   return walk(tree, [])
 }
 
+function findCategoryNode(nodes: MaterialCategory[], id: number): MaterialCategory | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const kids = n.children ?? []
+    if (kids.length > 0) {
+      const f = findCategoryNode(kids, id)
+      if (f) return f
+    }
+  }
+  return null
+}
+
+type FolderRenameRequest = { targetId: number; nonce: number }
+
+function AdminFolderToolbarIcon({
+  label,
+  disabled,
+  onClick,
+  className,
+  children,
+}: {
+  label: string
+  disabled?: boolean
+  onClick?: () => void
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={className ? `admin-folder-toolbar-btn ${className}` : 'admin-folder-toolbar-btn'}
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
 /** Папка и все вложенные папки (по объекту из дерева). */
 function collectSubtreeCategoryIds(cat: MaterialCategory): Set<number> {
   const ids = new Set<number>()
@@ -98,8 +141,8 @@ function TreeRow({
   onToggleExpanded,
   onSelect,
   onRename,
-  onDelete,
-  onMove,
+  folderRenameRequest,
+  onFolderRenameConsumed,
 }: {
   c: MaterialCategory
   depth: number
@@ -108,17 +151,15 @@ function TreeRow({
   onToggleExpanded: (id: number) => void
   onSelect: (id: number) => void
   onRename: (id: number, name: string) => Promise<void>
-  onDelete: (c: MaterialCategory) => void
-  onMove: (c: MaterialCategory) => void
+  folderRenameRequest: FolderRenameRequest | null
+  onFolderRenameConsumed: () => void
 }) {
   const isSel = c.id === selectedId
   const hasKids = (c.children?.length ?? 0) > 0
   const isExpanded = hasKids ? expandedIds.has(c.id) : false
   const [editing, setEditing] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [draft, setDraft] = useState(c.name)
   const inputRef = useRef<HTMLInputElement>(null)
-  const menuWrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setDraft(c.name)
@@ -132,22 +173,11 @@ function TreeRow({
   }, [editing])
 
   useEffect(() => {
-    if (!menuOpen) return
-    const onDoc = (e: MouseEvent) => {
-      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
+    if (!folderRenameRequest || folderRenameRequest.targetId !== c.id) return
+    setEditing(true)
+    setDraft(c.name)
+    onFolderRenameConsumed()
+  }, [folderRenameRequest, c.id, c.name, onFolderRenameConsumed])
 
   const commit = () => {
     const t = draft.trim()
@@ -231,73 +261,6 @@ function TreeRow({
             <span className="folder-explorer-tree-name">{c.name}</span>
           </button>
         )}
-        {!editing && (
-          <div className="tree-line-actions" ref={menuWrapRef}>
-            <button
-              type="button"
-              className="tree-gear-btn"
-              title="Действия с папкой"
-              aria-label="Действия с папкой: переименовать, переместить или удалить"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={(e) => {
-                e.stopPropagation()
-                setMenuOpen((o) => !o)
-              }}
-            >
-              <span className="tree-gear-ico" aria-hidden>
-                ⚙
-              </span>
-            </button>
-            {menuOpen && (
-              <ul className="tree-gear-menu" role="menu">
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      setEditing(true)
-                      setDraft(c.name)
-                    }}
-                  >
-                    Переименовать
-                  </button>
-                </li>
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onMove(c)
-                    }}
-                  >
-                    Переместить
-                  </button>
-                </li>
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item tree-gear-menu-item--danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onDelete(c)
-                    }}
-                  >
-                    Удалить
-                  </button>
-                </li>
-              </ul>
-            )}
-          </div>
-        )}
       </div>
       {hasKids && isExpanded && (
         <ul className="folder-explorer-tree-children">
@@ -311,8 +274,8 @@ function TreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelect={onSelect}
               onRename={onRename}
-              onDelete={onDelete}
-              onMove={onMove}
+              folderRenameRequest={folderRenameRequest}
+              onFolderRenameConsumed={onFolderRenameConsumed}
             />
           ))}
         </ul>
@@ -333,7 +296,6 @@ const MAT_LIST_COLUMNS = [
   'Наименование материала',
   'Ед. измерения',
   'Цена',
-  'Коэф',
 ] as const
 
 const ADMIN_USER_ROLE_OPTIONS: FtSelectOption[] = [
@@ -351,11 +313,6 @@ function dashIfEmpty(s: string | undefined | null) {
 function formatListBasePrice(m: Material) {
   const p = formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)
   return `${p} ${m.base_currency || BASE_CURRENCY}`
-}
-
-/** Коэффициент в карточке пока нет — колонка под будущее поле. */
-function materialListCoeffPlaceholder() {
-  return '—'
 }
 
 export function AdminApp({ user, onLogout }: AdminProps) {
@@ -383,11 +340,16 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [materialSearchOpen, setMaterialSearchOpen] = useState(false)
   const [folderMoveTarget, setFolderMoveTarget] = useState<MaterialCategory | null>(null)
   const [folderDeleteModal, setFolderDeleteModal] = useState<MaterialCategory | null>(null)
+  const [folderRenameRequest, setFolderRenameRequest] = useState<FolderRenameRequest | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
   const [adminUsersLoading, setAdminUsersLoading] = useState(false)
   const [adminUsersErr, setAdminUsersErr] = useState<string | null>(null)
   const [staffTogglePending, setStaffTogglePending] = useState<number | null>(null)
   const [userDeleteModal, setUserDeleteModal] = useState<AdminUserRow | null>(null)
+  const materialsImportFileRef = useRef<HTMLInputElement>(null)
+  const [materialsImportBusy, setMaterialsImportBusy] = useState(false)
+  const [materialsImportMsg, setMaterialsImportMsg] = useState<string | null>(null)
+  const [materialsExportFormat, setMaterialsExportFormat] = useState<'xlsx' | 'xml'>('xlsx')
 
   const reloadTree = useCallback(() => {
     return fetchCategoryTree()
@@ -449,10 +411,57 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       setMaterials([])
       return
     }
-    fetchMaterials(selected)
+    fetchMaterials(selected, { subtree: true })
       .then((r) => setMaterials(r.results))
       .catch((e) => setErr(String(e)))
   }, [selected])
+
+  const onMaterialsImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      const lower = file.name.toLowerCase()
+      if (!lower.endsWith('.xml') && !lower.endsWith('.xlsx')) {
+        setErr('Импорт: выберите файл .xml или .xlsx')
+        return
+      }
+      setMaterialsImportBusy(true)
+      setErr(null)
+      setMaterialsImportMsg(null)
+      importMaterialsTable(file)
+        .then(async (res) => {
+          await reloadTree()
+          if (selected != null) {
+            try {
+              const r = await fetchMaterials(selected, { subtree: true })
+              setMaterials(r.results)
+            } catch {
+              /* ignore */
+            }
+          }
+          const errTail =
+            res.errors?.length > 0 ? ` Предупреждения: ${res.errors.slice(0, 8).join('; ')}` : ''
+          setMaterialsImportMsg(
+            `Импорт: создано ${res.created}, обновлено ${res.updated}, пропущено ${res.skipped}.${errTail}`,
+          )
+        })
+        .catch((err) => {
+          setErr(String(err))
+        })
+        .finally(() => setMaterialsImportBusy(false))
+    },
+    [reloadTree, selected],
+  )
+
+  const onMaterialsExportClick = useCallback(() => {
+    setErr(null)
+    setMaterialsImportMsg(null)
+    setMaterialsImportBusy(true)
+    downloadMaterialsExport(selected, materialsExportFormat)
+      .catch((e) => setErr(String(e)))
+      .finally(() => setMaterialsImportBusy(false))
+  }, [selected, materialsExportFormat])
 
   const submitNewFolder = useCallback(
     (parent: number | null, name: string) => {
@@ -498,6 +507,18 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     setFolderDeleteModal(cat)
   }, [])
 
+  const clearFolderRenameRequest = useCallback(() => setFolderRenameRequest(null), [])
+
+  const triggerRenameSelectedFolder = useCallback(() => {
+    if (selected == null) return
+    setFolderRenameRequest((r) => ({ targetId: selected, nonce: (r?.nonce ?? 0) + 1 }))
+  }, [selected])
+
+  const selectedCategory = useMemo(
+    () => (selected == null ? null : findCategoryNode(tree, selected)),
+    [tree, selected]
+  )
+
   const applyFolderMove = useCallback(async (newParentId: number | null, movingId: number) => {
     setErr(null)
     await updateCategory(movingId, { parent: newParentId })
@@ -514,7 +535,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     setErr(null)
     await updateMaterial(materialId, { category: newCategoryId })
     if (selected != null) {
-      const r = await fetchMaterials(selected)
+      const r = await fetchMaterials(selected, { subtree: true })
       setMaterials(r.results)
     }
     const cur = editing
@@ -702,24 +723,99 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию — выбрать папку. Шестерёнка — переименовать, переместить (окно с деревом и перетаскиванием) или удалить. Удаление с подтверждением: из выбранной папки каскадом удаляются все вложенные папки и все материалы в них. «Создать папку» — окно с деревом как в проводнике. «Поиск» — фильтры, дерево папок и таблица материалов; клик по строке выделяет её, кнопка «Перейти» открывает карточку в выбранной папке." />
+              <HintButton text="Клик по названию — выбрать папку. Панель иконок: новая папка, поиск, переименовать/переместить/удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если папка не выбрана — все материалы, иначе ветка." />
             </div>
-            <div className="admin-stack">
-              <button
-                type="button"
-                className="admin-primary admin-folder-create-btn"
-                onClick={() => setFolderCreateOpen(true)}
+            <div className="admin-folder-toolbar" role="toolbar" aria-label="Действия с папками и материалами">
+              <AdminFolderToolbarIcon label="Создать папку" onClick={() => setFolderCreateOpen(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 19h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-5l-1.33-1.5H5A1 1 0 0 0 4 6.5V18a1 1 0 0 0 1 1h7" />
+                  <path d="M12 11v6M9 14h6" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <AdminFolderToolbarIcon label="Поиск материалов" onClick={() => setMaterialSearchOpen(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="M16 16l4.5 4.5" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <AdminFolderToolbarIcon
+                label="Переименовать выбранную папку"
+                disabled={selected == null}
+                onClick={triggerRenameSelectedFolder}
               >
-                + Создать папку
-              </button>
-              <button
-                type="button"
-                className="admin-secondary admin-folder-search-btn"
-                onClick={() => setMaterialSearchOpen(true)}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <AdminFolderToolbarIcon
+                label="Переместить выбранную папку"
+                disabled={selectedCategory == null}
+                onClick={() => selectedCategory && setFolderMoveTarget(selectedCategory)}
               >
-                Поиск
-              </button>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M5 9l-3 3 3 3" />
+                  <path d="M9 5l3-3 3 3" />
+                  <path d="M19 15l3 3-3 3" />
+                  <path d="M15 19l-3 3-3-3" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <AdminFolderToolbarIcon
+                className="admin-folder-toolbar-btn--danger"
+                label="Удалить выбранную папку"
+                disabled={selectedCategory == null}
+                onClick={() => selectedCategory && deleteFolder(selectedCategory)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6h12zM10 11v6M14 11v6" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <input
+                ref={materialsImportFileRef}
+                type="file"
+                accept=".xml,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="admin-hidden-file-input"
+                aria-hidden
+                onChange={onMaterialsImportFile}
+              />
+              <AdminFolderToolbarIcon
+                label="Импорт (.xml, .xlsx)"
+                disabled={materialsImportBusy}
+                onClick={() => materialsImportFileRef.current?.click()}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3v12M8 11l4 4 4-4M5 21h14" />
+                </svg>
+              </AdminFolderToolbarIcon>
+              <select
+                className="admin-folder-toolbar-format"
+                aria-label="Формат экспорта"
+                value={materialsExportFormat}
+                onChange={(e) => setMaterialsExportFormat(e.target.value as 'xlsx' | 'xml')}
+                disabled={materialsImportBusy}
+                title="Формат файла экспорта"
+              >
+                <option value="xlsx">Экспорт XLSX</option>
+                <option value="xml">Экспорт XML</option>
+              </select>
+              <AdminFolderToolbarIcon
+                label={
+                  selected == null
+                    ? `Экспорт всех материалов (${materialsExportFormat.toUpperCase()})`
+                    : `Экспорт выбранной папки и вложенных (${materialsExportFormat.toUpperCase()})`
+                }
+                disabled={materialsImportBusy}
+                onClick={onMaterialsExportClick}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 21V9M8 13l4-4 4 4M5 3h14" />
+                </svg>
+              </AdminFolderToolbarIcon>
             </div>
+            {materialsImportMsg ? (
+              <p className="admin-muted admin-import-hint" style={{ margin: '0 0 0.65rem' }}>
+                {materialsImportMsg}
+              </p>
+            ) : null}
             <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок">
               {tree.map((c) => (
                 <TreeRow
@@ -731,8 +827,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   onToggleExpanded={toggleExpanded}
                   onSelect={setSelected}
                   onRename={renameFolder}
-                  onDelete={deleteFolder}
-                  onMove={setFolderMoveTarget}
+                  folderRenameRequest={folderRenameRequest}
+                  onFolderRenameConsumed={clearFolderRenameRequest}
                 />
               ))}
             </ul>
@@ -748,7 +844,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 <div className="admin-main-scroll">
                   <div className="admin-heading-row">
                     <h2 className="admin-h2">Материалы в папке</h2>
-                    <HintButton text="Создавайте и редактируйте материалы выбранной папки. Сохраняйте карточку в панели справа." />
+                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал создаётся в выбранной папке. Сохраняйте карточку справа." />
                   </div>
                   <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
                     + Материал
@@ -781,7 +877,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                             <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
                             <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
                             <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
-                            <span className="mat-list-cell mat-list-cell-coeff">{materialListCoeffPlaceholder()}</span>
                           </button>
                         </li>
                       ))}

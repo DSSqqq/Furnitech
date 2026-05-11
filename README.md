@@ -59,6 +59,7 @@
 | [docs/PLAN.md](docs/PLAN.md) | План этапов продукта (админка / клиент / 1С) |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | **Текущий прогресс** — что сделано, чеклист, типовые сбои (обновляйте в конце сессии) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Стек, каталоги, REST API (в т.ч. **анонимное чтение** для калькулятора), модели, маршруты SPA, UI (в т.ч. **калькулятор**: карточки 2/4/5, петли **2…10**, обёртка **`CalculatorPage`**) |
+| [docs/MATERIALS_IMPORT_EXPORT.md](docs/MATERIALS_IMPORT_EXPORT.md) | **Импорт и экспорт** каталога материалов (**XLSX** / **XML**), эндпоинты, колонки, поле **`import_export_snapshot`** |
 
 Подробные таблицы API, правил удаления папок, **артикула** и **`is_active`**, вёрстки и UI — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); **текущий прогресс и чеклист** — в [docs/PROGRESS.md](docs/PROGRESS.md).
 

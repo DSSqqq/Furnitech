@@ -1,6 +1,13 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-10 (документация: калькулятор шаги 1–8, панель прокрутки, шаг 6 мм, шаг 8 кнопки)
+**Последнее обновление:** 2026-05-10 (импорт/экспорт каталога материалов: нейтральные имена в API и коде)
+
+### Изменения 2026-05-10 (импорт/экспорт — переименование)
+
+- Документация: **[docs/MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
+- API: **`GET /api/materials-export/`**, **`POST /api/materials-import/`**; права **`MaterialExportPermission`**, **`MaterialImportPermission`**; методы вью **`export_materials_table`**, **`import_materials_table`**.
+- Модуль **`material_import_export.py`**; поле модели **`import_export_snapshot`** (миграция **`0039`** — переименование поля снимка строки таблицы).
+- Фронт: **`importMaterialsTable`**, **`downloadMaterialsExport`**, **`MaterialsImportResult`**, **`MaterialsExportFormat`**; файлы скачивания **`materials-catalog.*`**.
 
 ### Изменения 2026-05-10 (часть 2 — калькулятор UI и копирайт)
 
@@ -431,7 +438,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 
 ## Операция и типовые сбои
 
-- **500 на `/api/materials/`**, во фронте «HTML вместо JSON» — чаще всего **схема БД не совпадает с кодом**: выполнить `py backend\manage.py migrate` (в т.ч. **`0021`** — `quantity_scale`, `price_per_facade`), остановить все старые `runserver`, поднять заново. Для очень старых баз также нужны `0010`–`0011`. После добавления **rapidfuzz**: `py -m pip install -r requirements.txt` (или только **`rapidfuzz`**).
+- **500 на `/api/materials/`**, во фронте «HTML вместо JSON» — чаще всего **схема БД не совпадает с кодом**: из корня выполнить **`py backend\manage.py migrate`** (подтянутся все неприменённые миграции, в т.ч. **`0021`** — сопутствующие; **`0039`** — поле **`import_export_snapshot`**), **остановить все процессы** на **`:8000`**, затем снова **`py backend\manage.py runserver`**. Для очень старых баз также нужны `0010`–`0011`. После добавления **rapidfuzz**: `py -m pip install -r requirements.txt` (или только **`rapidfuzz`**). Подробности обмена с файлами: **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
 - **`database is locked` (SQLite)** при входе или записи: убедиться, что в **`settings.py`** включён **`timeout`** для SQLite; не держать открытыми несколько конкурирующих процессов на одной **`db.sqlite3`** без необходимости.
 - **`DisallowedHost`:** проверить **`DJANGO_ALLOWED_HOSTS`** / хост в адресной строке (в dev по умолчанию добавлены **`0.0.0.0`** и **`[::1]`**).
 - **404 на `/api/calculator-profiles/`** — обычно запущен **старый/другой** `runserver` или конфликтует несколько процессов. Решение: оставить **один** backend на `:8000`, применить миграции и перезапустить.
@@ -441,6 +448,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 - **Длинные имена файлов текстур:** у `ImageField` увеличен `max_length` (миграция `0014`), иначе возможен 400 при загрузке.
 - **Удаление текстуры:** кнопка «Убрать текстуру» очищает поле и сохраняет удаление через `PATCH texture_image=null`.
 - **Миграция `0021`:** после обновления кода выполнить `py backend\manage.py migrate` (поля сопутствующих).
+- **Миграции `0038`–`0039`:** снимок строки таблицы импорта/экспорта на карточке материала — **`modus_snapshot`** → **`import_export_snapshot`**; без **`migrate`** возможны 500 при обращении к **`Material`**. См. **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
 - **Миграция `0032`:** удаление модели операций у материала — выполнить `migrate`.
 
 ### Ручная проверка расчёта (сопутствующие)
@@ -457,6 +465,7 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 |------|------------|
 | [PLAN.md](PLAN.md) | План этапов продукта. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Стек, API, модели, UI, соглашения. |
+| [MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md) | Импорт/экспорт каталога (XLSX/XML), API, колонки, снимок строки. |
 | [../README.md](../README.md) | Быстрый старт, роли, пользователи. |
 | `scripts/furnitech_status.py` | Handoff, шапки `docs/*`. |
 | `.cursor/skills/furnitech-handoff/` | Напоминание агенту. |
@@ -481,7 +490,8 @@ URL: `/admin/django/`. Сущности `Material*`, `MaterialCategory`, `Materi
 - [x] Калькулятор (рамочный): шаг 5 — **присадка / петли** (`CalculatorHingeType`, UI, `localStorage`); шаг 6 — **расстояния петель**, эскиз с выносными размерами (миграция **`0026`**); шаг 8 — **итог** (`/frame/result`, сводка и ориентировочная цена).
 - [x] Калькулятор: **PDF для клиента** (шаг 8, **`frameClientPdf.ts`**, многостраничный файл).
 - [x] Модель заказа (**`FacadeOrder`**), экран **«Заказы»** в админке и **«Мои заказы»** у клиента; отправка с шага 8 (**`POST /api/facade-orders/`**).
-- [ ] Клиентский калькулятор: доработка до уровня реф. Modusline (ценники, корзина, оформление).
+- [x] **Импорт и экспорт** каталога материалов (**`GET /api/materials-export/`**, **`POST /api/materials-import/`**), модуль **`material_import_export.py`**, поле **`import_export_snapshot`**, кнопки в админке; документация **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**.
+- [ ] Клиентский калькулятор: доработка до уровня типичного публичного конфигуратора (ценники, корзина, оформление).
 - [ ] 1С: sync; `article` + `external_id` как якоря.
 
 ## Как продолжить (агент / разработчик)

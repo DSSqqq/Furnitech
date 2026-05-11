@@ -1,4 +1,7 @@
+from io import BytesIO
+
 from django.db import transaction
+from django.http import FileResponse
 from rest_framework import viewsets
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import (
@@ -29,6 +32,11 @@ from .flexible_search import (
     apply_flexible_search_name_or_article,
     apply_folder_name_filter,
 )
+from .material_import_export import (
+    build_export_xml_bytes,
+    build_export_xlsx_bytes,
+    import_materials_table_file,
+)
 from .serializers import (
     CalculatorFillingTypeSerializer,
     CalculatorHandleHoleDiameterSerializer,
@@ -45,6 +53,25 @@ from .serializers import (
     TextureItemSerializer,
     UnitOfMeasureSerializer,
 )
+
+
+def material_category_subtree_ids(root_id: int) -> list[int]:
+    """Идентификаторы категории root_id и всех вложенных папок (по parent_id)."""
+    rows = MaterialCategory.objects.values_list("id", "parent_id")
+    by_parent: dict[int | None, list[int]] = {}
+    for cid, pid in rows:
+        by_parent.setdefault(pid, []).append(cid)
+    out: list[int] = []
+    stack = [root_id]
+    seen: set[int] = set()
+    while stack:
+        cid = stack.pop()
+        if cid in seen:
+            continue
+        seen.add(cid)
+        out.append(cid)
+        stack.extend(by_parent.get(cid, ()))
+    return out
 
 
 class MaterialClassViewSet(viewsets.ModelViewSet):
@@ -160,6 +187,34 @@ class TextureItemViewSet(viewsets.ModelViewSet):
         return qs
 
 
+class MaterialImportPermission(BasePermission):
+    """Импорт: сотрудники админки или права add/change на материал."""
+
+    def has_permission(self, request, view) -> bool:
+        u = request.user
+        if not u or not u.is_authenticated:
+            return False
+        if getattr(u, "is_staff", False):
+            return True
+        return u.has_perm("materials.add_material") or u.has_perm("materials.change_material")
+
+
+class MaterialExportPermission(BasePermission):
+    """Экспорт: сотрудники админки или права view/change/add на материал."""
+
+    def has_permission(self, request, view) -> bool:
+        u = request.user
+        if not u or not u.is_authenticated:
+            return False
+        if getattr(u, "is_staff", False):
+            return True
+        return (
+            u.has_perm("materials.view_material")
+            or u.has_perm("materials.change_material")
+            or u.has_perm("materials.add_material")
+        )
+
+
 class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
     """GET/HEAD/OPTIONS — всем (в т.ч. без авторизации); запись — авторизация + Django model permissions."""
 
@@ -192,10 +247,16 @@ class MaterialViewSet(viewsets.ModelViewSet):
 
         cat_id = None
         cat = qp.get("category")
+        subtree_raw = (qp.get("subtree") or "").strip().lower()
+        subtree = subtree_raw in ("1", "true", "yes")
         if cat is not None and cat != "":
             try:
                 cat_id = int(cat)
-                qs = qs.filter(category_id=cat_id)
+                if subtree:
+                    ids = material_category_subtree_ids(cat_id)
+                    qs = qs.filter(category_id__in=ids).order_by("category_id", "name")
+                else:
+                    qs = qs.filter(category_id=cat_id)
             except (TypeError, ValueError):
                 pass
 
@@ -237,6 +298,52 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(material_classes__id__in=ids).distinct()
 
         return qs
+
+    def import_materials_table(self, request):
+        upload = request.FILES.get("file")
+        if not upload:
+            return Response({"detail": "Прикрепите файл в поле file (.xml или .xlsx)."}, status=400)
+        stats, errors = import_materials_table_file(upload, filename=upload.name)
+        return Response(
+            {
+                "created": stats.get("created", 0),
+                "updated": stats.get("updated", 0),
+                "skipped": stats.get("skipped", 0),
+                "errors": errors,
+            }
+        )
+
+    def export_materials_table(self, request):
+        cid_raw = (request.query_params.get("category") or "").strip()
+        category_id = int(cid_raw) if cid_raw.isdigit() else None
+        # Не использовать имя query "format" — в DRF это URL_FORMAT_OVERRIDE и даёт 404 при ?format=xlsx
+        fmt = (request.query_params.get("export_format") or "xlsx").strip().lower()
+        try:
+            if fmt == "xml":
+                data = build_export_xml_bytes(category_id=category_id)
+                return FileResponse(
+                    BytesIO(data),
+                    as_attachment=True,
+                    filename="materials-catalog.xml",
+                    content_type="application/xml",
+                )
+            data = build_export_xlsx_bytes(category_id=category_id)
+        except ImportError as e:
+            return Response(
+                {
+                    "detail": "Для экспорта XLSX установите зависимость: pip install openpyxl",
+                    "error": str(e),
+                },
+                status=503,
+            )
+        except Exception as e:  # noqa: BLE001
+            return Response({"detail": "Ошибка формирования файла экспорта.", "error": str(e)}, status=500)
+        return FileResponse(
+            BytesIO(data),
+            as_attachment=True,
+            filename="materials-catalog.xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 
 class AuthReadModelPermsWrite(IsAuthenticated):

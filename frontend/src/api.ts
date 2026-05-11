@@ -192,10 +192,12 @@ export function deleteTextureItem(id: number) {
   })
 }
 
-export function fetchMaterials(categoryId: number) {
-  return apiFetch(`/api/materials/?category=${categoryId}`).then((r) =>
-    json<{ results: Material[] }>(r)
-  )
+/** @param options.subtree — материалы выбранной папки и всех вложенных (для дерева в админке). */
+export function fetchMaterials(categoryId: number, options?: { subtree?: boolean }) {
+  const sp = new URLSearchParams()
+  sp.set('category', String(categoryId))
+  if (options?.subtree) sp.set('subtree', '1')
+  return apiFetch(`/api/materials/?${sp.toString()}`).then((r) => json<{ results: Material[] }>(r))
 }
 
 /** Поиск по всей базе (категория не задана) — выбор сопутствующего материала. */
@@ -209,6 +211,8 @@ export function searchMaterials(query: string) {
 
 export type MaterialsListFilterParams = {
   category?: number | null
+  /** Материалы категории и всех вложенных папок */
+  subtree?: boolean
   folder_name?: string
   article?: string
   name?: string
@@ -222,6 +226,7 @@ export function fetchMaterialsFiltered(params: MaterialsListFilterParams) {
   if (params.category != null && params.category !== undefined) {
     sp.set('category', String(params.category))
   }
+  if (params.subtree) sp.set('subtree', '1')
   const fn = params.folder_name?.trim()
   if (fn) sp.set('folder_name', fn)
   const ar = params.article?.trim()
@@ -280,6 +285,53 @@ export function deleteMaterial(id: number) {
   return apiFetch(`/api/materials/${id}/`, { method: 'DELETE' }).then(async (r) => {
     if (!r.ok) await parseJsonError(r)
   })
+}
+
+export type MaterialsImportResult = {
+  created: number
+  updated: number
+  skipped: number
+  errors: string[]
+}
+
+/** Импорт материалов из таблицы (.xml или .xlsx): папки по пути группы, поля карточки. */
+export function importMaterialsTable(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return apiFetch('/api/materials-import/', {
+    method: 'POST',
+    body: fd,
+  }).then((r) => json<MaterialsImportResult>(r))
+}
+
+export type MaterialsExportFormat = 'xlsx' | 'xml'
+
+/** Экспорт каталога материалов: XLSX (таблица) или XML (Database/Materials/Material). */
+export async function downloadMaterialsExport(
+  categoryId: number | null,
+  format: MaterialsExportFormat = 'xlsx',
+) {
+  const params = new URLSearchParams()
+  if (categoryId != null) params.set('category', String(categoryId))
+  params.set('export_format', format)
+  const exportUrl = `/api/materials-export/?${params.toString()}`
+  const accept =
+    format === 'xml'
+      ? 'application/xml,*/*;q=0.9'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*;q=0.9'
+  const r = await apiFetch(exportUrl, {
+    headers: { Accept: accept },
+  })
+  if (!r.ok) await parseJsonError(r)
+  const blob = await r.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = format === 'xml' ? 'materials-catalog.xml' : 'materials-catalog.xlsx'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
 }
 
 export function fetchCalculatorProfiles() {
