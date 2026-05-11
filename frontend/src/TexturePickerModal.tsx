@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { API_ORIGIN } from './apiBase'
+import { API_ORIGIN, apiUrl } from './apiBase'
 import { fetchTextureCategoryTree, fetchTextureItems } from './api'
 import type { TextureCategory, TextureItem } from './types'
 
@@ -9,9 +9,8 @@ const DEV_MEDIA_ORIGIN = 'http://127.0.0.1:8000'
 export function resolveTextureImageUrl(pathOrUrl: string | null | undefined): string {
   if (!pathOrUrl) return ''
   if (pathOrUrl.startsWith('http')) return pathOrUrl
-  const base = API_ORIGIN || DEV_MEDIA_ORIGIN
   const p = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`
-  return `${base}${p}`
+  return API_ORIGIN ? apiUrl(p) : `${DEV_MEDIA_ORIGIN}${p}`
 }
 
 type Picked = { id: number; name: string; image: string | null }
