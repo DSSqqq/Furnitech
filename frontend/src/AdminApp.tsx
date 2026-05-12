@@ -40,10 +40,9 @@ import {
 import { FtSelect, type FtSelectOption } from './FtSelect'
 import { HintButton } from './HintButton'
 import { sortUomForSelect } from './uomSelectOrder'
-import { materialExtrasInitRelated, MaterialExtrasPanel } from './MaterialExtrasPanel'
+import { materialExtrasInitRelated, MaterialExtrasPanel, type RelatedItemState } from './MaterialExtrasPanel'
 import { CalculatorPage } from './CalculatorPage'
 import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
-import type { RelatedItemState } from './MaterialExtrasPanel'
 import type { Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure } from './types'
 import './AdminApp.css'
 
@@ -335,7 +334,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
-  const [matExtraHost, setMatExtraHost] = useState<HTMLDivElement | null>(null)
+  const [extrasTarget, setExtrasTarget] = useState<Material | null>(null)
+  const [extrasRelated, setExtrasRelated] = useState<RelatedItemState[]>([])
+  const [extrasBasePrice, setExtrasBasePrice] = useState('0')
+  const [extrasSaving, setExtrasSaving] = useState(false)
+  const [extrasErr, setExtrasErr] = useState<string | null>(null)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
   const [materialSearchOpen, setMaterialSearchOpen] = useState(false)
   const [folderMoveTarget, setFolderMoveTarget] = useState<MaterialCategory | null>(null)
@@ -415,6 +418,42 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       .then((r) => setMaterials(r.results))
       .catch((e) => setErr(String(e)))
   }, [selected])
+
+  useEffect(() => {
+    setExtrasTarget(null)
+  }, [selected])
+
+  useEffect(() => {
+    if (!extrasTarget) {
+      setExtrasRelated([])
+      setExtrasBasePrice('0')
+      setExtrasErr(null)
+      return
+    }
+    setExtrasRelated(materialExtrasInitRelated(extrasTarget))
+    setExtrasBasePrice(formatDecimalStringForInput(String(extrasTarget.base_price ?? '0'), DECIMAL_FRACTION_DIGITS))
+  }, [extrasTarget])
+
+  const saveExtras = useCallback(() => {
+    if (!extrasTarget) return
+    setExtrasSaving(true)
+    setExtrasErr(null)
+    updateMaterial(extrasTarget.id, {
+      related_items: extrasRelated.map((r) => ({
+        related_material_id: r.related_material_id,
+        quantity: commitDecimalForApi(r.quantity),
+        quantity_scale: r.quantity_scale,
+      })),
+    })
+      .then((updated) => {
+        setMaterials((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+        setExtrasTarget(updated)
+        setExtrasRelated(materialExtrasInitRelated(updated))
+        setExtrasBasePrice(formatDecimalStringForInput(String(updated.base_price ?? '0'), DECIMAL_FRACTION_DIGITS))
+      })
+      .catch((e) => setExtrasErr(String(e)))
+      .finally(() => setExtrasSaving(false))
+  }, [extrasTarget, extrasRelated])
 
   const onMaterialsImportFile = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -844,9 +883,16 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 <div className="admin-main-scroll">
                   <div className="admin-heading-row">
                     <h2 className="admin-h2">Материалы в папке</h2>
-                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал — кнопка «+ Материал»; карточка существующего — иконка шестерёнки справа в строке. Сопутствующие материалы — в нижней части окна карточки." />
+                    <HintButton text="Строка списка — сопутствующие материалы под таблицей (повторный клик по строке скрывает блок). Шестерёнка — полная карточка в отдельном окне." />
                   </div>
-                  <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
+                  <button
+                    type="button"
+                    className="admin-primary"
+                    onClick={() => {
+                      setExtrasTarget(null)
+                      setEditing('new')
+                    }}
+                  >
                     + Материал
                   </button>
                   {editing ? (
@@ -866,41 +912,76 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                       <span className="mat-list-legend-gear-slot" aria-hidden />
                     </div>
                     <ul className="mat-list">
-                      {materials.map((m) => (
-                        <li key={m.id} className="mat-list-item">
-                          <div className="mat-list-item-inner">
-                            <div
-                              className={
-                                editing && editing !== 'new' && (editing as Material).id === m.id
-                                  ? 'mat-list-row mat-list-row--active'
-                                  : 'mat-list-row'
-                              }
-                              aria-current={
-                                editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined
-                              }
-                            >
-                              <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
-                              <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
-                              <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
-                              <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
+                      {materials.map((m) => {
+                        const rowExtrasOpen = extrasTarget?.id === m.id
+                        const rowCardOpen = editing && editing !== 'new' && (editing as Material).id === m.id
+                        const rowActive = rowExtrasOpen || rowCardOpen
+                        return (
+                          <li key={m.id} className="mat-list-item">
+                            <div className="mat-list-item-inner">
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                className={rowActive ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
+                                aria-current={rowActive ? 'true' : undefined}
+                                aria-label={`Сопутствующие: ${m.name || 'материал'}`}
+                                onClick={() => {
+                                  setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                                  }
+                                }}
+                              >
+                                <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
+                                <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
+                                <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
+                                <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="mat-list-gear-btn"
+                                title="Открыть карточку материала"
+                                aria-label={`Карточка: ${m.name || 'материал'}`}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setExtrasTarget(null)
+                                  setEditing(m)
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                  <circle cx="12" cy="12" r="3" />
+                                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                                </svg>
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              className="mat-list-gear-btn"
-                              title="Открыть карточку материала"
-                              aria-label={`Карточка: ${m.name || 'материал'}`}
-                              onClick={() => setEditing(m)}
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-                              </svg>
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
+                  {extrasTarget ? (
+                    <div className="admin-extras-panel admin-extras-panel--inline" aria-label="Сопутствующие материалы и операции">
+                      {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
+                      <MaterialExtrasPanel
+                        uomList={uom}
+                        mainMaterialId={extrasTarget.id}
+                        relatedItems={extrasRelated}
+                        onRelatedChange={setExtrasRelated}
+                        basePrice={extrasBasePrice}
+                      />
+                      <div className="admin-row mat-extras-inline-actions">
+                        <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
+                          {extrasSaving ? 'Сохранение…' : 'Сохранить сопутствующие'}
+                        </button>
+                        <button type="button" className="admin-secondary" disabled={extrasSaving} onClick={() => setExtrasTarget(null)}>
+                          Закрыть
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </main>
@@ -943,6 +1024,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                       onDeleted={(id) => {
                         setMaterials((prev) => prev.filter((m) => m.id !== id))
                         setEditing(null)
+                        setExtrasTarget((et) => (et?.id === id ? null : et))
                       }}
                       onSaved={(m) => {
                         setMaterials((prev) => {
@@ -951,14 +1033,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         })
                         setEditing(m)
                       }}
-                      extraHost={matExtraHost}
                     />
                   </section>
-                  <div
-                    className="admin-extras-panel admin-extras-panel--material-modal"
-                    ref={setMatExtraHost}
-                    aria-label="Сопутствующие материалы и операции"
-                  />
                 </div>
               </div>,
               document.body
@@ -1188,7 +1264,6 @@ function MaterialForm({
   onClose,
   onDeleted,
   onSaved,
-  extraHost,
 }: {
   uomList: UnitOfMeasure[]
   mclassesList: MaterialClass[]
@@ -1199,7 +1274,6 @@ function MaterialForm({
   onClose: () => void
   onDeleted: (id: number) => void
   onSaved: (m: Material) => void
-  extraHost: HTMLDivElement | null
 }) {
   const [activeTab, setActiveTab] = useState<'general' | 'extra' | 'texture'>('general')
   const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
@@ -1468,7 +1542,7 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Поля — во вкладках выше; сопутствующие материалы — в нижней части этого же окна (под формой). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке (под таблицей). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
@@ -2162,17 +2236,6 @@ function MaterialForm({
         }}
       />
     )}
-    {extraHost &&
-      createPortal(
-        <MaterialExtrasPanel
-          uomList={uomList}
-          mainMaterialId={material?.id ?? null}
-          relatedItems={relatedItems}
-          onRelatedChange={setRelatedItems}
-          basePrice={form.base_price}
-        />,
-        extraHost
-      )}
     </>
   )
 }

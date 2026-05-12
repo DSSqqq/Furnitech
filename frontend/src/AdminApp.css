@@ -460,15 +460,16 @@
   height: min(78vh, 720px);
   max-height: min(88vh, 760px);
   min-height: min(50vh, 440px);
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  padding: 0.65rem 0.85rem 0.85rem;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+  padding: 0.65rem 0.85rem 0.85rem;
+  gap: 0;
 }
 
 .admin-modal--material-card .admin-panel--in-material-modal {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -476,10 +477,20 @@
   padding: 0.75rem 1rem 1rem;
 }
 
-.admin-modal--material-card .admin-extras-panel--material-modal {
-  margin: 0;
-  min-height: 0;
-  max-height: min(30vh, 280px);
+.admin-extras-panel--inline {
+  margin-top: 0.75rem;
+}
+
+.mat-extras-inline-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+#admin-panel-materials .admin-extras-panel--inline {
+  max-height: min(48dvh, 520px);
 }
 
 .admin-material-card-context {
@@ -1862,17 +1873,16 @@ select.admin-input optgroup {
 }
 
 .mat-list-item-inner .mat-list-row {
-  cursor: default;
+  cursor: pointer;
   min-width: 0;
   width: 100%;
 }
 
-.mat-list-row:focus-visible {
+.mat-list-item-inner .mat-list-row:focus-visible {
   outline: 2px solid rgba(203, 176, 121, 0.7);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
-.mat-list-cell {
   min-width: 0;
   font-size: 0.9rem;
   line-height: 1.35;
