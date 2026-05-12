@@ -844,40 +844,59 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 <div className="admin-main-scroll">
                   <div className="admin-heading-row">
                     <h2 className="admin-h2">Материалы в папке</h2>
-                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал создаётся в выбранной папке. Сохраняйте карточку справа." />
+                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал — кнопка «+ Материал»; карточка существующего — иконка шестерёнки справа в строке. Сопутствующие материалы — в блоке под списком, пока открыта карточка." />
                   </div>
                   <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
                     + Материал
                   </button>
+                  {editing ? (
+                    <p className="admin-material-card-context" aria-live="polite">
+                      {editing === 'new' ? 'Новый материал' : (editing as Material).name.trim() || '—'}
+                    </p>
+                  ) : null}
                   <div className="mat-list-table" aria-label="Список материалов в папке">
-                    <div className="mat-list-legend" role="row">
-                      {MAT_LIST_COLUMNS.map((label) => (
-                        <span key={label} role="columnheader">
-                          {label}
-                        </span>
-                      ))}
+                    <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+                      <div className="mat-list-legend" role="presentation">
+                        {MAT_LIST_COLUMNS.map((label) => (
+                          <span key={label} role="columnheader">
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="mat-list-legend-gear-slot" aria-hidden />
                     </div>
                     <ul className="mat-list">
                       {materials.map((m) => (
                         <li key={m.id} className="mat-list-item">
-                          <button
-                            type="button"
-                            className={
-                              editing && editing !== 'new' && (editing as Material).id === m.id
-                                ? 'mat-list-row mat-list-row--active'
-                                : 'mat-list-row'
-                            }
-                            onClick={() => setEditing(m)}
-                            title="Открыть карточку материала"
-                            aria-current={
-                              editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined
-                            }
-                          >
-                            <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
-                            <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
-                            <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
-                            <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
-                          </button>
+                          <div className="mat-list-item-inner">
+                            <div
+                              className={
+                                editing && editing !== 'new' && (editing as Material).id === m.id
+                                  ? 'mat-list-row mat-list-row--active'
+                                  : 'mat-list-row'
+                              }
+                              aria-current={
+                                editing && editing !== 'new' && (editing as Material).id === m.id ? 'true' : undefined
+                              }
+                            >
+                              <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
+                              <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
+                              <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
+                              <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="mat-list-gear-btn"
+                              title="Открыть карточку материала"
+                              aria-label={`Карточка: ${m.name || 'материал'}`}
+                              onClick={() => setEditing(m)}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                              </svg>
+                            </button>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -889,40 +908,59 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               <div className="admin-extras-panel" ref={setMatExtraHost} aria-label="Сопутствующие материалы и операции" />
             )}
           </div>
-          <section className="admin-panel">
-            {editing && selected != null && (
-              <MaterialForm
-                key={editing === 'new' ? 'new' : (editing as Material).id}
-                uomList={uom}
-                mclassesList={mclasses}
-                onMaterialClassCreated={(c) => {
-                  setMclasses((prev) => {
-                    if (prev.some((x) => x.id === c.id)) return prev
-                    return [...prev, c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-                  })
+          {editing &&
+            selected != null &&
+            createPortal(
+              <div
+                className="admin-modal-backdrop"
+                role="presentation"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setEditing(null)
                 }}
-                onMaterialClassesDeleted={(ids) => {
-                  const remove = new Set(ids.map((x) => Number(x)))
-                  setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
-                }}
-                categoryId={selected}
-                material={editing === 'new' ? null : editing}
-                onClose={() => setEditing(null)}
-                onDeleted={(id) => {
-                  setMaterials((prev) => prev.filter((m) => m.id !== id))
-                  setEditing(null)
-                }}
-                onSaved={(m) => {
-                  setMaterials((prev) => {
-                    if (editing === 'new') return [...prev, m]
-                    return prev.map((x) => (x.id === m.id ? m : x))
-                  })
-                  setEditing(m)
-                }}
-                extraHost={matExtraHost}
-              />
+              >
+                <div
+                  className="admin-modal admin-modal--explorer admin-modal--material-card"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="material-card-dialog-title"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <section className="admin-panel admin-panel--in-material-modal">
+                    <MaterialForm
+                      key={editing === 'new' ? 'new' : (editing as Material).id}
+                      uomList={uom}
+                      mclassesList={mclasses}
+                      onMaterialClassCreated={(c) => {
+                        setMclasses((prev) => {
+                          if (prev.some((x) => x.id === c.id)) return prev
+                          return [...prev, c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+                        })
+                      }}
+                      onMaterialClassesDeleted={(ids) => {
+                        const remove = new Set(ids.map((x) => Number(x)))
+                        setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
+                      }}
+                      categoryId={selected}
+                      material={editing === 'new' ? null : editing}
+                      onClose={() => setEditing(null)}
+                      onDeleted={(id) => {
+                        setMaterials((prev) => prev.filter((m) => m.id !== id))
+                        setEditing(null)
+                      }}
+                      onSaved={(m) => {
+                        setMaterials((prev) => {
+                          if (editing === 'new') return [...prev, m]
+                          return prev.map((x) => (x.id === m.id ? m : x))
+                        })
+                        setEditing(m)
+                      }}
+                      extraHost={matExtraHost}
+                    />
+                  </section>
+                </div>
+              </div>,
+              document.body
             )}
-          </section>
         </div>
       ) : section === 'textures' ? (
         <AdminTexturesPanel />
@@ -1425,8 +1463,10 @@ function MaterialForm({
     <div className="mat-form">
       <div className="mat-form-head">
         <div className="admin-heading-row mat-form-title-line">
-          <h3 className="admin-h2">{material ? 'Карточка материала' : 'Новый материал'}</h3>
-          <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие — внизу по центру (под списком папки). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <h3 id="material-card-dialog-title" className="admin-h2">
+            {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
+          </h3>
+          <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие — в блоке под списком материалов (пока открыта карточка). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
@@ -2071,7 +2111,7 @@ function MaterialForm({
       material &&
       createPortal(
         <div
-          className="admin-modal-backdrop"
+          className="admin-modal-backdrop admin-modal-backdrop--stack-top"
           role="dialog"
           aria-modal="true"
           aria-labelledby="material-delete-title"

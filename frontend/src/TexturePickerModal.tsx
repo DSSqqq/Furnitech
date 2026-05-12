@@ -195,7 +195,7 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
 
   return createPortal(
     <div
-      className="admin-modal-backdrop"
+      className="admin-modal-backdrop admin-modal-backdrop--elevated"
       role="dialog"
       aria-modal="true"
       aria-labelledby="texture-picker-title"
