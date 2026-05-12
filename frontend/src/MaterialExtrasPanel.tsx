@@ -271,7 +271,7 @@ export function MaterialExtrasPanel({
                 <FtSelect
                   compact
                   value={r.quantity_scale}
-                  title="Как умножать строку в калькуляторе (см. подсказку под таблицей)"
+                  title="Как умножать строку в калькуляторе (см. текст предпросчёта ниже в этой панели)"
                   onChange={(v) =>
                     onRelatedChange(
                       relatedItems.map((row, j) =>

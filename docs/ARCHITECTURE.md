@@ -58,7 +58,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 | URL | Назначение |
 |-----|------------|
-| `/materials`, `/materials/…` | Материалы: дерево, список, карточка |
+| `/materials`, `/materials/…` | **Материалы:** дерево папок + список (**`#admin-panel-materials`**). Кнопка **«Все папки»** над деревом — **`selected == null`**, справа **`fetchMaterialsFiltered({})`** (все материалы). **DnD** папок и материалов **на странице** (MIME из **`folderMoveDnD.ts`**); отдельные **`MaterialSearchModal`** и **`FolderMoveModal`** на этой вкладке **не** монтируются (**`FolderMoveModal`** используется в **текстурах**). Заголовок списка: **«Материалы в папке:»** / **«Материалы: все папки»**. **Сопутствующие** — модалка (**`admin-modal--extras`**) по клику на строку. **Карточка** — модалка по шестерёнке (**`MaterialForm`**). Подробнее — [«Вкладка „Материалы“»](#вкладка-материалы-сетка-и-сценарии). |
 | `/textures`, `/textures/…` | **База текстур:** дерево папок (**`TextureCategory`**), список записей (**`TextureItem`**: имя + файл), карточка справа. Компонент **`AdminTexturesPanel`**. Загрузка изображения — только здесь; в карточке материала — выбор из базы (**`TexturePickerModal`**) |
 | `/calculator`, `/calculator/frame`, … | Калькулятор **`variant="admin"`** (префикс `/calculator/…`, полный CRUD на шагах 2 и 4) |
 | `/orders`, `/orders/…` | **«Заказы»** — **`AdminOrdersPanel`**: таблица **`/api/facade-orders/`**, смена статуса (**`FtSelect`**), PDF (поле **`snapshot`** в ответе API и в Django admin, в таблице SPA не показывается) |
@@ -214,12 +214,13 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 |--------|------|
 | `App.tsx` | `/login` (**`LoginRoute`**, **`safePostLoginTarget`**); **`AdminApp`** на `/materials/*`, `/calculator/*`, `/orders/*`, `/users/*` (**`AdminRoute`**); родитель **`/`** — **`PublicShell`** с вложенными маршрутами: индекс и **`*`** — **`CalculatorPage variant="public"`**, **`my-orders`**, **`guide`** → **`/`**. |
 | `PublicClientPages.tsx` | **`ClientMyOrdersPage`** (**`fetchFacadeOrders`**, статусы + **`HintButton`**), **`isPublicCalculatorRoute`**, **`PublicShellOutletContext`**. |
-| `AdminApp.tsx` | Шапка: **`admin-header-top`** + **`admin-section-tabs`**. Сетка материалов; калькулятор **`variant="admin"`**; **«Заказы»** — **`AdminOrdersPanel`**. Папки: **`FolderCreateModal`**; **`FolderMoveModal`** с **`applyFolderMove`** и **`applyMaterialMove`** (**`onMoveMaterial`**, **`PATCH`** **`category`** у материала); **«Поиск»** — **`MaterialSearchModal`** (**`navigate`**, **`onNavigate`**). Дерево папок: **`TreeRow`** в стиле **`folder-explorer-tree-line`**, **`ul.admin-materials-tree-root`**. **`MaterialForm`**: **`is_active`** не в UI; при сохранении **`material?.is_active ?? true`**. |
+| `AdminApp.tsx` | Шапка **`admin-header-top`** + **`admin-section-tabs`**. Сетка **`/materials`** (две колонки); калькулятор **`variant="admin"`**; **«Заказы»** — **`AdminOrdersPanel`**. **Материалы:** **`TreeRow`** с **`treeDnD`** (DnD папок, drop материала на папку), **`FolderCreateModal`**, **`applyFolderMove`** / **`applyMaterialMove`**, **`fetchMaterialsFiltered`**, корень **«Все папки»**; без **`MaterialSearchModal`** / **`FolderMoveModal`** на этой вкладке. Список: **`mat-list-row`** (**`draggable`**) / **`mat-list-gear-btn`**; сопутствующие — **`createPortal`** (**`admin-modal--extras`**, **`saveExtras`**); карточка — **`MaterialForm`** (**`admin-modal--material-card`**). **`MaterialForm`**: **`is_active`** не в UI. |
 | `AdminOrdersPanel.tsx` | Таблица заказов и **`FtSelect`** статусов (**в т.ч. «Завершён»**), PDF; без колонки просмотра **`snapshot`**. |
 | `FolderCreateModal.tsx` | Окно «Создать папку» в стиле Windows-Explorer: левая колонка — дерево с раскрытием, правая — сетка плиток (📁 папки, 📄 материалы из **`fetchMaterials`** с кешем), хлебные крошки, поле имени, кнопки «Отмена» / «Создать»; портал в **`document.body`**, классы **`admin-modal--explorer`** + **`folder-explorer-*`**. |
-| `FolderMoveModal.tsx` | Explorer: DnD **любой** папки (строка дерева, **«Все папки»**, плитка 📁); MIME **`application/x-furnitech-folder-move`**; **`executeFolderMove`** → **`onMove(newParent, movingId)`**; после успеха **без** **`onClose`**; футер **«Закрыть»**. Опционально **`onMoveMaterial`** (📄 → папка, **`application/x-furnitech-material-move`**). Текстуры: без **`onMoveMaterial`**, только папки. |
-| `MaterialSearchModal.tsx` | Поиск материалов: фильтры, дерево (**`category`**), таблица. **`mode="multiPick"`** (по умолчанию): чекбоксы, **`Map<id, Material>`** сохраняет выбор при смене папки/фильтров, чекбокс **«выбрать все»** в шапке, **`onPick`**. **`mode="navigate"`**: без чекбоксов, **`navigateRowId`**, **«Перейти»**, **`onNavigate`**, класс **`.material-search-results-table--navigate`**. **`fetchMaterialsFiltered`**; стили — **`AdminApp.css`**. |
-| `MaterialExtrasPanel.tsx` + **`MaterialExtrasPanel.css`** | Сопутствующие (колонка **«Масштаб»**: `quantity_scale`); предпросмотр без габаритов + текстовые подсказки к калькулятору. |
+| `FolderMoveModal.tsx` | Explorer: DnD **любой** папки (строка дерева, **«Все папки»**, плитка 📁); MIME **`application/x-furnitech-folder-move`** / **`application/x-furnitech-material-move`** из **`folderMoveDnD.ts`**; **`executeFolderMove`** → **`onMove(newParent, movingId)`**; после успеха **без** **`onClose`**; футер **«Закрыть»**. Опционально **`onMoveMaterial`** (📄 → папка). **Текстуры:** без **`onMoveMaterial`**, только папки. На вкладке **«Материалы»** не используется — перенос там **inline** в **`AdminApp`**. |
+| `folderMoveDnD.ts` | **`DND_FOLDER`**, **`DND_MATERIAL`**, **`isFolderDrag`**, **`isMaterialDrag`** — общие для **`AdminApp`** и **`FolderMoveModal`**. |
+| `MaterialSearchModal.tsx` | Поиск материалов: фильтры, дерево (**`category`**), таблица. **`mode="multiPick"`** (по умолчанию): чекбоксы, **`Map<id, Material>`**, **«выбрать все»**, **`onPick`** — **калькулятор**. **`mode="navigate"`**: без чекбоксов, **«Перейти»**, **`onNavigate`** — в коде сохранён; **на вкладке «Материалы» SPA не монтируется** (с 2026-05-12). **`fetchMaterialsFiltered`**; стили — **`AdminApp.css`**. |
+| `MaterialExtrasPanel.tsx` + **`MaterialExtrasPanel.css`** | Сопутствующие (колонка **«Масштаб»**: `quantity_scale`); предпросмотр без габаритов; в админке материалов — внутри модалки **`admin-modal--extras`**. |
 | `api.ts` | `apiFetch` (Bearer при наличии токена) + калькулятор и **`facade-orders`**: **`createFacadeOrder`**, **`fetchFacadeOrders`**, **`patchFacadeOrderStatus`**; **`fetchMaterialsFiltered`**, **`searchMaterials`** (параметр **`search`**). |
 | `CalculatorPage.tsx` | Калькулятор: **`variant`**, **`CalcPathsProvider`**, **`CalculatorPageInner`** без пропсов; маршруты шагов 1–8 — в **`calc-card`** **нет** дублирующих **`h3`** «Рамочный фасад — …»; вкладки, `frameCalcSession`; шаг **6** активен при **`isFrameStep4Ready()`** и **`isFrameMortiseHingeSelected()`**; сетка **`calc-body-with-totals`** + **`CalcPriceTotals`**; при выборе фасада на шаге 1 — **`clearFrameCalculatorStorage`**. На шаге 8 — класс **`calc-routes-wrap--step8`** на обёртке маршрутов. |
 | `calculator/calcPathsContext.tsx` | `step`, `home`, `readOnly`; нормализация пути для вкладок. |
@@ -248,12 +249,22 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 ### Папки (левая колонка)
 
-- Выбор: клик по **названию** на боковике.
-- **Шестерёнка (⚙):** по **наведению** на строку появляется; кнопка **`.tree-gear-btn`** — **чёрный** фон, **белая** иконка (см. **`AdminApp.css`**). Меню: **Переименовать** (inline-редактирование), **Переместить** (**`FolderMoveModal`**: DnD **любой** папки на цель или **«Все папки»**; при необходимости перенос материалов 📄; **`PATCH`** **`parent`** / **`category`**), **Удалить** — **модальное окно** (каскад) + **`DELETE`**.
-- **Создание (`FolderCreateModal`)**: кнопка **«+ Создать папку»** (`admin-folder-create-btn`). Открывает **`admin-modal--explorer`**: хлебные крошки, слева дерево, справа сетка плиток (**`fetchMaterials`** с кешем), поле имени, **«Отмена» / «Создать»**. После успеха — перезагрузка дерева, раскрытие родителя, выбор новой папки.
-- **Поиск материалов:** кнопка **«Поиск»** (`admin-folder-search-btn`) — **`MaterialSearchModal`** в режиме **навигации**: фильтры, дерево (**`category`**), таблица без чекбоксов; **«Перейти»** открывает выбранный материал в карточке (**`onNavigate`**).
+- Выбор: клик по **названию** на боковике; **«Все папки»** — сброс **`selected`**, справа полный список материалов.
+- **DnD папки:** перетаскивание строки дерева на другую папку, на **«Все папки»** или на область списка справа при открытой папке — смена **`parent`** (**`PATCH /api/categories/{id}/`**). Подсветка запрёта — классы **`folder-explorer-tree-line--move-blocked`**, **`--drag-source`** (как в **`FolderMoveModal`**).
+- **DnD материала:** строка списка (**`mat-list-row`**, **`draggable`**) — сброс на папку в дереве или на **`admin-main-scroll`** при **`selected != null`** (**`PATCH`** **`category`**). На **«Все папки»** drop материала не принимается.
+- **Панель над деревом** (**`admin-folder-toolbar`**): создать папку (**`FolderCreateModal`**), переименовать выбранную, удалить выбранную (модалка + **`DELETE`**), импорт/экспорт. **Перемещение папки** — только **DnD** строки дерева (2026-05-12), не через отдельную модалку на этой вкладке.
+- **Переименование в строке:** двойной клик по названию не используется; переименование выбранной папки — через иконку на панели или запрос **`folderRenameRequest`** на **`TreeRow`** (inline-инпут при **`targetId`**).
+- **Поиск по каталогу из боковой панели материалов** — снят (2026-05-12); **`MaterialSearchModal`** остаётся в **калькуляторе** (шаги 2, 4, каталог петель и т.д.).
 
-### Карточка материала (правая колонка)
+### Вкладка «Материалы»: сетка и сценарии
+
+- **Сетка:** **`#admin-panel-materials.admin-body`** — **`aside`** (кнопка **«Все папки»**, дерево **`TreeRow`** с DnD) + **`admin-main-col`** (список). Отдельной правой колонки с формой нет.
+- **Шапка списка:** **`h2.admin-h2`** — **«Материалы в папке:»** + имя папки (**`findCategoryNode`**) или **«Материалы: все папки»** при **`selected == null`**.
+- **Типографика** (**`AdminApp.css`**): переменные **`--mat-scroll-fs`**, **`--mat-scroll-lh`**, **`--mat-scroll-ls`** на **`#admin-panel-materials.admin-body`**; стиль корня **`.folder-explorer-root`** в **`aside`**.
+- **Список:** строка — **`div.mat-list-row`** (**`draggable`** для переноса **материала** в другую папку, **`onDragStart`** с **`DND_MATERIAL`**): клик / Enter / Space — **модалка сопутствующих**; шестерёнка — **модалка карточки**. **«+ Материал»** неактивен без выбранной папки (**`category`** обязателен в API).
+- **Сопутствующие (модалка):** **`PATCH`** только **`related_items`**, кнопка **«Сохранить»** в футере.
+
+### Карточка материала (модальное окно)
 
 - Вкладки: **«Общие параметры»**, **«Доп. параметры»**, **«Параметры текстуры»**.
 - Поле **`is_active`** в этой форме **не редактируется** (см. [материал](#категории-материалы-папки)); при сохранении значение пробрасывается в API как описано выше.
@@ -293,17 +304,16 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 
 В dev/прототипе текстуры могут приходить с длинными именами файлов. Для этого у `texture_image` увеличен `max_length` (миграция `0014`), иначе загрузка может падать с 400.
 
-### Панель внизу (центр)
+### Vite и API в dev
 
-- `MaterialExtrasPanel` порталится в `div.admin-main-extras-host` **под** прокручиваемым списком материалов.
-
-Vite: прокси `/api` → `http://127.0.0.1:8000`.
+- Прокси **`/api`** и **`/media`** → `http://127.0.0.1:8000` (см. **`frontend/vite.config.ts`**).
+- **`frontend/.env.development`:** пустой **`VITE_API_ORIGIN`** — браузер шлёт запросы на origin dev-сервера Vite, прокси пересылает на Django. В **production** (Vercel и т.п.) задайте **`VITE_API_ORIGIN`** на публичный URL бэкенда — см. [DEPLOY.md](DEPLOY.md).
 
 ---
 
 ## Стили (основные CSS-файлы)
 
-- `AdminApp.css` — сетка админки, **`admin-header-top`**, **`admin-section-tabs`**, дерево (**`admin-materials-tree-root`**, **`folder-explorer-tree-line`** на **`TreeRow`**), **`tree-gear-btn`**, **`tree-gear-menu`**, `admin-modal-*`, **`folder-explorer-*`** (в т.ч. **`:hover`** у плиток материалов **`--draggable`**, **`folder-explorer-tile--drag-source`** у папок), DnD (**`--move-blocked`**), **`material-search-*`**, список материалов, форма, **`admin-orders-*`**.
+- `AdminApp.css` — сетка админки, **`admin-header-top`**, **`admin-section-tabs`**, дерево (**`admin-materials-tree-root`**, **`folder-explorer-tree-line`** на **`TreeRow`**, корень **`folder-explorer-root`** в **`aside`**), **`tree-gear-btn`**, **`tree-gear-menu`**, `admin-modal-*` (в т.ч. **`admin-modal--material-card`**, **`admin-modal--extras`**, **`admin-modal-backdrop--stack-top`** / **`--elevated`**), **`folder-explorer-*`** (в т.ч. в модалке перемещения **текстур**: **`:hover`** у плиток **`--draggable`**, **`folder-explorer-tile--drag-source`**), DnD (**`--move-blocked`**), **`material-search-*`**, **`#admin-panel-materials`** — **`--mat-scroll-*`** на **`admin-body`**, компактные **`admin-aside`** (тулбар папок) и **`mat-list-row`** / **`mat-list-gear-btn`**, форма, **`admin-orders-*`**.
 - `App.css` — **`public-shell__main`**, **`public-shell__section-tabs`**, шапка публичного сайта.
 - `CalculatorPage.css` — калькулятор: шаги-вкладки, **`.calc-side-panel`**, ширина шага 1, панель **`.calc-totals-*`**, модификатор **`calc-routes-wrap--step8`**.
 - `calculator/Step8FrameResult.css` — шаг 8: **`step8-result__scroll-pack`**, печать (`@media print`).

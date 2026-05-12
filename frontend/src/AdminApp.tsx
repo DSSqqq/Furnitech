@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -15,6 +24,7 @@ import {
   fetchCategoryTree,
   fetchMaterialClasses,
   fetchMaterials,
+  fetchMaterialsFiltered,
   fetchUom,
   importMaterialsTable,
   patchAdminUserStaff,
@@ -25,8 +35,7 @@ import {
 import { AdminOrdersPanel } from './AdminOrdersPanel'
 import { AdminTexturesPanel } from './AdminTexturesPanel'
 import { FolderCreateModal } from './FolderCreateModal'
-import { FolderMoveModal } from './FolderMoveModal'
-import { MaterialSearchModal } from './MaterialSearchModal'
+import { DND_FOLDER, DND_MATERIAL, isFolderDrag, isMaterialDrag } from './folderMoveDnD'
 import type { Me } from './auth'
 import { BASE_CURRENCY } from './currencies'
 import {
@@ -132,6 +141,15 @@ type AdminProps = {
   onLogout: () => void
 }
 
+type AdminMaterialsTreeDnD = {
+  draggingFolderId: number | null
+  forbiddenIdsForDrag: Set<number>
+  onFolderDragStart: (e: DragEvent, folderId: number) => void
+  onFolderDragEnd: () => void
+  onFolderDropOnFolder: (e: DragEvent, targetFolderId: number) => void
+  onDropMaterialOnFolder: (materialId: number, targetFolderId: number) => void
+}
+
 function TreeRow({
   c,
   depth,
@@ -142,6 +160,7 @@ function TreeRow({
   onRename,
   folderRenameRequest,
   onFolderRenameConsumed,
+  treeDnD,
 }: {
   c: MaterialCategory
   depth: number
@@ -152,6 +171,7 @@ function TreeRow({
   onRename: (id: number, name: string) => Promise<void>
   folderRenameRequest: FolderRenameRequest | null
   onFolderRenameConsumed: () => void
+  treeDnD?: AdminMaterialsTreeDnD
 }) {
   const isSel = c.id === selectedId
   const hasKids = (c.children?.length ?? 0) > 0
@@ -159,6 +179,9 @@ function TreeRow({
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(c.name)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dnd = treeDnD
+  const canDropFolderHere = dnd ? !dnd.forbiddenIdsForDrag.has(c.id) : true
+  const isDragSource = dnd ? c.id === dnd.draggingFolderId : false
 
   useEffect(() => {
     setDraft(c.name)
@@ -201,20 +224,56 @@ function TreeRow({
     setEditing(false)
   }
 
+  const lineClass =
+    (isSel && !editing ? 'folder-explorer-tree-line folder-explorer-tree-line--active' : 'folder-explorer-tree-line') +
+    (dnd && dnd.draggingFolderId != null && !canDropFolderHere ? ' folder-explorer-tree-line--move-blocked' : '') +
+    (isDragSource ? ' folder-explorer-tree-line--drag-source' : '')
+
+  const onDragOverRow = (e: DragEvent) => {
+    if (!dnd) return
+    if (isMaterialDrag(e)) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = 'move'
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const onDropRow = (e: DragEvent) => {
+    if (!dnd) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (isMaterialDrag(e)) {
+      const raw = e.dataTransfer.getData(DND_MATERIAL)
+      const mid = Number.parseInt(raw, 10)
+      if (Number.isFinite(mid)) dnd.onDropMaterialOnFolder(mid, c.id)
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
+    dnd.onFolderDropOnFolder(e, c.id)
+  }
+
   return (
     <li className="folder-explorer-tree-item">
       <div
-        className={
-          isSel && !editing
-            ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
-            : 'folder-explorer-tree-line'
-        }
+        className={lineClass}
         style={{ paddingLeft: 6 + depth * 14 }}
+        draggable={Boolean(dnd) && !editing}
+        onDragStart={dnd && !editing ? (e) => dnd.onFolderDragStart(e, c.id) : undefined}
+        onDragEnd={dnd ? dnd.onFolderDragEnd : undefined}
+        onDragOver={onDragOverRow}
+        onDrop={onDropRow}
+        title={isDragSource ? 'Удерживайте и перетащите на другую папку или на «Все папки»' : c.path}
       >
         {hasKids ? (
           <button
             type="button"
             className="folder-explorer-tree-expander"
+            draggable={false}
             aria-label={isExpanded ? 'Свернуть папку' : 'Развернуть папку'}
             aria-expanded={isExpanded}
             onClick={(e) => {
@@ -232,6 +291,7 @@ function TreeRow({
             ref={inputRef}
             className="admin-input tree-rename-input"
             value={draft}
+            draggable={false}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => commit()}
             onKeyDown={(e) => {
@@ -251,6 +311,7 @@ function TreeRow({
           <button
             type="button"
             className="folder-explorer-tree-link"
+            draggable={false}
             onClick={() => onSelect(c.id)}
             title={c.path}
           >
@@ -275,6 +336,7 @@ function TreeRow({
               onRename={onRename}
               folderRenameRequest={folderRenameRequest}
               onFolderRenameConsumed={onFolderRenameConsumed}
+              treeDnD={treeDnD}
             />
           ))}
         </ul>
@@ -340,8 +402,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [extrasSaving, setExtrasSaving] = useState(false)
   const [extrasErr, setExtrasErr] = useState<string | null>(null)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
-  const [materialSearchOpen, setMaterialSearchOpen] = useState(false)
-  const [folderMoveTarget, setFolderMoveTarget] = useState<MaterialCategory | null>(null)
   const [folderDeleteModal, setFolderDeleteModal] = useState<MaterialCategory | null>(null)
   const [folderRenameRequest, setFolderRenameRequest] = useState<FolderRenameRequest | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
@@ -350,9 +410,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [staffTogglePending, setStaffTogglePending] = useState<number | null>(null)
   const [userDeleteModal, setUserDeleteModal] = useState<AdminUserRow | null>(null)
   const materialsImportFileRef = useRef<HTMLInputElement>(null)
+  const folderDragIdRef = useRef<number | null>(null)
   const [materialsImportBusy, setMaterialsImportBusy] = useState(false)
   const [materialsImportMsg, setMaterialsImportMsg] = useState<string | null>(null)
   const [materialsExportFormat, setMaterialsExportFormat] = useState<'xlsx' | 'xml'>('xlsx')
+  const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null)
 
   const reloadTree = useCallback(() => {
     return fetchCategoryTree()
@@ -411,7 +473,9 @@ export function AdminApp({ user, onLogout }: AdminProps) {
 
   useEffect(() => {
     if (selected == null) {
-      setMaterials([])
+      fetchMaterialsFiltered({})
+        .then((r) => setMaterials(r.results))
+        .catch((e) => setErr(String(e)))
       return
     }
     fetchMaterials(selected, { subtree: true })
@@ -422,6 +486,22 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   useEffect(() => {
     setExtrasTarget(null)
   }, [selected])
+
+  useEffect(() => {
+    if (section !== 'materials') setExtrasTarget(null)
+  }, [section])
+
+  useEffect(() => {
+    if (!extrasTarget) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !extrasSaving) {
+        e.preventDefault()
+        setExtrasTarget(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [extrasTarget, extrasSaving])
 
   useEffect(() => {
     if (!extrasTarget) {
@@ -474,6 +554,13 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           if (selected != null) {
             try {
               const r = await fetchMaterials(selected, { subtree: true })
+              setMaterials(r.results)
+            } catch {
+              /* ignore */
+            }
+          } else {
+            try {
+              const r = await fetchMaterialsFiltered({})
               setMaterials(r.results)
             } catch {
               /* ignore */
@@ -558,6 +645,24 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     [tree, selected]
   )
 
+  const forbiddenIdsForDrag = useMemo(() => {
+    if (draggingFolderId == null) return new Set<number>()
+    const node = findCategoryNode(tree, draggingFolderId)
+    return node ? collectSubtreeCategoryIds(node) : new Set<number>()
+  }, [draggingFolderId, tree])
+
+  const isAllowedFolderTarget = useCallback(
+    (targetParentId: number | null, movingId: number) => {
+      const node = findCategoryNode(tree, movingId)
+      if (!node) return false
+      const forb = collectSubtreeCategoryIds(node)
+      if (targetParentId !== null && forb.has(targetParentId)) return false
+      if (targetParentId === node.parent) return false
+      return true
+    },
+    [tree],
+  )
+
   const applyFolderMove = useCallback(async (newParentId: number | null, movingId: number) => {
     setErr(null)
     await updateCategory(movingId, { parent: newParentId })
@@ -576,6 +681,9 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     if (selected != null) {
       const r = await fetchMaterials(selected, { subtree: true })
       setMaterials(r.results)
+    } else {
+      const r = await fetchMaterialsFiltered({})
+      setMaterials(r.results)
     }
     const cur = editing
     if (cur && cur !== 'new' && cur.id === materialId) {
@@ -583,6 +691,184 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       setEditing(full)
     }
   }, [selected, editing])
+
+  const resetFolderDragState = useCallback(() => {
+    folderDragIdRef.current = null
+    setDraggingFolderId(null)
+  }, [])
+
+  const onFolderDragStart = useCallback((e: DragEvent, id: number) => {
+    e.dataTransfer.setData(DND_FOLDER, String(id))
+    e.dataTransfer.setData('text/plain', String(id))
+    e.dataTransfer.effectAllowed = 'move'
+    folderDragIdRef.current = id
+    setDraggingFolderId(id)
+  }, [])
+
+  const onFolderDragEnd = resetFolderDragState
+
+  const tryFolderMoveDnD = useCallback(
+    async (newParentId: number | null, movingId: number) => {
+      if (!isAllowedFolderTarget(newParentId, movingId)) {
+        const node = findCategoryNode(tree, movingId)
+        if (node && newParentId === node.parent) {
+          setErr('Папка уже находится в этом расположении.')
+        } else {
+          setErr('Сюда перенести нельзя (сама папка или её вложенность).')
+        }
+        return
+      }
+      try {
+        await applyFolderMove(newParentId, movingId)
+      } catch (e) {
+        setErr(String(e))
+      }
+    },
+    [applyFolderMove, isAllowedFolderTarget, tree],
+  )
+
+  const onFolderDropOnFolder = useCallback(
+    (e: DragEvent, targetFolderId: number) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      void tryFolderMoveDnD(targetFolderId, movingId)
+    },
+    [resetFolderDragState, tryFolderMoveDnD],
+  )
+
+  const onFolderDropOnRoot = useCallback(
+    (e: DragEvent) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      void tryFolderMoveDnD(null, movingId)
+    },
+    [resetFolderDragState, tryFolderMoveDnD],
+  )
+
+  const rootFolderDragOver = useCallback(
+    (e: DragEvent) => {
+      if (isMaterialDrag(e)) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'none'
+        return
+      }
+      const mid = folderDragIdRef.current
+      if (!isFolderDrag(e) || mid == null || !isAllowedFolderTarget(null, mid)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+    },
+    [isAllowedFolderTarget],
+  )
+
+  const rootFolderDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      if (isMaterialDrag(e)) {
+        setErr('Материал можно перенести только в папку — перетащите строку материала на папку в дереве или в открытую папку справа.')
+        return
+      }
+      if (!isFolderDrag(e)) return
+      onFolderDropOnRoot(e)
+    },
+    [onFolderDropOnRoot],
+  )
+
+  const onDropMaterialOnFolder = useCallback(
+    (materialId: number, targetFolderId: number) => {
+      const mat = materials.find((m) => m.id === materialId)
+      if (mat && mat.category === targetFolderId) {
+        setErr('Материал уже в этой папке.')
+        return
+      }
+      void applyMaterialMove(materialId, targetFolderId).catch((err) => setErr(String(err)))
+    },
+    [applyMaterialMove, materials],
+  )
+
+  const materialsTreeDnD = useMemo(
+    () => ({
+      draggingFolderId,
+      forbiddenIdsForDrag,
+      onFolderDragStart,
+      onFolderDragEnd,
+      onFolderDropOnFolder,
+      onDropMaterialOnFolder,
+    }),
+    [
+      draggingFolderId,
+      forbiddenIdsForDrag,
+      onFolderDragStart,
+      onFolderDragEnd,
+      onFolderDropOnFolder,
+      onDropMaterialOnFolder,
+    ],
+  )
+
+  const onMainMaterialsDragOver = useCallback(
+    (e: DragEvent) => {
+      if (selected == null) {
+        if (isFolderDrag(e) || isMaterialDrag(e)) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'none'
+        }
+        return
+      }
+      if (isMaterialDrag(e)) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        return
+      }
+      if (isFolderDrag(e)) {
+        const mid = folderDragIdRef.current
+        if (mid != null && isAllowedFolderTarget(selected, mid)) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        } else {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'none'
+        }
+      }
+    },
+    [isAllowedFolderTarget, selected],
+  )
+
+  const onMainMaterialsDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      if (selected == null) return
+      if (isMaterialDrag(e)) {
+        const raw = e.dataTransfer.getData(DND_MATERIAL)
+        const mid = Number.parseInt(raw, 10)
+        if (!Number.isFinite(mid)) return
+        const mat = materials.find((m) => m.id === mid)
+        if (mat && mat.category === selected) {
+          setErr('Материал уже в этой папке.')
+          return
+        }
+        void applyMaterialMove(mid, selected).catch((err) => setErr(String(err)))
+        return
+      }
+      if (isFolderDrag(e)) {
+        const raw = e.dataTransfer.getData(DND_FOLDER)
+        const movingId = Number.parseInt(raw, 10)
+        if (!Number.isFinite(movingId)) return
+        resetFolderDragState()
+        void tryFolderMoveDnD(selected, movingId)
+      }
+    },
+    [applyMaterialMove, materials, resetFolderDragState, selected, tryFolderMoveDnD],
+  )
+
+  const onMaterialRowDragStart = useCallback((e: DragEvent, m: Material) => {
+    e.dataTransfer.setData(DND_MATERIAL, String(m.id))
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
 
   const confirmDeleteFolder = useCallback(() => {
     const cat = folderDeleteModal
@@ -592,11 +878,28 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     deleteCategory(cat.id)
       .then(() => {
         const removed = collectSubtreeCategoryIds(cat)
-        if (selected != null && removed.has(selected)) {
+        const prevSel = selected
+        const clearSel = prevSel != null && removed.has(prevSel)
+        if (clearSel) {
           setSelected(null)
           setEditing(null)
         }
-        return reloadTree()
+        return reloadTree().then(() => ({ prevSel, clearSel }))
+      })
+      .then(({ prevSel, clearSel }) => {
+        const targetSel = clearSel ? null : prevSel
+        if (targetSel == null) {
+          return fetchMaterialsFiltered({})
+            .then((r) => setMaterials(r.results))
+            .catch(() => {
+              /* ignore */
+            })
+        }
+        return fetchMaterials(targetSel, { subtree: true })
+          .then((r) => setMaterials(r.results))
+          .catch(() => {
+            /* ignore */
+          })
       })
       .catch((e) => setErr(String(e)))
   }, [folderDeleteModal, reloadTree, selected])
@@ -762,19 +1065,13 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию — выбрать папку. Панель иконок: новая папка, поиск, переименовать/переместить/удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если папка не выбрана — все материалы, иначе ветка." />
+              <HintButton text="Клик по названию папки — выбрать её; «Все папки» — список всех материалов. Папку можно перетащить на другую строку папки, на «Все папки» или в область открытой папки справа; материал — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если открыты «Все папки» — все материалы, иначе ветка выбранной папки." />
             </div>
             <div className="admin-folder-toolbar" role="toolbar" aria-label="Действия с папками и материалами">
               <AdminFolderToolbarIcon label="Создать папку" onClick={() => setFolderCreateOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M12 19h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-5l-1.33-1.5H5A1 1 0 0 0 4 6.5V18a1 1 0 0 0 1 1h7" />
                   <path d="M12 11v6M9 14h6" />
-                </svg>
-              </AdminFolderToolbarIcon>
-              <AdminFolderToolbarIcon label="Поиск материалов" onClick={() => setMaterialSearchOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="11" cy="11" r="6.5" />
-                  <path d="M16 16l4.5 4.5" />
                 </svg>
               </AdminFolderToolbarIcon>
               <AdminFolderToolbarIcon
@@ -784,18 +1081,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
-              </AdminFolderToolbarIcon>
-              <AdminFolderToolbarIcon
-                label="Переместить выбранную папку"
-                disabled={selectedCategory == null}
-                onClick={() => selectedCategory && setFolderMoveTarget(selectedCategory)}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M5 9l-3 3 3 3" />
-                  <path d="M9 5l3-3 3 3" />
-                  <path d="M19 15l3 3-3 3" />
-                  <path d="M15 19l-3 3-3-3" />
                 </svg>
               </AdminFolderToolbarIcon>
               <AdminFolderToolbarIcon
@@ -855,6 +1140,21 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 {materialsImportMsg}
               </p>
             ) : null}
+            <button
+              type="button"
+              className={
+                selected == null ? 'folder-explorer-root folder-explorer-root--active' : 'folder-explorer-root'
+              }
+              onClick={() => setSelected(null)}
+              draggable={false}
+              onDragOver={rootFolderDragOver}
+              onDrop={rootFolderDrop}
+            >
+              <span className="folder-explorer-icon" aria-hidden>
+                🗂️
+              </span>
+              Все папки
+            </button>
             <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок">
               {tree.map((c) => (
                 <TreeRow
@@ -868,126 +1168,120 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   onRename={renameFolder}
                   folderRenameRequest={folderRenameRequest}
                   onFolderRenameConsumed={clearFolderRenameRequest}
+                  treeDnD={materialsTreeDnD}
                 />
               ))}
             </ul>
           </aside>
           <div className="admin-main-col">
             <main className="admin-main">
-              {selected == null ? (
-                <p className="admin-muted admin-main-empty">
-                  Выберите папку слева.{' '}
-                  <HintButton text="Кликните по папке в левой колонке — здесь появится список материалов." />
-                </p>
-              ) : (
-                <div className="admin-main-scroll">
-                  <div className="admin-heading-row">
-                    <h2 className="admin-h2">Материалы в папке</h2>
-                    <HintButton text="Строка списка — сопутствующие материалы под таблицей (повторный клик по строке скрывает блок). Шестерёнка — полная карточка в отдельном окне." />
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-primary"
-                    onClick={() => {
-                      setExtrasTarget(null)
-                      setEditing('new')
-                    }}
-                  >
-                    + Материал
-                  </button>
-                  {editing ? (
-                    <p className="admin-material-card-context" aria-live="polite">
-                      {editing === 'new' ? 'Новый материал' : (editing as Material).name.trim() || '—'}
-                    </p>
-                  ) : null}
-                  <div className="mat-list-table" aria-label="Список материалов в папке">
-                    <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
-                      <div className="mat-list-legend" role="presentation">
-                        {MAT_LIST_COLUMNS.map((label) => (
-                          <span key={label} role="columnheader">
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="mat-list-legend-gear-slot" aria-hidden />
-                    </div>
-                    <ul className="mat-list">
-                      {materials.map((m) => {
-                        const rowExtrasOpen = extrasTarget?.id === m.id
-                        const rowCardOpen = editing && editing !== 'new' && (editing as Material).id === m.id
-                        const rowActive = rowExtrasOpen || rowCardOpen
-                        return (
-                          <li key={m.id} className="mat-list-item">
-                            <div className="mat-list-item-inner">
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                className={rowActive ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
-                                aria-current={rowActive ? 'true' : undefined}
-                                aria-label={`Сопутствующие: ${m.name || 'материал'}`}
-                                onClick={() => {
-                                  setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault()
-                                    setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
-                                  }
-                                }}
-                              >
-                                <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
-                                <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
-                                <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
-                                <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
-                              </div>
-                              <button
-                                type="button"
-                                className="mat-list-gear-btn"
-                                title="Открыть карточку материала"
-                                aria-label={`Карточка: ${m.name || 'материал'}`}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setExtrasTarget(null)
-                                  setEditing(m)
-                                }}
-                              >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                  <circle cx="12" cy="12" r="3" />
-                                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-                                </svg>
-                              </button>
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                  {extrasTarget ? (
-                    <div className="admin-extras-panel admin-extras-panel--inline" aria-label="Сопутствующие материалы и операции">
-                      {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
-                      <MaterialExtrasPanel
-                        uomList={uom}
-                        mainMaterialId={extrasTarget.id}
-                        relatedItems={extrasRelated}
-                        onRelatedChange={setExtrasRelated}
-                        basePrice={extrasBasePrice}
-                      />
-                      <div className="admin-row mat-extras-inline-actions">
-                        <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
-                          {extrasSaving ? 'Сохранение…' : 'Сохранить сопутствующие'}
-                        </button>
-                        <button type="button" className="admin-secondary" disabled={extrasSaving} onClick={() => setExtrasTarget(null)}>
-                          Закрыть
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+              <div
+                className="admin-main-scroll"
+                onDragOver={onMainMaterialsDragOver}
+                onDrop={onMainMaterialsDrop}
+              >
+                <div className="admin-heading-row">
+                  <h2 className="admin-h2">
+                    {selected == null
+                      ? 'Материалы: все папки'
+                      : `Материалы в папке: ${findCategoryNode(tree, selected)?.name?.trim() || '—'}`}
+                  </h2>
                 </div>
-              )}
+                <button
+                  type="button"
+                  className="admin-primary"
+                  disabled={selected == null}
+                  title={
+                    selected == null
+                      ? 'Сначала выберите папку слева — у материала должна быть категория'
+                      : undefined
+                  }
+                  onClick={() => {
+                    setExtrasTarget(null)
+                    setEditing('new')
+                  }}
+                >
+                  + Материал
+                </button>
+                {editing ? (
+                  <p className="admin-material-card-context" aria-live="polite">
+                    {editing === 'new' ? 'Новый материал' : (editing as Material).name.trim() || '—'}
+                  </p>
+                ) : null}
+                <div
+                  className="mat-list-table"
+                  aria-label={selected == null ? 'Список всех материалов' : 'Список материалов в папке и вложенных'}
+                >
+                  <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+                    <div className="mat-list-legend" role="presentation">
+                      {MAT_LIST_COLUMNS.map((label) => (
+                        <span key={label} role="columnheader">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="mat-list-legend-gear-slot" aria-hidden />
+                  </div>
+                  <ul className="mat-list">
+                    {materials.map((m) => {
+                      const rowExtrasOpen = extrasTarget?.id === m.id
+                      const rowCardOpen = editing && editing !== 'new' && (editing as Material).id === m.id
+                      const rowActive = rowExtrasOpen || rowCardOpen
+                      return (
+                        <li key={m.id} className="mat-list-item">
+                          <div className="mat-list-item-inner">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              className={rowActive ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
+                              aria-current={rowActive ? 'true' : undefined}
+                              aria-label={`Сопутствующие: ${m.name || 'материал'}`}
+                              draggable
+                              onDragStart={(e) => onMaterialRowDragStart(e, m)}
+                              onClick={() => {
+                                setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                                }
+                              }}
+                            >
+                              <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
+                              <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
+                              <span className="mat-list-cell mat-list-cell-uom">
+                                {m.uom?.short_name || m.uom?.name || '—'}
+                              </span>
+                              <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="mat-list-gear-btn"
+                              title="Открыть карточку материала"
+                              aria-label={`Карточка: ${m.name || 'материал'}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setExtrasTarget(null)
+                                setEditing(m)
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                              </svg>
+                            </button>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              </div>
             </main>
           </div>
           {editing &&
-            selected != null &&
+            (editing !== 'new' || selected != null) &&
             createPortal(
               <div
                 className="admin-modal-backdrop"
@@ -1018,7 +1312,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         const remove = new Set(ids.map((x) => Number(x)))
                         setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
                       }}
-                      categoryId={selected}
+                      categoryId={editing === 'new' ? (selected as number) : (editing as Material).category}
                       material={editing === 'new' ? null : editing}
                       onClose={() => setEditing(null)}
                       onDeleted={(id) => {
@@ -1146,32 +1440,58 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         onCreate={submitNewFolder}
       />
     ) : null}
-    {folderMoveTarget ? (
-      <FolderMoveModal
-        key={folderMoveTarget.id}
-        tree={tree}
-        folderToMove={folderMoveTarget}
-        onClose={() => setFolderMoveTarget(null)}
-        onMove={applyFolderMove}
-        onMoveMaterial={applyMaterialMove}
-      />
-    ) : null}
-    {materialSearchOpen ? (
-      <MaterialSearchModal
-        mode="navigate"
-        tree={tree}
-        mclasses={mclasses}
-        onClose={() => setMaterialSearchOpen(false)}
-        onNavigate={(m) => {
-          setErr(null)
-          setMaterialSearchOpen(false)
-          setSelected(m.category)
-          fetchMaterial(m.id)
-            .then((full) => setEditing(full))
-            .catch((e) => setErr(String(e)))
-        }}
-      />
-    ) : null}
+    {extrasTarget &&
+      section === 'materials' &&
+      createPortal(
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="material-extras-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !extrasSaving) setExtrasTarget(null)
+          }}
+        >
+          <div
+            className="admin-modal admin-modal--explorer admin-modal--extras"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 id="material-extras-modal-title" className="admin-modal-title">
+              Сопутствующие материалы
+            </h4>
+            <p className="admin-muted admin-extras-modal-sub">
+              {extrasTarget.article?.trim() || '—'} · {extrasTarget.name.trim() || '—'}
+            </p>
+            <div className="admin-extras-modal-body">
+              {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
+              <div className="admin-extras-panel" aria-label="Сопутствующие материалы и операции">
+                <MaterialExtrasPanel
+                  uomList={uom}
+                  mainMaterialId={extrasTarget.id}
+                  relatedItems={extrasRelated}
+                  onRelatedChange={setExtrasRelated}
+                  basePrice={extrasBasePrice}
+                />
+              </div>
+            </div>
+            <div className="admin-modal-actions">
+              <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
+                {extrasSaving ? 'Сохранение…' : 'Сохранить'}
+              </button>
+              <button
+                type="button"
+                className="admin-secondary"
+                disabled={extrasSaving}
+                onClick={() => setExtrasTarget(null)}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     {folderDeleteModal &&
       createPortal(
         <div
@@ -1542,7 +1862,7 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке (под таблицей). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке (отдельное окно). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть

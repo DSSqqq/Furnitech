@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { fetchMaterials } from './api'
+import { DND_FOLDER, DND_MATERIAL, isFolderDrag, isMaterialDrag } from './folderMoveDnD'
 import type { MaterialCategory, TextureCategory } from './types'
 
 const ROOT_LABEL = 'Все папки'
-const DND_FOLDER = 'application/x-furnitech-folder-move'
-const DND_MATERIAL = 'application/x-furnitech-material-move'
-
-function isFolderDrag(e: DragEvent) {
-  return e.dataTransfer.types.includes(DND_FOLDER)
-}
-
-function isMaterialDrag(e: DragEvent) {
-  return e.dataTransfer.types.includes(DND_MATERIAL)
-}
 
 type FolderItemRow = { id: number; name: string; article?: string }
 
