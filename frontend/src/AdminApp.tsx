@@ -844,7 +844,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 <div className="admin-main-scroll">
                   <div className="admin-heading-row">
                     <h2 className="admin-h2">Материалы в папке</h2>
-                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал — кнопка «+ Материал»; карточка существующего — иконка шестерёнки справа в строке. Сопутствующие материалы — в блоке под списком, пока открыта карточка." />
+                    <HintButton text="Список показывает материалы выбранной папки и всех её подпапок (сужайте область, выбирая папку глубже в дереве слева). Новый материал — кнопка «+ Материал»; карточка существующего — иконка шестерёнки справа в строке. Сопутствующие материалы — в нижней части окна карточки." />
                   </div>
                   <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
                     + Материал
@@ -904,9 +904,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 </div>
               )}
             </main>
-            {editing && (
-              <div className="admin-extras-panel" ref={setMatExtraHost} aria-label="Сопутствующие материалы и операции" />
-            )}
           </div>
           {editing &&
             selected != null &&
@@ -957,6 +954,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                       extraHost={matExtraHost}
                     />
                   </section>
+                  <div
+                    className="admin-extras-panel admin-extras-panel--material-modal"
+                    ref={setMatExtraHost}
+                    aria-label="Сопутствующие материалы и операции"
+                  />
                 </div>
               </div>,
               document.body
@@ -1466,7 +1468,7 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Поля — во вкладке «Общие параметры»; сопутствующие — в блоке под списком материалов (пока открыта карточка). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <HintButton text="Поля — во вкладках выше; сопутствующие материалы — в нижней части этого же окна (под формой). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
