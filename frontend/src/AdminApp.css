@@ -477,34 +477,251 @@
   padding: 0.75rem 1rem 1rem;
 }
 
-/* Модалка сопутствующих (как MaterialSearchModal: admin-modal--explorer) */
-.admin-modal--extras.admin-modal--explorer {
-  max-height: min(88vh, 760px);
-  min-height: min(42vh, 420px);
-  overflow: hidden;
-}
-
-.admin-extras-modal-sub {
-  margin: -0.2rem 0 0.4rem;
-  font-size: 0.88rem;
-  line-height: 1.35;
-  word-break: break-word;
-}
-
-.admin-extras-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
+/* Панель сопутствующих — снизу main, без отдельной «коробки» (как продолжение admin-main-scroll) */
+#admin-panel-materials .admin-extras-dock {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  overflow: hidden;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(40vh, 360px);
+  margin-top: 0.12rem;
+  padding: 0.2rem 0 0;
+  border-top: 1px solid var(--ft-border);
+  background: transparent;
+  border-radius: 0;
+  gap: 0.12rem;
 }
 
-.admin-modal--extras .admin-extras-panel {
+#admin-panel-materials .admin-extras-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.28rem;
+  flex-shrink: 0;
+  padding-top: 0.12rem;
+  margin-top: 0.04rem;
+  border-top: 1px solid var(--ft-border);
+}
+
+#admin-panel-materials .admin-extras-dock-actions .admin-primary,
+#admin-panel-materials .admin-extras-dock-actions .admin-secondary {
+  padding: 0.1rem 0.45rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+#admin-panel-materials .admin-extras-dock .admin-extras-panel {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   overflow: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-stack {
+  gap: 0.25rem;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-block {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-head {
+  margin-bottom: 0.18rem;
+  gap: 0.28rem;
+  justify-content: flex-end;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-search {
+  margin-bottom: 0.28rem;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-search .admin-input {
+  padding: 0.12rem 0.32rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  border-radius: 4px;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-search .admin-muted {
+  margin: 0.12rem 0 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-picklist {
+  max-height: 6.5rem;
+  margin-top: 0.12rem;
+  border: 0;
+  border-top: 1px solid var(--ft-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-picklist li button {
+  padding: 0.18rem 0.32rem;
+  gap: 0.2rem 0.35rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-pick-article,
+#admin-panel-materials .admin-extras-dock .mat-extras-pick-price {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-pick-name {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 500;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-legend {
+  grid-template-columns: 0.55fr 1fr 0.42fr 0.34fr minmax(5.25rem, 0.95fr) 0.5fr auto;
+  gap: 0.15rem 0.45rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  padding-bottom: 0.05rem;
+  margin-bottom: 0.03rem;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-list > li.mat-extras-row {
+  margin-top: 0.04rem;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-list > li.mat-extras-row:first-child {
+  margin-top: 0.06rem;
+}
+
+/* как #admin-panel-materials .mat-list-row: карточка строки, та же плотность по высоте */
+#admin-panel-materials .admin-extras-dock .mat-extras-row {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 0.55fr 1fr 0.42fr 0.34fr minmax(5.25rem, 0.95fr) 0.5fr auto;
+  gap: 0.15rem 0.45rem;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  margin: 0;
+  padding: 0.04rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ft-border);
+  color: var(--ft-text);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-list .mat-extras-row:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-row .admin-input {
+  padding: 0.04rem 0.24rem;
+  min-height: 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  border-radius: 3px;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-row .ft-select--compact .ft-select-trigger {
+  padding: 0.04rem 0.85rem 0.04rem 0.22rem;
+  min-height: 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  border-radius: 3px;
+  background-position: right 0.12rem center;
+  background-size: 0.58rem 0.58rem;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-rm {
+  width: 1.45rem;
+  min-width: 1.45rem;
+  min-height: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-empty {
+  padding: 0.22rem 0.08rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-total {
+  margin: 0.18rem 0 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  padding: 0.12rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--ft-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-total strong {
+  font-size: var(--mat-scroll-fs);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-hint {
+  margin: 0.18rem 0 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+#admin-panel-materials .admin-extras-dock .mat-extras-warn {
+  margin: 0.18rem 0 0;
+  padding: 0.18rem 0 0.18rem 0.35rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  border: 0;
+  border-left: 3px solid rgba(255, 107, 107, 0.55);
+  border-radius: 0;
+  background: transparent;
+}
+
+#admin-panel-materials .admin-extras-dock .admin-error--compact {
+  margin: 0;
+  padding: 0.22rem 0.32rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
 }
 
 .admin-modal {
@@ -555,6 +772,24 @@
   flex-direction: column;
   gap: 0.85rem;
   max-height: min(82vh, 720px);
+}
+
+.material-related-pick-search.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.material-related-pick-search-pane {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.material-related-pick-search-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
 .admin-folder-toolbar {
@@ -620,27 +855,53 @@
   color: rgba(255, 128, 128, 1);
 }
 
-.admin-folder-toolbar-format {
-  font: inherit;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid rgba(203, 176, 121, 0.38);
-  background: rgba(7, 7, 8, 0.65);
-  color: var(--ft-text);
-  max-width: 9.5rem;
-  cursor: pointer;
+.admin-folder-toolbar-export-wrap {
+  position: relative;
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
 }
 
-.admin-folder-toolbar-format:disabled {
+.admin-folder-toolbar-export-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 80;
+  min-width: 5.5rem;
+  padding: 0.28rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: rgba(12, 12, 14, 0.98);
+  border: 1px solid rgba(203, 176, 121, 0.42);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.admin-folder-toolbar-export-menu-item {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ft-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-folder-toolbar-export-menu-item:hover:not(:disabled) {
+  background: rgba(203, 176, 121, 0.12);
+}
+
+.admin-folder-toolbar-export-menu-item:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: 0;
+}
+
+.admin-folder-toolbar-export-menu-item:disabled {
   opacity: 0.38;
   cursor: not-allowed;
-}
-
-.admin-folder-toolbar-format:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.7);
-  outline-offset: 2px;
 }
 
 .material-search-filters {
@@ -1248,6 +1509,8 @@ button.admin-primary.admin-modal-confirm:hover {
   --mat-scroll-fs: 0.625rem;
   --mat-scroll-lh: 1.05;
   --mat-scroll-ls: 0.02em;
+  /* Мин. ширина «+ Материал» — та же для «+» сопутствующих в доке */
+  --admin-mat-add-btn-min-w: 5.35rem;
 }
 
 /* Материалы: левая колонка (папки) — тот же кегль и плотность, что у списка материалов */
@@ -1289,13 +1552,17 @@ button.admin-primary.admin-modal-confirm:hover {
   height: 0.72rem;
 }
 
-#admin-panel-materials .admin-folder-toolbar-format {
+#admin-panel-materials .admin-folder-toolbar-export-menu {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  padding: 0.08rem 0.35rem;
-  border-radius: 4px;
-  max-width: none;
+}
+
+#admin-panel-materials .admin-folder-toolbar-export-menu-item {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  padding: 0.22rem 0.45rem;
 }
 
 #admin-panel-materials .admin-muted.admin-import-hint {
@@ -1307,14 +1574,14 @@ button.admin-primary.admin-modal-confirm:hover {
   margin-top: 0.12rem;
 }
 
-#admin-panel-materials .admin-aside > .folder-explorer-root {
+#admin-panel-materials .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line {
   width: 100%;
-  margin: 0 0 0.35rem;
-  padding: 0.22rem 0.4rem;
+  box-sizing: border-box;
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  text-align: left;
+  /* Левее строк папок верхнего уровня: у TreeRow depth 0 — padding-left: 6px в инлайне. */
+  padding-left: 0;
 }
 
 #admin-panel-materials .folder-explorer-tree-line {
@@ -2048,13 +2315,36 @@ select.admin-input optgroup {
   font-weight: 600;
 }
 
-#admin-panel-materials .admin-main-scroll > button.admin-primary {
+#admin-panel-materials .admin-main-scroll > button.admin-primary,
+#admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
   padding: 0.1rem 0.5rem;
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
   border-radius: 4px;
+  box-shadow: none;
+}
+
+#admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary:hover {
+  background: rgba(203, 176, 121, 0.2);
+  border-color: rgba(203, 176, 121, 0.42);
+  box-shadow: none;
+}
+
+#admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.55);
+  outline-offset: 2px;
+}
+
+#admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary {
+  min-width: var(--admin-mat-add-btn-min-w);
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 #admin-panel-materials .admin-main-scroll > .admin-material-card-context {
@@ -2589,6 +2879,14 @@ select.admin-input optgroup {
   .admin-main-scroll {
     overflow: visible;
     flex: 0 0 auto;
+  }
+
+  #admin-panel-materials .admin-extras-dock {
+    max-height: none;
+  }
+
+  #admin-panel-materials .admin-extras-dock .admin-extras-panel {
+    max-height: min(48vh, 420px);
   }
 
   /* The portal host for MaterialExtrasPanel should take natural space. */

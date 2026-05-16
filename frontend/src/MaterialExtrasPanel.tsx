@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { searchMaterials, updateMaterial } from './api'
+import { useMemo, useState } from 'react'
+import { updateMaterial } from './api'
 import { BASE_CURRENCY } from './currencies'
 import {
   DECIMAL_FRACTION_DIGITS,
@@ -11,7 +11,14 @@ import {
 } from './floatInput'
 import { FtSelect } from './FtSelect'
 import { sortUomForSelect } from './uomSelectOrder'
-import type { Material, MaterialRelatedItemDto, RelatedQuantityScale, UnitOfMeasure } from './types'
+import { MaterialRelatedPickModal } from './MaterialRelatedPickModal'
+import type {
+  Material,
+  MaterialCategory,
+  MaterialRelatedItemDto,
+  RelatedQuantityScale,
+  UnitOfMeasure,
+} from './types'
 import './MaterialExtrasPanel.css'
 
 export type RelatedItemState = {
@@ -34,6 +41,7 @@ function toRelatedState(items: MaterialRelatedItemDto[] | undefined): RelatedIte
 }
 
 type Props = {
+  categoryTree: MaterialCategory[]
   uomList: UnitOfMeasure[]
   mainMaterialId: number | null
   relatedItems: RelatedItemState[]
@@ -52,16 +60,14 @@ export function materialExtrasInitRelated(m: Material | null): RelatedItemState[
 }
 
 export function MaterialExtrasPanel({
+  categoryTree,
   uomList,
   mainMaterialId,
   relatedItems,
   onRelatedChange,
   basePrice,
 }: Props) {
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQ, setSearchQ] = useState('')
-  const [searchHit, setSearchHit] = useState<Material[]>([])
-  const [searching, setSearching] = useState(false)
+  const [pickModalOpen, setPickModalOpen] = useState(false)
   const [savingUomByMaterialId, setSavingUomByMaterialId] = useState<Record<number, true>>({})
   const [uomSaveErr, setUomSaveErr] = useState<string | null>(null)
 
@@ -78,29 +84,6 @@ export function MaterialExtrasPanel({
     if (mainMaterialId) s.add(mainMaterialId)
     return s
   }, [relatedItems, mainMaterialId])
-
-  const doSearch = useCallback(
-    (q: string) => {
-      if (!q.trim()) {
-        setSearchHit([])
-        return
-      }
-      setSearching(true)
-      searchMaterials(q)
-        .then((r) => {
-          setSearchHit(r.results.filter((m) => !excludedIds.has(m.id)))
-        })
-        .catch(() => setSearchHit([]))
-        .finally(() => setSearching(false))
-    },
-    [excludedIds],
-  )
-
-  useEffect(() => {
-    if (!searchOpen) return
-    const t = window.setTimeout(() => doSearch(searchQ), 250)
-    return () => clearTimeout(t)
-  }, [searchQ, searchOpen, doSearch])
 
   const addRelated = (m: Material) => {
     if (excludedIds.has(m.id)) return
@@ -120,8 +103,7 @@ export function MaterialExtrasPanel({
         },
       },
     ])
-    setSearchOpen(false)
-    setSearchQ('')
+    setPickModalOpen(false)
   }
 
   const updateQty = (idx: number, v: string) => {
@@ -156,40 +138,21 @@ export function MaterialExtrasPanel({
             </h3>
             <button
               type="button"
-              className="mat-extras-plus"
-              onClick={() => setSearchOpen((o) => !o)}
-              title="Добавить из базы"
+              className="mat-extras-plus admin-primary"
+              onClick={() => setPickModalOpen(true)}
+              title="Добавить сопутствующий материал из базы"
             >
-              +
+              + Сопутствующий материал
             </button>
           </div>
-          {searchOpen && (
-            <div className="mat-extras-search">
-              <input
-                className="admin-input"
-                value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
-                placeholder="Поиск по названию, артикулу, ФНП…"
-                aria-label="Поиск материала"
-              />
-              {searching && <p className="admin-muted">Поиск…</p>}
-              {searchHit.length > 0 && (
-                <ul className="mat-extras-picklist">
-                  {searchHit.map((m) => (
-                    <li key={m.id}>
-                      <button type="button" onClick={() => addRelated(m)}>
-                        <span className="mat-extras-pick-article">{m.article || '—'}</span>
-                        <span className="mat-extras-pick-name">{m.name}</span>
-                        <span className="mat-extras-pick-price">
-                          {m.base_price} {m.base_currency}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          {pickModalOpen ? (
+            <MaterialRelatedPickModal
+              tree={categoryTree}
+              excludedIds={excludedIds}
+              onPick={addRelated}
+              onClose={() => setPickModalOpen(false)}
+            />
+          ) : null}
           <div
             className="mat-extras-legend"
             role="row"
@@ -205,7 +168,9 @@ export function MaterialExtrasPanel({
           </div>
           <ul className="mat-extras-list">
             {relatedItems.length === 0 && (
-              <li className="admin-muted mat-extras-empty">Нет строк — нажмите + и выберите из базы.</li>
+              <li className="admin-muted mat-extras-empty">
+                Нет строк — нажмите «+ Сопутствующий материал», в окне выберите папку или введите поиск.
+              </li>
             )}
             {relatedItems.map((r, i) => (
               <li key={r.id ?? `r-${r.related_material_id}-${i}`} className="mat-extras-row">

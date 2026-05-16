@@ -104,12 +104,16 @@ function AdminFolderToolbarIcon({
   onClick,
   className,
   children,
+  ariaExpanded,
+  ariaHasPopup,
 }: {
   label: string
   disabled?: boolean
   onClick?: () => void
   className?: string
   children: ReactNode
+  ariaExpanded?: boolean
+  ariaHasPopup?: boolean | 'menu'
 }) {
   return (
     <button
@@ -119,6 +123,8 @@ function AdminFolderToolbarIcon({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
     >
       {children}
     </button>
@@ -267,7 +273,7 @@ function TreeRow({
         onDragEnd={dnd ? dnd.onFolderDragEnd : undefined}
         onDragOver={onDragOverRow}
         onDrop={onDropRow}
-        title={isDragSource ? 'Удерживайте и перетащите на другую папку или на «Все папки»' : c.path}
+        title={isDragSource ? 'Удерживайте и перетащите на другую папку или на «База материалов»' : c.path}
       >
         {hasKids ? (
           <button
@@ -390,6 +396,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [tree, setTree] = useState<MaterialCategory[]>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+  /** Раскрытие списка папок под пунктом «База материалов» (виртуальный корень дерева). */
+  const [materialsRootTreeExpanded, setMaterialsRootTreeExpanded] = useState(true)
   const [materials, setMaterials] = useState<Material[]>([])
   const [uom, setUom] = useState<UnitOfMeasure[]>([])
   const [mclasses, setMclasses] = useState<MaterialClass[]>([])
@@ -410,10 +418,13 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [staffTogglePending, setStaffTogglePending] = useState<number | null>(null)
   const [userDeleteModal, setUserDeleteModal] = useState<AdminUserRow | null>(null)
   const materialsImportFileRef = useRef<HTMLInputElement>(null)
+  const materialsExportWrapRef = useRef<HTMLDivElement>(null)
+  const materialsPanelRef = useRef<HTMLDivElement>(null)
+  const materialAddBtnRef = useRef<HTMLButtonElement>(null)
   const folderDragIdRef = useRef<number | null>(null)
   const [materialsImportBusy, setMaterialsImportBusy] = useState(false)
   const [materialsImportMsg, setMaterialsImportMsg] = useState<string | null>(null)
-  const [materialsExportFormat, setMaterialsExportFormat] = useState<'xlsx' | 'xml'>('xlsx')
+  const [materialsExportMenuOpen, setMaterialsExportMenuOpen] = useState(false)
   const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null)
 
   const reloadTree = useCallback(() => {
@@ -437,6 +448,10 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   }, [tree])
 
   useEffect(() => {
+    if (selected != null) setMaterialsRootTreeExpanded(true)
+  }, [selected])
+
+  useEffect(() => {
     // Если выбрали папку, гарантируем что её предки раскрыты.
     if (selected == null) return
     const path = findPathToId(tree, selected)
@@ -448,6 +463,27 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       return next
     })
   }, [selected, tree])
+
+  useLayoutEffect(() => {
+    if (section !== 'materials') return
+    const panel = materialsPanelRef.current
+    const btn = materialAddBtnRef.current
+    if (!panel || !btn) return
+    const sync = () => {
+      const w = Math.ceil(btn.getBoundingClientRect().width)
+      if (w > 0) panel.style.setProperty('--admin-mat-add-btn-min-w', `${w}px`)
+    }
+    sync()
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(sync)
+    })
+    ro.observe(btn)
+    window.addEventListener('resize', sync)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', sync)
+    }
+  }, [section, selected])
 
   const toggleExpanded = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -580,14 +616,36 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     [reloadTree, selected],
   )
 
-  const onMaterialsExportClick = useCallback(() => {
+  const runMaterialsExport = useCallback((format: 'xlsx' | 'xml') => {
+    setMaterialsExportMenuOpen(false)
     setErr(null)
     setMaterialsImportMsg(null)
     setMaterialsImportBusy(true)
-    downloadMaterialsExport(selected, materialsExportFormat)
+    downloadMaterialsExport(selected, format)
       .catch((e) => setErr(String(e)))
       .finally(() => setMaterialsImportBusy(false))
-  }, [selected, materialsExportFormat])
+  }, [selected])
+
+  useEffect(() => {
+    if (!materialsExportMenuOpen) return
+    const onDown = (e: MouseEvent) => {
+      const el = materialsExportWrapRef.current
+      if (el && !el.contains(e.target as Node)) setMaterialsExportMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMaterialsExportMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [materialsExportMenuOpen])
+
+  useEffect(() => {
+    if (section !== 'materials') setMaterialsExportMenuOpen(false)
+  }, [section])
 
   const submitNewFolder = useCallback(
     (parent: number | null, name: string) => {
@@ -1061,11 +1119,17 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       {err && section === 'materials' && <div className="admin-error">{err}</div>}
       {loading && section === 'materials' && <p className="admin-muted admin-initial-state">Загрузка…</p>}
       {section === 'materials' ? (
-        <div className="admin-body" id="admin-panel-materials" role="tabpanel" aria-labelledby="admin-tab-materials">
+        <div
+          ref={materialsPanelRef}
+          className="admin-body"
+          id="admin-panel-materials"
+          role="tabpanel"
+          aria-labelledby="admin-tab-materials"
+        >
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию папки — выбрать её; «Все папки» — список всех материалов. Папку можно перетащить на другую строку папки, на «Все папки» или в область открытой папки справа; материал — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если открыты «Все папки» — все материалы, иначе ветка выбранной папки." />
+              <HintButton text="Клик по названию папки — выбрать её; «База материалов» в дереве слева — список всех материалов; стрелка слева от «База материалов» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База материалов» или в область открытой папки справа; материал — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: нажмите кнопку экспорта и в меню выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если выбрана «База материалов» — все материалы, иначе ветка выбранной папки." />
             </div>
             <div className="admin-folder-toolbar" role="toolbar" aria-label="Действия с папками и материалами">
               <AdminFolderToolbarIcon label="Создать папку" onClick={() => setFolderCreateOpen(true)}>
@@ -1110,67 +1174,122 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   <path d="M12 3v12M8 11l4 4 4-4M5 21h14" />
                 </svg>
               </AdminFolderToolbarIcon>
-              <select
-                className="admin-folder-toolbar-format"
-                aria-label="Формат экспорта"
-                value={materialsExportFormat}
-                onChange={(e) => setMaterialsExportFormat(e.target.value as 'xlsx' | 'xml')}
-                disabled={materialsImportBusy}
-                title="Формат файла экспорта"
-              >
-                <option value="xlsx">Экспорт XLSX</option>
-                <option value="xml">Экспорт XML</option>
-              </select>
-              <AdminFolderToolbarIcon
-                label={
-                  selected == null
-                    ? `Экспорт всех материалов (${materialsExportFormat.toUpperCase()})`
-                    : `Экспорт выбранной папки и вложенных (${materialsExportFormat.toUpperCase()})`
-                }
-                disabled={materialsImportBusy}
-                onClick={onMaterialsExportClick}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M12 21V9M8 13l4-4 4 4M5 3h14" />
-                </svg>
-              </AdminFolderToolbarIcon>
+              <div className="admin-folder-toolbar-export-wrap" ref={materialsExportWrapRef}>
+                <AdminFolderToolbarIcon
+                  label={
+                    selected == null
+                      ? 'Экспорт всех материалов — нажмите и выберите XLSX или XML'
+                      : 'Экспорт выбранной папки и вложенных — нажмите и выберите XLSX или XML'
+                  }
+                  disabled={materialsImportBusy}
+                  ariaExpanded={materialsExportMenuOpen}
+                  ariaHasPopup="menu"
+                  onClick={() => setMaterialsExportMenuOpen((o) => !o)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 21V9M8 13l4-4 4 4M5 3h14" />
+                  </svg>
+                </AdminFolderToolbarIcon>
+                {materialsExportMenuOpen ? (
+                  <div className="admin-folder-toolbar-export-menu" role="menu" aria-label="Формат экспорта">
+                    <button
+                      type="button"
+                      className="admin-folder-toolbar-export-menu-item"
+                      role="menuitem"
+                      disabled={materialsImportBusy}
+                      onClick={() => runMaterialsExport('xlsx')}
+                    >
+                      XLSX
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-folder-toolbar-export-menu-item"
+                      role="menuitem"
+                      disabled={materialsImportBusy}
+                      onClick={() => runMaterialsExport('xml')}
+                    >
+                      XML
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
             {materialsImportMsg ? (
               <p className="admin-muted admin-import-hint" style={{ margin: '0 0 0.65rem' }}>
                 {materialsImportMsg}
               </p>
             ) : null}
-            <button
-              type="button"
-              className={
-                selected == null ? 'folder-explorer-root folder-explorer-root--active' : 'folder-explorer-root'
-              }
-              onClick={() => setSelected(null)}
-              draggable={false}
-              onDragOver={rootFolderDragOver}
-              onDrop={rootFolderDrop}
-            >
-              <span className="folder-explorer-icon" aria-hidden>
-                🗂️
-              </span>
-              Все папки
-            </button>
             <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок">
-              {tree.map((c) => (
-                <TreeRow
-                  key={c.id}
-                  c={c}
-                  depth={0}
-                  selectedId={selected}
-                  expandedIds={expandedIds}
-                  onToggleExpanded={toggleExpanded}
-                  onSelect={setSelected}
-                  onRename={renameFolder}
-                  folderRenameRequest={folderRenameRequest}
-                  onFolderRenameConsumed={clearFolderRenameRequest}
-                  treeDnD={materialsTreeDnD}
-                />
-              ))}
+              <li className="folder-explorer-tree-item folder-explorer-tree-item--materials-root">
+                <div
+                  className={
+                    (selected == null
+                      ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
+                      : 'folder-explorer-tree-line') +
+                    (materialsTreeDnD.draggingFolderId != null &&
+                    !isAllowedFolderTarget(null, materialsTreeDnD.draggingFolderId)
+                      ? ' folder-explorer-tree-line--move-blocked'
+                      : '')
+                  }
+                  draggable={false}
+                  onDragOver={rootFolderDragOver}
+                  onDrop={rootFolderDrop}
+                >
+                  {tree.length > 0 ? (
+                    <button
+                      type="button"
+                      className="folder-explorer-tree-expander"
+                      draggable={false}
+                      aria-label={
+                        materialsRootTreeExpanded ? 'Свернуть список папок' : 'Развернуть список папок'
+                      }
+                      aria-expanded={materialsRootTreeExpanded}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMaterialsRootTreeExpanded((v) => !v)
+                      }}
+                    >
+                      <span aria-hidden>{materialsRootTreeExpanded ? '▾' : '▸'}</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer"
+                      aria-hidden
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className="folder-explorer-tree-link"
+                    draggable={false}
+                    onClick={() => setSelected(null)}
+                    title="База материалов — показать материалы из всех категорий"
+                  >
+                    <span className="folder-explorer-icon" aria-hidden>
+                      🗂️
+                    </span>
+                    <span className="folder-explorer-tree-name">База материалов</span>
+                  </button>
+                </div>
+                {materialsRootTreeExpanded && tree.length > 0 ? (
+                  <ul className="folder-explorer-tree-children">
+                    {tree.map((c) => (
+                      <TreeRow
+                        key={c.id}
+                        c={c}
+                        depth={0}
+                        selectedId={selected}
+                        expandedIds={expandedIds}
+                        onToggleExpanded={toggleExpanded}
+                        onSelect={setSelected}
+                        onRename={renameFolder}
+                        folderRenameRequest={folderRenameRequest}
+                        onFolderRenameConsumed={clearFolderRenameRequest}
+                        treeDnD={materialsTreeDnD}
+                      />
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
             </ul>
           </aside>
           <div className="admin-main-col">
@@ -1183,11 +1302,12 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 <div className="admin-heading-row">
                   <h2 className="admin-h2">
                     {selected == null
-                      ? 'Материалы: все папки'
+                      ? 'Материалы: база материалов'
                       : `Материалы в папке: ${findCategoryNode(tree, selected)?.name?.trim() || '—'}`}
                   </h2>
                 </div>
                 <button
+                  ref={materialAddBtnRef}
                   type="button"
                   className="admin-primary"
                   disabled={selected == null}
@@ -1267,8 +1387,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               }}
                             >
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                                <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.575 6.575 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.871a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.281Z" />
+                                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                               </svg>
                             </button>
                           </div>
@@ -1278,6 +1398,38 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   </ul>
                 </div>
               </div>
+              {extrasTarget ? (
+                <div
+                  className="admin-extras-dock"
+                  role="region"
+                  aria-label="Сопутствующие материалы: редактирование и сохранение"
+                >
+                  {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
+                  <div className="admin-extras-panel" aria-label="Сопутствующие материалы и операции">
+                    <MaterialExtrasPanel
+                      categoryTree={tree}
+                      uomList={uom}
+                      mainMaterialId={extrasTarget.id}
+                      relatedItems={extrasRelated}
+                      onRelatedChange={setExtrasRelated}
+                      basePrice={extrasBasePrice}
+                    />
+                  </div>
+                  <div className="admin-extras-dock-actions">
+                    <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
+                      {extrasSaving ? 'Сохранение…' : 'Сохранить'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      disabled={extrasSaving}
+                      onClick={() => setExtrasTarget(null)}
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </main>
           </div>
           {editing &&
@@ -1440,58 +1592,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         onCreate={submitNewFolder}
       />
     ) : null}
-    {extrasTarget &&
-      section === 'materials' &&
-      createPortal(
-        <div
-          className="admin-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="material-extras-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !extrasSaving) setExtrasTarget(null)
-          }}
-        >
-          <div
-            className="admin-modal admin-modal--explorer admin-modal--extras"
-            role="document"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h4 id="material-extras-modal-title" className="admin-modal-title">
-              Сопутствующие материалы
-            </h4>
-            <p className="admin-muted admin-extras-modal-sub">
-              {extrasTarget.article?.trim() || '—'} · {extrasTarget.name.trim() || '—'}
-            </p>
-            <div className="admin-extras-modal-body">
-              {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
-              <div className="admin-extras-panel" aria-label="Сопутствующие материалы и операции">
-                <MaterialExtrasPanel
-                  uomList={uom}
-                  mainMaterialId={extrasTarget.id}
-                  relatedItems={extrasRelated}
-                  onRelatedChange={setExtrasRelated}
-                  basePrice={extrasBasePrice}
-                />
-              </div>
-            </div>
-            <div className="admin-modal-actions">
-              <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
-                {extrasSaving ? 'Сохранение…' : 'Сохранить'}
-              </button>
-              <button
-                type="button"
-                className="admin-secondary"
-                disabled={extrasSaving}
-                onClick={() => setExtrasTarget(null)}
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
     {folderDeleteModal &&
       createPortal(
         <div
@@ -1862,7 +1962,7 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке (отдельное окно). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке материалов (панель внизу экрана, можно закрыть). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть

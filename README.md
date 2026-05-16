@@ -73,7 +73,7 @@
 | **`origin`** | Основной репозиторий (HTTPS, ваш аккаунт) | `git push origin main` |
 | **`customer`** | Репозиторий заказчика (**`furnitechdev-maker/Furnitech_Calc`**), SSH с **отдельным ключом** | `git push customer main` |
 
-В этом репозитории заданы алиасы (см. `.git/config`): **`git push-mine`** → `git push origin HEAD`, **`git push-customer`** → `git push customer HEAD`.
+В этом репозитории заданы алиасы (см. `.git/config`): **`git push-mine`** → `git push origin HEAD`, **`git push-customer`** → `git push customer HEAD`. В клоне для выкладки на **Vercel**, привязанный к репо заказчика, может быть задано **`remote.pushDefault = customer`** — тогда **`git push`** без аргумента remote отправляет в **`customer`**; ветка **`main`** при этом часто остаётся с **`branch.main.remote = origin`** для **`git pull`**. Локально для этого репозитория задают **`user.name` / `user.email`** под GitHub **`furnitechdev-maker`** (например **`…@users.noreply.github.com`**, точное значение — в **GitHub → Settings → Email**), чтобы коммиты не блокировались на **Vercel Hobby** (см. [docs/DEPLOY.md](docs/DEPLOY.md)).
 
 Для второго аккаунта GitHub на Windows: в **`%USERPROFILE%\.ssh\config`** — псевдоним хоста **`github.com-furnitech`** (`HostName github.com`, свой `IdentityFile`), а у **`customer`** URL вида `git@github.com-furnitech:furnitechdev-maker/Furnitech_Calc.git`. Проверка: `ssh -T git@github.com-furnitech`.
 

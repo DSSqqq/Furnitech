@@ -14,7 +14,7 @@
 
 ### Код на GitHub заказчика
 
-1. Актуальный `main` должен быть в репозитории заказчика (например `furnitechdev-maker/Furnitech_Calc`). Локально: `git push customer main` (см. [README.md](../README.md), remote **`customer`**).
+1. Актуальный `main` должен быть в репозитории заказчика (например `furnitechdev-maker/Furnitech_Calc`). Локально: `git push customer main` или **`git push`** при **`remote.pushDefault = customer`** (см. [README.md](../README.md), remote **`customer`**). **Vercel** обычно подключают к этому же репо; пуш только в **`origin`** не обновит такой проект Vercel.
 2. **Render** и **Vercel** при первом подключении просят установить **GitHub App** и выбрать репозиторий. Если репозиторий в **организации**, владелец org должен **разрешить** доступ приложению Render/Vercel к этой org (**Settings → Third-party access** или запрос в интерфейсе GitHub).
 3. Ветка по умолчанию для автодеплоя обычно **`main`**.
 
@@ -23,7 +23,7 @@
 | Сервис | На что обратить внимание |
 |--------|---------------------------|
 | **Render (Free)** | Web Service **засыпает** после простоя; первый запрос после сна — **долгий** (десятки секунд). Лимит часов в месяц — по [тарифам Render](https://render.com/pricing). Файлы на диске **не постоянные** без Persistent Disk. |
-| **Vercel (Hobby)** | Обычно достаточно для статики/Vite SPA; лимиты по сборкам и bandwidth — в документации Vercel. |
+| **Vercel (Hobby)** | Обычно достаточно для статики/Vite SPA; лимиты по сборкам и bandwidth — в документации Vercel. **Важно:** если в списке деплоев статус **Blocked** (а не Failed), часто причина в **авторе коммита** Git: на Hobby у «контрибьютора» должен быть доступ к проекту; trailer **`Co-authored-by`** от ботов (например Cursor) или чужой email — блокировка. Решение: коммиты от GitHub-пользователя того репо, к которому привязан проект (см. [README.md](../README.md) про **`customer`** и локальный **`user.email`**), без лишних соавторов; проект Vercel должен смотреть на **тот же** репозиторий, куда пушите. |
 | **Supabase (Free)** | Лимиты по размеру БД, трафику, количеству проектов — в [pricing Supabase](https://supabase.com/pricing). Для Django нужен только **Postgres** (строка `DATABASE_URL`). |
 
 ### MCP (Cursor) и чей это аккаунт
