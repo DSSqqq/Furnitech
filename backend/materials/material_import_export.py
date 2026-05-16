@@ -15,11 +15,12 @@ import zipfile
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
+from pathlib import Path
 from typing import BinaryIO
 
 from django.db import IntegrityError, transaction
 
-from .models import Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure
+from .models import Material, MaterialCategory, MaterialClass, RoundingMode, TextureItem, UnitOfMeasure
 
 NS_MAIN = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
@@ -621,6 +622,62 @@ def _snapshot_copy(c: dict[str, str]) -> dict[str, str]:
     return {str(k): ("" if v is None else str(v)) for k, v in c.items() if not isinstance(v, (dict, list))}
 
 
+def _texture_item_by_exact_name(name: str) -> TextureItem | None:
+    t = name.strip()
+    if not t:
+        return None
+    return TextureItem.objects.filter(name__iexact=t).order_by("id").first()
+
+
+def resolve_texture_item_from_import_label(texture_label: str) -> TextureItem | None:
+    """
+    Колонка «Текстура»: в типовых выгрузках — путь вида ``Modus\\инокс.jpg``.
+    Полный путь не используем для сопоставления: берём только **имя файла без расширения**
+    последнего сегмента (``инокс``), затем ``TextureItem.name`` с учётом **__iexact**.
+    Если в ячейке только подпись без пути и точек (``инокс``), последний «сегмент» — всё содержимое,
+    расширения нет — stem совпадает с именем. При нескольких совпадениях берётся меньший ``id``.
+    """
+    raw = (texture_label or "").strip()
+    if not raw:
+        return None
+    norm = raw.replace("\\", "/")
+    basename = Path(norm).name.strip()
+    if not basename:
+        return None
+    stem_key = Path(basename).stem.strip()
+    if not stem_key:
+        return None
+    return _texture_item_by_exact_name(stem_key)
+
+
+def texture_path_hint_from_material_note(note: str) -> str:
+    """В части Excel-выгрузок колонку «Текстура» не заполняют; путь в строке примечания («Текстура (импорт): …»)."""
+    marker = "Текстура (импорт):"
+    for raw in (note or "").replace("\r\n", "\n").split("\n"):
+        line = raw.strip()
+        if line.casefold().startswith(marker.casefold()):
+            return line[len(marker) :].strip()
+    return ""
+
+
+def assign_material_texture_from_import_row(
+    material: Material,
+    *,
+    texture_mode: str,
+    resolved_library_texture: TextureItem | None,
+) -> None:
+    """Цвет против текстуры из базы: в режиме color — только заливка; texture — уже найденная TextureItem."""
+    if texture_mode == "color":
+        material.texture_item = None
+        material.texture_image = None
+        return
+    if resolved_library_texture is None:
+        material.texture_item = None
+        return
+    material.texture_item = resolved_library_texture
+    material.texture_image = None
+
+
 def _apply_canonical_texture_extras(material: Material, c: dict[str, str]) -> None:
     ox = c.get("OffsetX")
     if ox is not None and str(ox).strip() != "":
@@ -694,12 +751,17 @@ def apply_materials_table_row(
     canon_src = snapshot if snapshot is not None else {}
     snap_store = _snapshot_copy(canon_src)
 
-    texture_mode = "color"
     texture_color = r.color_hex if r.color_hex else ""
-    if r.texture_path:
+    tex_path_trim = (r.texture_path or "").strip()
+    if not tex_path_trim:
+        tex_path_trim = texture_path_hint_from_material_note(note)
+    resolved_library_texture: TextureItem | None = (
+        resolve_texture_item_from_import_label(tex_path_trim) if tex_path_trim else None
+    )
+    if resolved_library_texture is not None:
         texture_mode = "texture"
-        if not texture_color:
-            texture_color = ""
+    else:
+        texture_mode = "color"
 
     rounding_mode, rounding_multiple = _rounding_from_export_label(r.rounding_label)
 
@@ -733,9 +795,11 @@ def apply_materials_table_row(
             )
             if r.external_id:
                 material.external_id = r.external_id[:64]
-            if texture_mode == "color":
-                material.texture_item = None
-                material.texture_image = None
+            assign_material_texture_from_import_row(
+                material,
+                texture_mode=texture_mode,
+                resolved_library_texture=resolved_library_texture,
+            )
             _apply_canonical_texture_extras(material, canon_src)
             try:
                 material.save()
@@ -757,14 +821,16 @@ def apply_materials_table_row(
             material.texture_mode = texture_mode
             if texture_color:
                 material.texture_color = texture_color
-            if texture_mode == "color":
-                material.texture_item = None
-                material.texture_image = None
             material.rounding_mode = rounding_mode
             material.rounding_multiple = rounding_multiple
             material.import_export_snapshot = snap_store
             if r.external_id:
                 material.external_id = r.external_id[:64]
+            assign_material_texture_from_import_row(
+                material,
+                texture_mode=texture_mode,
+                resolved_library_texture=resolved_library_texture,
+            )
             _apply_canonical_texture_extras(material, canon_src)
             try:
                 material.save()
@@ -789,7 +855,7 @@ def apply_materials_table_row(
 def _export_queryset(category_id: int | None = None):
     qs = (
         Material.objects.all()
-        .select_related("category", "uom")
+        .select_related("category", "uom", "texture_item")
         .prefetch_related("material_classes")
         .order_by("category_id", "name")
     )
@@ -836,8 +902,11 @@ def material_to_export_canon(m: Material) -> dict[str, str]:
     out["NoAvailable"] = "N" if m.is_active else "Y"
     out["Sync_External"] = m.external_id or ""
     if m.texture_mode == "texture":
-        tpath = (snap.get("Texture") or "").strip()
-        out["Texture"] = tpath
+        if m.texture_item_id and getattr(m, "texture_item", None):
+            out["Texture"] = (m.texture_item.name or "").strip()
+        else:
+            tpath = (snap.get("Texture") or "").strip()
+            out["Texture"] = tpath
     else:
         out["Texture"] = ""
 
