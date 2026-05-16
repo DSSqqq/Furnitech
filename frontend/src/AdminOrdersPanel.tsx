@@ -110,20 +110,20 @@ export function AdminOrdersPanel() {
             <tbody>
               {rows.map((o) => (
                 <tr key={o.id}>
-                  <td className="admin-orders-mono">{o.order_number}</td>
-                  <td>{formatDt(o.created_at)}</td>
-                  <td>
+                  <td className="admin-orders-mono" data-label="Номер">{o.order_number}</td>
+                  <td data-label="Дата">{formatDt(o.created_at)}</td>
+                  <td data-label="Клиент">
                     <span className="admin-orders-cell-strong">{o.client_username}</span>
                     {o.client_email ? (
                       <span className="admin-orders-cell-sub">{o.client_email}</span>
                     ) : null}
                   </td>
-                  <td className="admin-orders-contacts">
+                  <td className="admin-orders-contacts" data-label="Контакты">
                     <div>{o.contact_name || '—'}</div>
                     <div className="admin-orders-cell-sub">{o.contact_phone || '—'}</div>
                     <div className="admin-orders-cell-sub">{o.contact_email || '—'}</div>
                   </td>
-                  <td className="admin-orders-status-cell">
+                  <td className="admin-orders-status-cell" data-label="Статус">
                     <FtSelect
                       className="admin-orders-status-ft"
                       value={o.status}
@@ -133,7 +133,7 @@ export function AdminOrdersPanel() {
                       aria-label={`Статус заказа ${o.order_number}`}
                     />
                   </td>
-                  <td>
+                  <td data-label="PDF">
                     {o.pdf_url ? (
                       <a
                         className="admin-orders-pdf-link"
@@ -147,7 +147,7 @@ export function AdminOrdersPanel() {
                       '—'
                     )}
                   </td>
-                  <td className="admin-orders-actions-cell">
+                  <td className="admin-orders-actions-cell" data-label="Действия">
                     <button
                       type="button"
                       className="admin-secondary admin-secondary--sm admin-danger"

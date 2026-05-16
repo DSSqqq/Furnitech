@@ -474,7 +474,200 @@
   overflow-y: auto;
   overflow-x: hidden;
   margin: 0;
-  padding: 0.75rem 1rem 1rem;
+  padding: 0.55rem 0.85rem 0.75rem;
+}
+
+.admin-modal--material-card .mat-form-tab-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1rem;
+  row-gap: 0.4rem;
+  align-items: start;
+}
+
+.admin-modal--material-card .mat-form-field-span-2,
+.admin-modal--material-card .mat-form-tab-panel > .admin-row.mat-form-actions,
+.admin-modal--material-card .mat-form-tab-panel > .tex-layout {
+  grid-column: 1 / -1;
+}
+
+.admin-modal--material-card .mat-form-tab-panel > .field,
+.admin-modal--material-card .mat-form-tab-panel > label.field {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-head {
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.admin-modal--material-card .mat-form-tabs {
+  margin-bottom: 0.45rem;
+}
+
+.admin-modal--material-card .mat-form-split-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-modal--material-card .mat-form-split-2 > .field {
+  margin-bottom: 0;
+}
+
+.admin-modal--material-card .mat-form-uom-texture-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+}
+
+.admin-modal--material-card .mat-form-uom-label-cell {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+
+.admin-modal--material-card .mat-form-uom-label-cell span {
+  font-size: 0.8rem;
+  color: var(--ft-muted);
+}
+
+.admin-modal--material-card .mat-form-uom-select-cell {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-texture-cell {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-texture-inline-one-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-texture-title {
+  color: var(--ft-muted);
+  font-weight: 600;
+}
+
+.admin-modal--material-card .mat-form-texture-inline-one-line .mat-form-texture-status {
+  word-break: break-word;
+}
+
+.admin-modal--material-card .mat-form-price-round-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.admin-modal--material-card .mat-form-price-round-row > .field {
+  margin-bottom: 0;
+}
+
+.admin-modal--material-card .mat-form-rounding-col.field {
+  justify-content: flex-end;
+}
+
+.admin-modal--material-card .mat-form-rounding-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-modal--material-card .mat-form-rounding-check-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-weight: 400;
+}
+
+.admin-modal--material-card .mat-form-rounding-check-wrap input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--ft-accent-2, #cbb079);
+}
+
+.admin-modal--material-card .mat-form-rounding-check-wrap span {
+  font-size: 0.78rem;
+  color: var(--ft-muted);
+  line-height: 1.35;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+.admin-modal--material-card .mat-form-rounding-mult-input {
+  width: 5.25rem;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-rounding-mult-input:disabled {
+  opacity: 1;
+  color: var(--ft-muted);
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--ft-border);
+}
+
+@media (max-width: 520px) {
+  .admin-modal--material-card .mat-form-uom-texture-row {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .admin-modal--material-card .mat-form-uom-label-cell {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .admin-modal--material-card .mat-form-uom-select-cell {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .admin-modal--material-card .mat-form-texture-cell {
+    grid-column: 1;
+    grid-row: 3;
+    align-items: flex-start;
+    min-height: 0;
+  }
+
+  .admin-modal--material-card .mat-form-price-round-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-modal--material-card .mat-form-rounding-col.field {
+    justify-content: flex-start;
+  }
+
+  .admin-modal--material-card .mat-form-rounding-inline {
+    flex-wrap: wrap;
+  }
 }
 
 /* Панель сопутствующих — снизу main, без отдельной «коробки» (как продолжение admin-main-scroll) */
@@ -772,6 +965,18 @@
   flex-direction: column;
   gap: 0.85rem;
   max-height: min(82vh, 720px);
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Иначе min-height: 280px у .folder-explorer не даёт сжаться под max-height модалки — футер уезжает вниз */
+.admin-modal--explorer .folder-explorer {
+  min-height: 0;
+}
+
+.admin-modal--explorer .admin-modal-actions {
+  flex-shrink: 0;
 }
 
 .material-related-pick-search.field {
@@ -788,8 +993,74 @@
   padding-right: 0.15rem;
 }
 
-.material-related-pick-search-grid {
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+/* Список материалов в модалке «Сопутствующий» — те же колонки и плотность, что у #admin-panel-materials .mat-list-row */
+.material-related-pick-mat-list {
+  --mat-scroll-fs: 0.625rem;
+  --mat-scroll-lh: 1.05;
+  --mat-scroll-ls: 0.02em;
+  min-width: 0;
+}
+
+.material-related-pick-mat-list .mat-list-item-inner--legend {
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 0.03rem;
+}
+
+.material-related-pick-mat-list .mat-list-item-inner--legend .mat-list-legend {
+  margin-bottom: 0;
+}
+
+.material-related-pick-mat-list .mat-list-legend,
+.material-related-pick-mat-list .mat-list-row {
+  gap: 0.15rem 0.45rem;
+  align-items: center;
+}
+
+.material-related-pick-mat-list .mat-list-legend {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  padding-bottom: 0.05rem;
+  margin-bottom: 0.03rem;
+}
+
+.material-related-pick-mat-list .mat-list-item {
+  margin-top: 0.04rem;
+}
+
+.material-related-pick-mat-list .mat-list-item:first-child {
+  margin-top: 0.06rem;
+}
+
+.material-related-pick-mat-list .mat-list-row {
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+  line-height: var(--mat-scroll-lh);
+  font-size: var(--mat-scroll-fs);
+  letter-spacing: var(--mat-scroll-ls);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.material-related-pick-mat-list .mat-list-cell,
+.material-related-pick-mat-list .mat-list-cell-name,
+.material-related-pick-mat-list .mat-list-cell-article,
+.material-related-pick-mat-list .mat-list-cell-uom,
+.material-related-pick-mat-list .mat-list-cell-price {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+.material-related-pick-mat-list .mat-list-cell-name {
+  font-weight: 500;
+}
+
+.material-related-pick-mat-list-loading {
+  margin: 0.28rem 0 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
 }
 
 .admin-folder-toolbar {
@@ -1622,6 +1893,92 @@ button.admin-primary.admin-modal-confirm:hover {
   font-size: 0.72rem;
 }
 
+/* Текстуры: вёрстка как у материалов — тот же кегль и плотность колонок и тулбара */
+#admin-panel-textures.admin-body {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  --mat-scroll-fs: 0.625rem;
+  --mat-scroll-lh: 1.05;
+  --mat-scroll-ls: 0.02em;
+  --admin-mat-add-btn-min-w: 5.35rem;
+}
+
+#admin-panel-textures .admin-aside .admin-heading-row {
+  margin: 0 0 0.35rem;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+#admin-panel-textures .admin-aside .admin-heading-row .admin-h2 {
+  margin: 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+}
+
+#admin-panel-textures .admin-aside .hint-btn {
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  min-height: 1rem;
+  font-size: 0.52rem;
+}
+
+#admin-panel-textures .admin-folder-toolbar {
+  gap: 0.22rem;
+  margin-bottom: 0.35rem;
+}
+
+#admin-panel-textures .admin-folder-toolbar-btn {
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 4px;
+}
+
+#admin-panel-textures .admin-folder-toolbar-btn svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+#admin-panel-textures .admin-materials-tree-root {
+  margin-top: 0.12rem;
+}
+
+#admin-panel-textures .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  padding-left: 0;
+}
+
+#admin-panel-textures .folder-explorer-tree-line {
+  padding: 0.05rem 0.28rem 0.05rem 0;
+  border-radius: 3px;
+  gap: 0.1rem;
+}
+
+#admin-panel-textures .folder-explorer-tree-link {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  gap: 0.18rem;
+  padding: 0 0.04rem;
+}
+
+#admin-panel-textures .folder-explorer-tree-expander {
+  width: 0.92rem;
+  height: 0.92rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: 1;
+}
+
+#admin-panel-textures .folder-explorer-icon {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 @media (min-width: 1025px) {
   .admin-body {
     overflow: hidden;
@@ -1639,11 +1996,12 @@ button.admin-primary.admin-modal-confirm:hover {
     grid-template-rows: auto;
   }
 
-  #admin-panel-materials.admin-body {
+  #admin-panel-materials.admin-body,
+  #admin-panel-textures.admin-body {
     grid-template-columns: 1fr;
   }
 
-  /* Mobile: document scroll; переменные `--mat-scroll-*` на `#admin-panel-materials` сохраняются. */
+  /* Mobile: document scroll; переменные `--mat-scroll-*` на `#admin-panel-materials` / `#admin-panel-textures` сохраняются. */
   .admin-aside,
   .admin-panel {
     overflow: visible;
@@ -2316,6 +2674,7 @@ select.admin-input optgroup {
 }
 
 #admin-panel-materials .admin-main-scroll > button.admin-primary,
+#admin-panel-textures .admin-main-scroll > button.admin-primary,
 #admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary {
   width: auto;
   height: auto;
@@ -2369,8 +2728,16 @@ select.admin-input optgroup {
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  padding-bottom: 0.05rem;
+  box-sizing: border-box;
+  /* Как у .mat-list-row: 1px рамка + горизонтальный padding — колонки легенды совпадают с ячейками */
+  border: 1px solid transparent;
+  border-bottom-color: var(--ft-border);
+  padding: 0.08rem 0.3rem 0.05rem;
   margin-bottom: 0.03rem;
+}
+
+#admin-panel-materials .mat-list-legend span {
+  text-align: left;
 }
 
 #admin-panel-materials .mat-list-item {
@@ -2431,6 +2798,135 @@ select.admin-input optgroup {
 
 #admin-panel-materials .mat-list-cell-name {
   font-weight: 500;
+}
+
+/* Текстуры: плотный список с тем же кеглем, что в материалах; миниатюра уменьшена под высоту строки. */
+#admin-panel-textures .admin-main-scroll {
+  gap: 0.25rem;
+}
+
+#admin-panel-textures .admin-main-scroll > .admin-heading-row {
+  margin: 0 0 0.12rem;
+  gap: 0;
+  align-items: center;
+  min-height: 0;
+}
+
+#admin-panel-textures .admin-main-scroll > .admin-heading-row .admin-h2 {
+  margin: 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+}
+
+#admin-panel-textures .admin-main-scroll > .admin-material-card-context {
+  margin: -0.15rem 0 0.1rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+#admin-panel-textures .admin-main-scroll .mat-list-table {
+  margin-top: -0.12rem;
+}
+
+#admin-panel-textures .mat-list-legend,
+#admin-panel-textures .mat-list-row--texture {
+  /* Шире минимальной ширины миниатюры: заголовок «Превью» не помещался в 32px */
+  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) !important;
+  gap: 0.15rem 0.45rem;
+  align-items: center;
+}
+
+#admin-panel-textures .mat-list-legend {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-bottom-color: var(--ft-border);
+  padding: 0.08rem 0.3rem 0.05rem;
+  margin-bottom: 0.03rem;
+}
+
+#admin-panel-textures .mat-list-item {
+  margin-top: 0.04rem;
+}
+
+#admin-panel-textures .mat-list-item:first-child {
+  margin-top: 0.06rem;
+}
+
+#admin-panel-textures .mat-list-item-inner--legend {
+  margin-bottom: 0.03rem;
+  margin-top: 0;
+}
+
+#admin-panel-textures .mat-list-item-inner--legend .mat-list-legend {
+  margin-bottom: 0;
+}
+
+#admin-panel-textures .mat-list-row {
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+  line-height: var(--mat-scroll-lh);
+  font-size: var(--mat-scroll-fs);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+#admin-panel-textures .mat-list-row--active::before {
+  border-radius: 3px 0 0 3px;
+  width: 3px;
+}
+
+#admin-panel-textures .mat-list-item-inner {
+  grid-template-columns: minmax(0, 1fr) 1.45rem;
+  gap: 0.2rem 0.3rem;
+}
+
+#admin-panel-textures .mat-list-gear-btn {
+  width: 1.45rem;
+  min-height: 1.35rem;
+  border-radius: 3px;
+}
+
+#admin-panel-textures .mat-list-gear-btn svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+#admin-panel-textures .mat-list-cell,
+#admin-panel-textures .mat-list-cell-name {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+#admin-panel-textures .mat-list-cell-name {
+  font-weight: 500;
+}
+
+/* Превью и наименование — по левому краю колонки, как текст заголовков */
+#admin-panel-textures .mat-list-legend span:nth-child(2),
+#admin-panel-textures .mat-list-cell-name {
+  text-align: left;
+}
+
+#admin-panel-textures .mat-list-cell-tex-prev {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#admin-panel-textures .mat-list-tex-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+}
+
+#admin-panel-textures .mat-list-tex-thumb--empty {
+  font-size: 0.7rem;
 }
 
 .mat-link {

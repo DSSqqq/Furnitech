@@ -1,9 +1,73 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { fetchMaterials, fetchMaterialsFiltered, searchMaterials } from './api'
+import { BASE_CURRENCY } from './currencies'
+import { DECIMAL_FRACTION_DIGITS, formatDecimalStringForUi } from './floatInput'
 import type { Material, MaterialCategory } from './types'
 
 const ROOT_LABEL = 'База материалов'
+
+const RELATED_MAT_LIST_COLUMNS = ['Артикул', 'Наименование материала', 'Ед. измерения', 'Цена'] as const
+
+function dashIfEmpty(s: string | undefined | null) {
+  const t = (s ?? '').trim()
+  return t ? t : '—'
+}
+
+function formatRelatedPickPrice(m: Material) {
+  const p = formatDecimalStringForUi(String(m.base_price), DECIMAL_FRACTION_DIGITS)
+  return `${p} ${m.base_currency || BASE_CURRENCY}`
+}
+
+function RelatedPickMatListTable({
+  items,
+  loading,
+  emptyText,
+  onPickRow,
+}: {
+  items: Material[]
+  loading: boolean
+  emptyText: string
+  onPickRow: (m: Material) => void
+}) {
+  return (
+    <div className="mat-list-table material-related-pick-mat-list" aria-label="Список материалов для выбора">
+      <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+        <div className="mat-list-legend" role="presentation">
+          {RELATED_MAT_LIST_COLUMNS.map((label) => (
+            <span key={label} role="columnheader">
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      {loading ? (
+        <p className="admin-muted material-related-pick-mat-list-loading">Загрузка материалов…</p>
+      ) : items.length === 0 ? (
+        <p className="folder-explorer-empty">{emptyText}</p>
+      ) : (
+        <ul className="mat-list">
+          {items.map((m) => (
+            <li key={m.id} className="mat-list-item">
+              <button
+                type="button"
+                className="mat-list-row"
+                title={m.name}
+                aria-label={`Выбрать: ${m.name || 'материал'}`}
+                onClick={() => onPickRow(m)}
+              >
+                <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
+                <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
+                <span className="mat-list-cell mat-list-cell-uom">{m.uom?.short_name || m.uom?.name || '—'}</span>
+                <span className="mat-list-cell mat-list-cell-price">{formatRelatedPickPrice(m)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 type Props = {
   tree: MaterialCategory[]
@@ -136,8 +200,6 @@ export function MaterialRelatedPickModal({ tree, excludedIds, onPick, onClose }:
     [tree, selectedId],
   )
 
-  const childFolders: MaterialCategory[] = selectedFolder ? selectedFolder.children ?? [] : tree
-
   useEffect(() => {
     if (searchActive) return
     let cancelled = false
@@ -209,19 +271,6 @@ export function MaterialRelatedPickModal({ tree, excludedIds, onPick, onClose }:
   const onSelectFolder = useCallback((id: number | null) => {
     setSelectedId(id)
   }, [])
-
-  const onOpenFolder = useCallback(
-    (id: number) => {
-      onSelectFolder(id)
-      setExpandedIds((prev) => {
-        if (prev.has(id)) return prev
-        const next = new Set(prev)
-        next.add(id)
-        return next
-      })
-    },
-    [onSelectFolder],
-  )
 
   const pick = (m: Material) => {
     if (excludedIds.has(m.id)) return
@@ -327,79 +376,25 @@ export function MaterialRelatedPickModal({ tree, excludedIds, onPick, onClose }:
                 <p className="folder-explorer-target admin-muted" style={{ margin: '0 0 0.35rem' }}>
                   Показано: <strong>{targetLabel}</strong>
                 </p>
-                {childFolders.length === 0 && materials.length === 0 && !loadingMaterials ? (
-                  <p className="folder-explorer-empty">Нет папок и материалов в этой области.</p>
-                ) : (
-                  <ul className="folder-explorer-grid">
-                    {childFolders.map((f) => (
-                      <li key={`f-${f.id}`}>
-                        <button
-                          type="button"
-                          className="folder-explorer-tile folder-explorer-tile--folder"
-                          onClick={() => onSelectFolder(f.id)}
-                          onDoubleClick={() => onOpenFolder(f.id)}
-                          title={f.path}
-                        >
-                          <span className="folder-explorer-tile-icon" aria-hidden>
-                            📁
-                          </span>
-                          <span className="folder-explorer-tile-name">{f.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                    {loadingMaterials ? (
-                      <li className="folder-explorer-tile folder-explorer-tile--info">Загрузка материалов…</li>
-                    ) : null}
-                    {!loadingMaterials &&
-                      materials.map((m) => (
-                        <li key={`m-${m.id}`}>
-                          <button
-                            type="button"
-                            className="folder-explorer-tile folder-explorer-tile--material"
-                            title={m.name}
-                            onClick={() => pick(m)}
-                          >
-                            <span className="folder-explorer-tile-icon" aria-hidden>
-                              📄
-                            </span>
-                            <span className="folder-explorer-tile-name">{m.name}</span>
-                            {m.article ? <span className="folder-explorer-tile-sub">{m.article}</span> : null}
-                          </button>
-                        </li>
-                      ))}
-                  </ul>
-                )}
+                <RelatedPickMatListTable
+                  items={materials}
+                  loading={loadingMaterials}
+                  emptyText="Нет материалов в этой области. Выберите другую папку слева или воспользуйтесь поиском."
+                  onPickRow={pick}
+                />
               </section>
             </div>
           </>
         ) : (
           <section className="folder-explorer-content material-related-pick-search-pane" aria-label="Результаты поиска">
             {searching ? <p className="admin-muted">Поиск…</p> : null}
-            {!searching && searchHit.length === 0 ? (
-              <p className="folder-explorer-empty">Ничего не найдено. Измените запрос или закройте поиск.</p>
-            ) : null}
-            {!searching && searchHit.length > 0 ? (
-              <ul className="folder-explorer-grid material-related-pick-search-grid">
-                {searchHit.map((m) => (
-                  <li key={m.id}>
-                    <button
-                      type="button"
-                      className="folder-explorer-tile folder-explorer-tile--material"
-                      title={m.name}
-                      onClick={() => pick(m)}
-                    >
-                      <span className="folder-explorer-tile-icon" aria-hidden>
-                        📄
-                      </span>
-                      <span className="folder-explorer-tile-name">{m.name}</span>
-                      {m.article ? <span className="folder-explorer-tile-sub">{m.article}</span> : null}
-                      <span className="folder-explorer-tile-sub">
-                        {m.base_price} {m.base_currency}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {!searching ? (
+              <RelatedPickMatListTable
+                items={searchHit}
+                loading={false}
+                emptyText="Ничего не найдено. Измените запрос или закройте поиск."
+                onPickRow={pick}
+              />
             ) : null}
           </section>
         )}

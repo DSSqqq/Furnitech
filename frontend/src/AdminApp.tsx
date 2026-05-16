@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -350,12 +351,6 @@ function TreeRow({
     </li>
   )
 }
-
-const ROUNDING: { v: RoundingMode; l: string }[] = [
-  { v: 'none', l: 'Не округлять' },
-  { v: 'ceil_unit', l: 'Округлять вверх до целого' },
-  { v: 'ceil_multiple', l: 'Округлять вверх до кратного числа' },
-]
 
 /** Заголовок колонок списка материалов (совпадает с ячейками строк). */
 const MAT_LIST_COLUMNS = [
@@ -1129,7 +1124,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
-              <HintButton text="Клик по названию папки — выбрать её; «База материалов» в дереве слева — список всех материалов; стрелка слева от «База материалов» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База материалов» или в область открытой папки справа; материал — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку, импорт и экспорт. Импорт .xml или .xlsx: в карточке сохраняется полный снимок строки таблицы для повторного экспорта; в интерфейсе по-прежнему отображаются только нужные поля. Экспорт: нажмите кнопку экспорта и в меню выберите XLSX или XML — структура как у типовой выгрузки (таблица с русскими заголовками или Database/Materials/Material). Если выбрана «База материалов» — все материалы, иначе ветка выбранной папки." />
             </div>
             <div className="admin-folder-toolbar" role="toolbar" aria-label="Действия с папками и материалами">
               <AdminFolderToolbarIcon label="Создать папку" onClick={() => setFolderCreateOpen(true)}>
@@ -1531,7 +1525,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   <tbody>
                     {adminUsers.map((u) => (
                       <tr key={u.id}>
-                        <td>
+                        <td data-label="Логин">
                           {u.username}
                           {u.is_superuser ? (
                             <span className="admin-users-badge" title="Суперпользователь (сервер)">
@@ -1539,8 +1533,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                             </span>
                           ) : null}
                         </td>
-                        <td className="admin-users-email">{u.email || '—'}</td>
-                        <td className="admin-users-role-cell">
+                        <td className="admin-users-email" data-label="Email">{u.email || '—'}</td>
+                        <td className="admin-users-role-cell" data-label="Роль">
                           {u.is_superuser ? (
                             <FtSelect
                               className="admin-users-role-ft"
@@ -1561,7 +1555,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                             />
                           )}
                         </td>
-                        <td className="admin-users-actions-cell">
+                        <td className="admin-users-actions-cell" data-label="Действия">
                           {u.is_superuser || u.id === user.id ? (
                             <span className="admin-muted">—</span>
                           ) : (
@@ -1695,7 +1689,8 @@ function MaterialForm({
   onDeleted: (id: number) => void
   onSaved: (m: Material) => void
 }) {
-  const [activeTab, setActiveTab] = useState<'general' | 'extra' | 'texture'>('general')
+  const materialUomSelectId = useId().replace(/:/g, '')
+  const [activeTab, setActiveTab] = useState<'general' | 'texture'>('general')
   const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
   const [texturePickerOpen, setTexturePickerOpen] = useState(false)
   const [textureLibraryItemId, setTextureLibraryItemId] = useState<number | null>(
@@ -1781,6 +1776,48 @@ function MaterialForm({
 
   const setField = (k: string, v: unknown) => {
     setForm((f) => ({ ...f, [k]: v }))
+  }
+
+  const roundingStepFractionDigits = 8
+  const roundingEnabled = form.rounding_mode !== 'none'
+
+  /** При включённом округлении: пусто → до целого (1); иначе кратность. */
+  const applyRoundingMultipleFromString = (raw: string) => {
+    const t = raw.trim()
+    if (t === '') {
+      setField('rounding_mode', 'ceil_unit')
+      setField('rounding_multiple', '')
+      return
+    }
+    const norm = normalizeDecimalForInput(t.replace(',', '.'), roundingStepFractionDigits)
+    const n = Number(norm.replace(',', '.'))
+    if (!Number.isFinite(n) || n <= 0) {
+      setField('rounding_mode', 'ceil_unit')
+      setField('rounding_multiple', '')
+      return
+    }
+    if (Math.abs(n - 1) < 1e-12) {
+      setField('rounding_mode', 'ceil_unit')
+      setField('rounding_multiple', '')
+      return
+    }
+    setField('rounding_mode', 'ceil_multiple')
+    setField('rounding_multiple', norm)
+  }
+
+  const roundingStepInputValue =
+    !roundingEnabled
+      ? ''
+      : form.rounding_mode === 'ceil_unit'
+        ? formatDecimalStringForInput('1', roundingStepFractionDigits)
+        : String(form.rounding_multiple ?? '')
+
+  const toggleRoundingEnabled = (enabled: boolean) => {
+    if (!enabled) {
+      setField('rounding_mode', 'none')
+      return
+    }
+    applyRoundingMultipleFromString(String(form.rounding_multiple ?? ''))
   }
 
   const toggleClass = (id: number) => {
@@ -1880,6 +1917,19 @@ function MaterialForm({
     }
     setSaving(true)
     setLocalErr(null)
+
+    let rounding_mode_out: RoundingMode = form.rounding_mode
+    let rounding_multiple_out: string | null = null
+    if (rounding_mode_out === 'ceil_multiple') {
+      const m = String(form.rounding_multiple ?? '').trim()
+      if (!m) {
+        rounding_mode_out = 'ceil_unit'
+        rounding_multiple_out = null
+      } else {
+        rounding_multiple_out = m
+      }
+    }
+
     const baseBody: Record<string, unknown> = {
       category: categoryId,
       name: form.name,
@@ -1888,11 +1938,8 @@ function MaterialForm({
       base_price: commitDecimalForApi(form.base_price),
       base_currency: BASE_CURRENCY,
       note: form.note,
-      rounding_mode: form.rounding_mode,
-      rounding_multiple:
-        form.rounding_mode === 'ceil_multiple' && form.rounding_multiple !== ''
-          ? form.rounding_multiple
-          : null,
+      rounding_mode: rounding_mode_out,
+      rounding_multiple: rounding_multiple_out,
       is_active: material?.is_active ?? true,
       material_class_ids: form.material_class_ids,
       thickness: commitDecimalForApi(form.thickness),
@@ -1962,7 +2009,7 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Поля — во вкладках выше. Сопутствующие материалы — по клику на строку в списке материалов (панель внизу экрана, можно закрыть). Текстуру картинки выбирайте из базы (раздел «Текстуры»)." />
+          <HintButton text="Общие параметры и габариты — на первой вкладке; текстура и превью — «Параметры текстуры». Сопутствующие материалы — по клику на строку в списке (панель внизу)." />
         </div>
         <button type="button" className="admin-primary" onClick={onClose}>
           Закрыть
@@ -1989,17 +2036,6 @@ function MaterialForm({
           type="button"
           className="mat-form-tab"
           role="tab"
-          id="mat-tab-extra"
-          aria-selected={activeTab === 'extra'}
-          aria-controls="mat-panel-extra"
-          onClick={() => setActiveTab('extra')}
-        >
-          Доп. параметры
-        </button>
-        <button
-          type="button"
-          className="mat-form-tab"
-          role="tab"
           id="mat-tab-texture"
           aria-selected={activeTab === 'texture'}
           aria-controls="mat-panel-texture"
@@ -2015,196 +2051,176 @@ function MaterialForm({
           role="tabpanel"
           aria-labelledby="mat-tab-general"
         >
-      <label className="field">
-        <span>Наименование *</span>
-        <input
-          className="admin-input"
-          value={form.name}
-          onChange={(e) => setField('name', e.target.value)}
-        />
-      </label>
-      <label className="field">
-        <div className="field-label-row">
-          <span>Артикул</span>
-          <HintButton text="Необязательно. Можно использовать как артикул поставщика или код сопоставления с учётом (1С и др.)." />
-        </div>
-        <input
-          className="admin-input"
-          value={form.article}
-          onChange={(e) => setField('article', e.target.value)}
-          placeholder="код в каталоге / для связи с 1С"
-        />
-      </label>
-      <div className="field">
-        <div className="field-label-row">
-          <span>Классы материала</span>
-          <HintButton text="«+» — новый класс в справочнике. «−» — удалить отмеченные галочками классы из справочника (и у других материалов). Без отметок — очищает поле ввода." />
-        </div>
-        <div className="field-row mat-class-input-row" ref={matClassRowRef}>
-          <div className="field-half mat-class-input-wrap">
-            <input
-              ref={matClassInputRef}
-              className="admin-input"
-              value={newClassName}
-              onChange={(e) => setNewClassName(e.target.value)}
-              placeholder="Новый класс (например, премиум)"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addClassFromInput()
-                }
-              }}
-              disabled={addingClass || classSyncPending}
-              aria-label="Новый класс материала"
-            />
-          </div>
-          <div className="mat-class-ctrls" aria-label="Добавить или очистить класс">
-            <button
-              type="button"
-              className="mat-class-ctrl mat-class-ctrl--add"
-              onClick={addClassFromInput}
-              disabled={addingClass || classSyncPending || !newClassName.trim()}
-              title="Добавить класс"
-              aria-label="Добавить класс"
-              aria-busy={addingClass}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="mat-class-ctrl mat-class-ctrl--remove"
-              onClick={removeClassSelectionOrClearInput}
-              disabled={!canUseRemoveClassBtn}
-              title={removeBtnTitle}
-              aria-label={removeBtnTitle}
-              aria-busy={classSyncPending}
-            >
-              −
-            </button>
-          </div>
-        </div>
-        <div className="chips">
-          {mclassesList.map((c) => (
-            <label key={c.id} className="chip">
-              <input
-                type="checkbox"
-                checked={form.material_class_ids.includes(Number(c.id))}
-                onChange={() => toggleClass(c.id)}
-              />
-              {c.name}
-            </label>
-          ))}
-        </div>
-      </div>
-      <label className="field">
-        <span>Ед. измерения *</span>
-        <FtSelect
-          value={String(form.uom_id)}
-          onChange={(v) => setField('uom_id', Number(v))}
-          options={uomList.map((u) => ({
-            value: String(u.id),
-            label: `${u.short_name || u.name} (${u.name})`,
-          }))}
-        />
-      </label>
-      <div className="field">
-        <div className="field-label-row">
-          <span>Базовая валюта</span>
-          <HintButton
-            text={`${BASE_CURRENCY} (тенге) — фиксирована; смена базовой валюты не предусмотрена.`}
-          />
-        </div>
-      </div>
-      <label className="field">
-        <span>Цена в базовой валюте (KZT) за ед. *</span>
-        <input
-          className="admin-input"
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={form.base_price}
-          onChange={(e) => setField('base_price', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-          onBlur={(e) => setField('base_price', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))}
-        />
-      </label>
-      <label className="field">
-        <span>Примечание</span>
-        <textarea
-          className="admin-input"
-          rows={3}
-          value={form.note}
-          onChange={(e) => setField('note', e.target.value)}
-        />
-      </label>
-      <label className="field">
-        <span>Округление количества</span>
-        <FtSelect
-          value={form.rounding_mode}
-          onChange={(v) => setField('rounding_mode', v as RoundingMode)}
-          options={ROUNDING.map((o) => ({ value: o.v, label: o.l }))}
-        />
-      </label>
-      {form.rounding_mode === 'ceil_multiple' && (
-        <label className="field">
-          <span>Кратность (число) *</span>
-          <input
-            className="admin-input"
-            value={form.rounding_multiple}
-            onChange={(e) => setField('rounding_multiple', e.target.value)}
-            placeholder="например 0.5"
-          />
-        </label>
-      )}
-      <div className="admin-row mat-form-actions">
-        <button
-          type="button"
-          className="admin-primary"
-          disabled={saving || classSyncPending}
-          onClick={save}
-        >
-          {saving ? 'Сохранение…' : 'Сохранить'}
-        </button>
-        {material && (
-          <button
-            type="button"
-            className="admin-secondary admin-danger"
-            disabled={saving || classSyncPending}
-            onClick={() => setMaterialDeleteOpen(true)}
-          >
-            Удалить
-          </button>
-        )}
-      </div>
-        </div>
-      )}
-
-      {activeTab === 'extra' && (
-        <div
-          className="mat-form-tab-panel"
-          id="mat-panel-extra"
-          role="tabpanel"
-          aria-labelledby="mat-tab-extra"
-        >
           <label className="field">
-            <span>Толщина</span>
+            <span>Наименование *</span>
             <input
               className="admin-input"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={form.thickness}
-              onChange={(e) =>
-                setField(
-                  'thickness',
-                  filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
-                )
-              }
-              onBlur={(e) =>
-                setField('thickness', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
-              }
-              placeholder="например 0.8"
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
             />
           </label>
+          <label className="field">
+            <div className="field-label-row">
+              <span>Артикул</span>
+              <HintButton text="Необязательно. Можно использовать как артикул поставщика или код сопоставления с учётом (1С и др.)." />
+            </div>
+            <input
+              className="admin-input"
+              value={form.article}
+              onChange={(e) => setField('article', e.target.value)}
+            />
+          </label>
+
+          <div className="mat-form-field-span-2 field">
+            <div className="field-label-row">
+              <span>Классы материала</span>
+              <HintButton text="«+» — новый класс в справочнике. «−» — удалить отмеченные галочками классы из справочника (и у других материалов). Без отметок — очищает поле ввода." />
+            </div>
+            <div className="field-row mat-class-input-row" ref={matClassRowRef}>
+              <div className="field-half mat-class-input-wrap">
+                <input
+                  ref={matClassInputRef}
+                  className="admin-input"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  placeholder="Новый класс (например, премиум)"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addClassFromInput()
+                    }
+                  }}
+                  disabled={addingClass || classSyncPending}
+                  aria-label="Новый класс материала"
+                />
+              </div>
+              <div className="mat-class-ctrls" aria-label="Добавить или очистить класс">
+                <button
+                  type="button"
+                  className="mat-class-ctrl mat-class-ctrl--add"
+                  onClick={addClassFromInput}
+                  disabled={addingClass || classSyncPending || !newClassName.trim()}
+                  title="Добавить класс"
+                  aria-label="Добавить класс"
+                  aria-busy={addingClass}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="mat-class-ctrl mat-class-ctrl--remove"
+                  onClick={removeClassSelectionOrClearInput}
+                  disabled={!canUseRemoveClassBtn}
+                  title={removeBtnTitle}
+                  aria-label={removeBtnTitle}
+                  aria-busy={classSyncPending}
+                >
+                  −
+                </button>
+              </div>
+            </div>
+            <div className="chips">
+              {mclassesList.map((c) => (
+                <label key={c.id} className="chip">
+                  <input
+                    type="checkbox"
+                    checked={form.material_class_ids.includes(Number(c.id))}
+                    onChange={() => toggleClass(c.id)}
+                  />
+                  {c.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="mat-form-field-span-2 mat-form-uom-texture-row">
+            <label className="mat-form-uom-label-cell" htmlFor={materialUomSelectId}>
+              <span>Ед. измерения *</span>
+            </label>
+            <div className="mat-form-uom-select-cell">
+              <FtSelect
+                id={materialUomSelectId}
+                value={String(form.uom_id)}
+                onChange={(v) => setField('uom_id', Number(v))}
+                options={uomList.map((u) => ({
+                  value: String(u.id),
+                  label: `${u.short_name || u.name} (${u.name})`,
+                }))}
+              />
+            </div>
+            <div className="mat-form-texture-cell">
+              <div className="mat-form-texture-inline-one-line">
+                <span className="mat-form-texture-title">Текстура</span>
+                <span className="admin-muted mat-form-texture-status">
+                  {form.texture_mode === 'color'
+                    ? `Цвет ${form.texture_color}`
+                    : textureLibraryItemName
+                      ? `«${textureLibraryItemName}»`
+                      : form.texture_image
+                        ? 'Изображение задано'
+                        : 'Не выбрана'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mat-form-field-span-2 mat-form-price-round-row">
+            <label className="field mat-form-price-col">
+              <div className="field-label-row">
+                <span>Цена за ед., тенге *</span>
+                <HintButton
+                  text={`${BASE_CURRENCY} (тенге) — фиксирована; смена базовой валюты не предусмотрена.`}
+                />
+              </div>
+              <input
+                className="admin-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={form.base_price}
+                onChange={(e) => setField('base_price', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
+                onBlur={(e) =>
+                  setField('base_price', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
+                }
+              />
+            </label>
+            <div className="field mat-form-rounding-col">
+              <div className="mat-form-rounding-inline">
+                <label className="mat-form-rounding-check-wrap">
+                  <input
+                    type="checkbox"
+                    checked={roundingEnabled}
+                    onChange={(e) => toggleRoundingEnabled(e.target.checked)}
+                  />
+                  <span>Округление в большую сторону до кратного числа</span>
+                </label>
+                <input
+                  className="admin-input mat-form-rounding-mult-input"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  disabled={!roundingEnabled}
+                  aria-label="Кратность округления"
+                  value={roundingStepInputValue}
+                  onChange={(e) => {
+                    if (!roundingEnabled) return
+                    const v = e.target.value
+                    if (v.trim() === '') {
+                      setField('rounding_mode', 'ceil_multiple')
+                      setField('rounding_multiple', '')
+                      return
+                    }
+                    setField('rounding_mode', 'ceil_multiple')
+                    setField('rounding_multiple', filterDecimalInput(v, roundingStepFractionDigits))
+                  }}
+                  onBlur={(e) => {
+                    if (!roundingEnabled) return
+                    applyRoundingMultipleFromString(e.target.value)
+                  }}
+                />
+              </div>
+            </div>
+          </div>
 
           <label className="field">
             <span>Макс. длина</span>
@@ -2215,10 +2231,7 @@ function MaterialForm({
               autoComplete="off"
               value={form.max_length}
               onChange={(e) =>
-                setField(
-                  'max_length',
-                  filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
-                )
+                setField('max_length', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))
               }
               onBlur={(e) =>
                 setField('max_length', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
@@ -2226,7 +2239,23 @@ function MaterialForm({
               placeholder="например 3000"
             />
           </label>
-
+          <label className="field">
+            <span>Макс. ширина</span>
+            <input
+              className="admin-input"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={form.max_width}
+              onChange={(e) =>
+                setField('max_width', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))
+              }
+              onBlur={(e) =>
+                setField('max_width', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
+              }
+              placeholder="например 1200"
+            />
+          </label>
           <label className="field">
             <span>Мин. длина</span>
             <input
@@ -2250,28 +2279,6 @@ function MaterialForm({
               placeholder="например 200"
             />
           </label>
-
-          <label className="field">
-            <span>Макс. ширина</span>
-            <input
-              className="admin-input"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={form.max_width}
-              onChange={(e) =>
-                setField(
-                  'max_width',
-                  filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS)
-                )
-              }
-              onBlur={(e) =>
-                setField('max_width', normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS))
-              }
-              placeholder="например 1200"
-            />
-          </label>
-
           <label className="field">
             <span>Мин. ширина</span>
             <input
@@ -2293,6 +2300,16 @@ function MaterialForm({
                 )
               }
               placeholder="например 100"
+            />
+          </label>
+
+          <label className="field mat-form-field-span-2">
+            <span>Примечание</span>
+            <textarea
+              className="admin-input"
+              rows={3}
+              value={form.note}
+              onChange={(e) => setField('note', e.target.value)}
             />
           </label>
 
@@ -2442,83 +2459,6 @@ function MaterialForm({
               )}
 
               <div className="field">
-                <span>Смещение X / Y</span>
-                <div className="field-row">
-                  <div className="field-half">
-                    <input
-                      className="admin-input"
-                      value={form.tex_offset_x}
-                      onChange={(e) => setField('tex_offset_x', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) =>
-                        setField(
-                          'tex_offset_x',
-                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
-                        )
-                      }
-                      placeholder="X"
-                    />
-                  </div>
-                  <div className="field-half">
-                    <input
-                      className="admin-input"
-                      value={form.tex_offset_y}
-                      onChange={(e) => setField('tex_offset_y', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) =>
-                        setField(
-                          'tex_offset_y',
-                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
-                        )
-                      }
-                      placeholder="Y"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="field">
-                <span>Шаг X / Y</span>
-                <div className="field-row">
-                  <div className="field-half">
-                    <input
-                      className="admin-input"
-                      value={form.tex_step_x}
-                      onChange={(e) => setField('tex_step_x', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) =>
-                        setField(
-                          'tex_step_x',
-                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
-                        )
-                      }
-                      placeholder="X"
-                    />
-                  </div>
-                  <div className="field-half">
-                    <input
-                      className="admin-input"
-                      value={form.tex_step_y}
-                      onChange={(e) => setField('tex_step_y', filterDecimalInput(e.target.value, DECIMAL_FRACTION_DIGITS))}
-                      onBlur={(e) =>
-                        setField(
-                          'tex_step_y',
-                          normalizeDecimalForInput(e.currentTarget.value, DECIMAL_FRACTION_DIGITS)
-                        )
-                      }
-                      placeholder="Y"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <label className="field inline">
-                <input
-                  type="checkbox"
-                  checked={form.tex_mirror}
-                  onChange={(e) => setField('tex_mirror', e.target.checked)}
-                />
-                <span>Зеркальность</span>
-              </label>
-
-              <div className="field">
                 <span>Прозрачность</span>
                 <div className="tex-range">
                   <input
@@ -2530,51 +2470,6 @@ function MaterialForm({
                     onChange={(e) => setField('tex_opacity', String(e.target.value))}
                   />
                   <div className="tex-range-val">{Number(form.tex_opacity || '1').toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className="field">
-                <span>Резкость блика</span>
-                <div className="tex-range">
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={Number(form.tex_specular_sharpness || '0')}
-                    onChange={(e) => setField('tex_specular_sharpness', String(e.target.value))}
-                  />
-                  <div className="tex-range-val">{Number(form.tex_specular_sharpness || '0').toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className="field">
-                <span>Яркость блика</span>
-                <div className="tex-range">
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={Number(form.tex_specular_brightness || '0')}
-                    onChange={(e) => setField('tex_specular_brightness', String(e.target.value))}
-                  />
-                  <div className="tex-range-val">{Number(form.tex_specular_brightness || '0').toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className="field">
-                <span>Угол поворота</span>
-                <div className="tex-range">
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    step={1}
-                    value={Number(form.tex_rotation_deg || '0')}
-                    onChange={(e) => setField('tex_rotation_deg', String(e.target.value))}
-                  />
-                  <div className="tex-range-val">{Math.round(Number(form.tex_rotation_deg || '0'))}°</div>
                 </div>
               </div>
 

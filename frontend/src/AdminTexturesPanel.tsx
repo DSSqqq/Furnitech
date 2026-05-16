@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import {
   createTextureCategory,
@@ -11,11 +20,20 @@ import {
   updateTextureItem,
 } from './api'
 import { FolderCreateModal } from './FolderCreateModal'
-import { FolderMoveModal } from './FolderMoveModal'
+import {
+  DND_FOLDER,
+  DND_TEXTURE_ITEM,
+  isFolderDrag,
+  isTextureItemDrag,
+} from './folderMoveDnD'
 import { HintButton } from './HintButton'
 import { resolveTextureImageUrl } from './TexturePickerModal'
 import type { TextureCategory, TextureItem } from './types'
 import './AdminApp.css'
+
+type FolderRenameRequest = { targetId: number; nonce: number }
+
+const TEX_LIST_COLUMNS = ['Превью', 'Наименование'] as const
 
 function collectIdsWithChildren(tree: TextureCategory[]): Set<number> {
   const out = new Set<number>()
@@ -46,6 +64,18 @@ function findPathToId(tree: TextureCategory[], id: number): number[] | null {
   return walk(tree, [])
 }
 
+function findCategoryNode(nodes: TextureCategory[], id: number): TextureCategory | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const kids = n.children ?? []
+    if (kids.length > 0) {
+      const f = findCategoryNode(kids, id)
+      if (f) return f
+    }
+  }
+  return null
+}
+
 function collectSubtreeCategoryIds(cat: TextureCategory): Set<number> {
   const ids = new Set<number>()
   const walk = (node: TextureCategory) => {
@@ -56,6 +86,44 @@ function collectSubtreeCategoryIds(cat: TextureCategory): Set<number> {
   return ids
 }
 
+function AdminFolderToolbarIcon({
+  label,
+  disabled,
+  onClick,
+  className,
+  children,
+}: {
+  label: string
+  disabled?: boolean
+  onClick?: () => void
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        className ? `admin-folder-toolbar-btn ${className}` : 'admin-folder-toolbar-btn'
+      }
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+type AdminTexturesTreeDnD = {
+  draggingFolderId: number | null
+  forbiddenIdsForDrag: Set<number>
+  onFolderDragStart: (e: DragEvent, folderId: number) => void
+  onFolderDragEnd: () => void
+  onFolderDropOnFolder: (e: DragEvent, targetFolderId: number) => void
+  onDropTextureOnFolder: (textureId: number, targetFolderId: number) => void
+}
+
 function TextureTreeRow({
   c,
   depth,
@@ -64,8 +132,9 @@ function TextureTreeRow({
   onToggleExpanded,
   onSelect,
   onRename,
-  onDelete,
-  onMove,
+  folderRenameRequest,
+  onFolderRenameConsumed,
+  treeDnD,
 }: {
   c: TextureCategory
   depth: number
@@ -74,17 +143,19 @@ function TextureTreeRow({
   onToggleExpanded: (id: number) => void
   onSelect: (id: number) => void
   onRename: (id: number, name: string) => Promise<void>
-  onDelete: (c: TextureCategory) => void
-  onMove: (c: TextureCategory) => void
+  folderRenameRequest: FolderRenameRequest | null
+  onFolderRenameConsumed: () => void
+  treeDnD?: AdminTexturesTreeDnD
 }) {
   const isSel = c.id === selectedId
   const hasKids = (c.children?.length ?? 0) > 0
   const isExpanded = hasKids ? expandedIds.has(c.id) : false
   const [editing, setEditing] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [draft, setDraft] = useState(c.name)
   const inputRef = useRef<HTMLInputElement>(null)
-  const menuWrapRef = useRef<HTMLDivElement>(null)
+  const dnd = treeDnD
+  const canDropFolderHere = dnd ? !dnd.forbiddenIdsForDrag.has(c.id) : true
+  const isDragSource = dnd ? c.id === dnd.draggingFolderId : false
 
   useEffect(() => {
     setDraft(c.name)
@@ -98,22 +169,11 @@ function TextureTreeRow({
   }, [editing])
 
   useEffect(() => {
-    if (!menuOpen) return
-    const onDoc = (e: MouseEvent) => {
-      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
+    if (!folderRenameRequest || folderRenameRequest.targetId !== c.id) return
+    setEditing(true)
+    setDraft(c.name)
+    onFolderRenameConsumed()
+  }, [folderRenameRequest, c.id, c.name, onFolderRenameConsumed])
 
   const commit = () => {
     const t = draft.trim()
@@ -138,13 +198,64 @@ function TextureTreeRow({
     setEditing(false)
   }
 
+  const lineClass =
+    (isSel && !editing
+      ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
+      : 'folder-explorer-tree-line') +
+    (dnd && dnd.draggingFolderId != null && !canDropFolderHere
+      ? ' folder-explorer-tree-line--move-blocked'
+      : '') +
+    (isDragSource ? ' folder-explorer-tree-line--drag-source' : '')
+
+  const onDragOverRow = (e: DragEvent) => {
+    if (!dnd) return
+    if (isTextureItemDrag(e)) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = 'move'
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const onDropRow = (e: DragEvent) => {
+    if (!dnd) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (isTextureItemDrag(e)) {
+      const raw = e.dataTransfer.getData(DND_TEXTURE_ITEM)
+      const tid = Number.parseInt(raw, 10)
+      if (Number.isFinite(tid)) dnd.onDropTextureOnFolder(tid, c.id)
+      return
+    }
+    if (!isFolderDrag(e) || !canDropFolderHere) return
+    dnd.onFolderDropOnFolder(e, c.id)
+  }
+
   return (
-    <li className="tree-item">
-      <div className="tree-line" style={{ paddingLeft: 8 + depth * 12 }}>
+    <li className="folder-explorer-tree-item">
+      <div
+        className={lineClass}
+        style={{ paddingLeft: 6 + depth * 14 }}
+        draggable={Boolean(dnd) && !editing}
+        onDragStart={dnd && !editing ? (e) => dnd.onFolderDragStart(e, c.id) : undefined}
+        onDragEnd={dnd ? dnd.onFolderDragEnd : undefined}
+        onDragOver={onDragOverRow}
+        onDrop={onDropRow}
+        title={
+          isDragSource
+            ? 'Удерживайте и перетащите на другую папку или на «База текстур»'
+            : c.path
+        }
+      >
         {hasKids ? (
           <button
             type="button"
-            className="tree-expander"
+            className="folder-explorer-tree-expander"
+            draggable={false}
             aria-label={isExpanded ? 'Свернуть папку' : 'Развернуть папку'}
             aria-expanded={isExpanded}
             onClick={(e) => {
@@ -155,13 +266,17 @@ function TextureTreeRow({
             <span aria-hidden>{isExpanded ? '▾' : '▸'}</span>
           </button>
         ) : (
-          <span className="tree-expander tree-expander--spacer" aria-hidden />
+          <span
+            className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer"
+            aria-hidden
+          />
         )}
         {editing ? (
           <input
             ref={inputRef}
             className="admin-input tree-rename-input"
             value={draft}
+            draggable={false}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => commit()}
             onKeyDown={(e) => {
@@ -180,83 +295,20 @@ function TextureTreeRow({
         ) : (
           <button
             type="button"
-            className={isSel ? 'tree-link tree-link-active' : 'tree-link'}
+            className="folder-explorer-tree-link"
+            draggable={false}
             onClick={() => onSelect(c.id)}
             title={c.path}
           >
-            {c.name}
+            <span className="folder-explorer-icon" aria-hidden>
+              📁
+            </span>
+            <span className="folder-explorer-tree-name">{c.name}</span>
           </button>
-        )}
-        {!editing && (
-          <div className="tree-line-actions" ref={menuWrapRef}>
-            <button
-              type="button"
-              className="tree-gear-btn"
-              title="Действия с папкой"
-              aria-label="Действия с папкой: переименовать, переместить или удалить"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={(e) => {
-                e.stopPropagation()
-                setMenuOpen((o) => !o)
-              }}
-            >
-              <span className="tree-gear-ico" aria-hidden>
-                ⚙
-              </span>
-            </button>
-            {menuOpen && (
-              <ul className="tree-gear-menu" role="menu">
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      setEditing(true)
-                      setDraft(c.name)
-                    }}
-                  >
-                    Переименовать
-                  </button>
-                </li>
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onMove(c)
-                    }}
-                  >
-                    Переместить
-                  </button>
-                </li>
-                <li role="none">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tree-gear-menu-item tree-gear-menu-item--danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onDelete(c)
-                    }}
-                  >
-                    Удалить
-                  </button>
-                </li>
-              </ul>
-            )}
-          </div>
         )}
       </div>
       {hasKids && isExpanded && (
-        <ul className="tree-children">
+        <ul className="folder-explorer-tree-children">
           {(c.children ?? []).map((ch) => (
             <TextureTreeRow
               key={ch.id}
@@ -267,8 +319,9 @@ function TextureTreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelect={onSelect}
               onRename={onRename}
-              onDelete={onDelete}
-              onMove={onMove}
+              folderRenameRequest={folderRenameRequest}
+              onFolderRenameConsumed={onFolderRenameConsumed}
+              treeDnD={treeDnD}
             />
           ))}
         </ul>
@@ -285,12 +338,12 @@ function TextureCardForm({
   onDeleted,
 }: {
   categoryId: number
-  item: TextureItem | 'new' | null
+  item: TextureItem | 'new'
   onClose: () => void
   onSaved: (t: TextureItem) => void
   onDeleted: (id: number) => void
 }) {
-  const [name, setName] = useState(item && item !== 'new' ? item.name : '')
+  const [name, setName] = useState(item !== 'new' ? item.name : '')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -303,8 +356,7 @@ function TextureCardForm({
     }
   }, [preview])
 
-  const existingUrl =
-    item && item !== 'new' && item.image ? resolveTextureImageUrl(item.image) : ''
+  const existingUrl = item !== 'new' && item.image ? resolveTextureImageUrl(item.image) : ''
 
   const save = () => {
     const n = name.trim()
@@ -314,7 +366,7 @@ function TextureCardForm({
     }
     setSaving(true)
     setLocalErr(null)
-    if (item === 'new' || item == null) {
+    if (item === 'new') {
       if (!imageFile) {
         setLocalErr('Выберите файл изображения.')
         setSaving(false)
@@ -354,7 +406,7 @@ function TextureCardForm({
   }
 
   const confirmDelete = () => {
-    if (item === 'new' || item == null) return
+    if (item === 'new') return
     setDeleteOpen(false)
     setSaving(true)
     deleteTextureItem(item.id)
@@ -364,14 +416,14 @@ function TextureCardForm({
       .finally(() => setSaving(false))
   }
 
-  if (item == null) return null
-
   return (
     <>
       <div className="mat-form">
         <div className="mat-form-head">
           <div className="admin-heading-row mat-form-title-line">
-            <h3 className="admin-h2">{item === 'new' ? 'Новая текстура' : 'Текстура'}</h3>
+            <h3 id="texture-card-dialog-title" className="admin-h2">
+              {item === 'new' ? 'Новая текстура' : 'Текстура'}
+            </h3>
             <HintButton text="Имя и файл задаются здесь. В карточке материала остаются только смещение, тайлинг и прочие параметры наложения." />
           </div>
           <button type="button" className="admin-primary" onClick={onClose}>
@@ -381,7 +433,11 @@ function TextureCardForm({
         {localErr && <div className="admin-error">{localErr}</div>}
         <label className="field">
           <span>Наименование *</span>
-          <input className="admin-input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="admin-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </label>
         <div className="field tex-file-row">
           <span>Изображение {item === 'new' ? '*' : ''}</span>
@@ -428,7 +484,7 @@ function TextureCardForm({
       {deleteOpen &&
         createPortal(
           <div
-            className="admin-modal-backdrop"
+            className="admin-modal-backdrop admin-modal-backdrop--stack-top"
             role="dialog"
             aria-modal="true"
             aria-labelledby="tex-del-title"
@@ -436,18 +492,31 @@ function TextureCardForm({
               if (e.target === e.currentTarget) setDeleteOpen(false)
             }}
           >
-            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="admin-modal admin-modal--elevated"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h4 id="tex-del-title" className="admin-modal-title">
                 Удалить текстуру?
               </h4>
               <p className="admin-modal-text">
-                Запись будет удалена. У материалов, где была выбрана эта текстура, привязка сбросится.
+                Запись будет удалена. У материалов, где была выбрана эта текстура, привязка
+                сбросится.
               </p>
               <div className="admin-modal-actions">
-                <button type="button" className="admin-secondary" onClick={() => setDeleteOpen(false)}>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={() => setDeleteOpen(false)}
+                >
                   Отмена
                 </button>
-                <button type="button" className="admin-primary admin-modal-confirm" onClick={confirmDelete}>
+                <button
+                  type="button"
+                  className="admin-primary admin-modal-confirm"
+                  onClick={confirmDelete}
+                >
                   Удалить
                 </button>
               </div>
@@ -468,8 +537,12 @@ export function AdminTexturesPanel() {
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<TextureItem | 'new' | null>(null)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
-  const [folderMoveTarget, setFolderMoveTarget] = useState<TextureCategory | null>(null)
   const [folderDeleteModal, setFolderDeleteModal] = useState<TextureCategory | null>(null)
+  const [folderRenameRequest, setFolderRenameRequest] = useState<FolderRenameRequest | null>(null)
+  const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null)
+  const [texturesRootTreeExpanded, setTexturesRootTreeExpanded] = useState(true)
+
+  const folderDragIdRef = useRef<number | null>(null)
 
   const reloadTree = useCallback(() => {
     return fetchTextureCategoryTree()
@@ -479,9 +552,24 @@ export function AdminTexturesPanel() {
       })
       .catch((e) => {
         setErr(String(e))
-        return []
+        return [] as TextureCategory[]
       })
   }, [])
+
+  const reloadItems = useCallback(
+    (categoryId: number | null) => {
+      if (categoryId == null) {
+        setItems([])
+        return Promise.resolve()
+      }
+      return fetchTextureItems(categoryId)
+        .then((r) => {
+          setItems(r.results)
+        })
+        .catch((e) => setErr(String(e)))
+    },
+    []
+  )
 
   useEffect(() => {
     setExpandedIds((prev) => {
@@ -508,14 +596,8 @@ export function AdminTexturesPanel() {
   }, [reloadTree])
 
   useEffect(() => {
-    if (selected == null) {
-      setItems([])
-      return
-    }
-    fetchTextureItems(selected)
-      .then((r) => setItems(r.results))
-      .catch((e) => setErr(String(e)))
-  }, [selected])
+    void reloadItems(selected)
+  }, [selected, reloadItems])
 
   const toggleExpanded = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -566,9 +648,41 @@ export function AdminTexturesPanel() {
     [reloadTree]
   )
 
+  const triggerRenameSelectedFolder = useCallback(() => {
+    if (selected == null) return
+    setFolderRenameRequest({ targetId: selected, nonce: Date.now() })
+  }, [selected])
+
+  const clearFolderRenameRequest = useCallback(() => {
+    setFolderRenameRequest(null)
+  }, [])
+
   const deleteFolder = useCallback((cat: TextureCategory) => {
     setFolderDeleteModal(cat)
   }, [])
+
+  const selectedCategory = useMemo(
+    () => (selected == null ? null : findCategoryNode(tree, selected)),
+    [tree, selected]
+  )
+
+  const forbiddenIdsForDrag = useMemo(() => {
+    if (draggingFolderId == null) return new Set<number>()
+    const node = findCategoryNode(tree, draggingFolderId)
+    return node ? collectSubtreeCategoryIds(node) : new Set<number>()
+  }, [draggingFolderId, tree])
+
+  const isAllowedFolderTarget = useCallback(
+    (targetParentId: number | null, movingId: number) => {
+      const node = findCategoryNode(tree, movingId)
+      if (!node) return false
+      const forb = collectSubtreeCategoryIds(node)
+      if (targetParentId !== null && forb.has(targetParentId)) return false
+      if (targetParentId === node.parent) return false
+      return true
+    },
+    [tree]
+  )
 
   const applyFolderMove = useCallback(
     async (newParentId: number | null, movingId: number) => {
@@ -584,6 +698,198 @@ export function AdminTexturesPanel() {
     },
     [reloadTree]
   )
+
+  const applyTextureMove = useCallback(
+    async (textureId: number, newCategoryId: number) => {
+      setErr(null)
+      await updateTextureItem(textureId, { category: newCategoryId })
+      await reloadItems(selected)
+      const cur = editing
+      if (cur && cur !== 'new' && cur.id === textureId) {
+        setEditing((prev) =>
+          prev && prev !== 'new' && prev.id === textureId
+            ? { ...prev, category: newCategoryId }
+            : prev
+        )
+      }
+    },
+    [editing, reloadItems, selected]
+  )
+
+  const resetFolderDragState = useCallback(() => {
+    folderDragIdRef.current = null
+    setDraggingFolderId(null)
+  }, [])
+
+  const onFolderDragStart = useCallback((e: DragEvent, id: number) => {
+    e.dataTransfer.setData(DND_FOLDER, String(id))
+    e.dataTransfer.setData('text/plain', String(id))
+    e.dataTransfer.effectAllowed = 'move'
+    folderDragIdRef.current = id
+    setDraggingFolderId(id)
+  }, [])
+
+  const onFolderDragEnd = resetFolderDragState
+
+  const tryFolderMoveDnD = useCallback(
+    async (newParentId: number | null, movingId: number) => {
+      if (!isAllowedFolderTarget(newParentId, movingId)) {
+        const node = findCategoryNode(tree, movingId)
+        if (node && newParentId === node.parent) {
+          setErr('Папка уже находится в этом расположении.')
+        } else {
+          setErr('Сюда перенести нельзя (сама папка или её вложенность).')
+        }
+        return
+      }
+      try {
+        await applyFolderMove(newParentId, movingId)
+      } catch (e) {
+        setErr(String(e))
+      }
+    },
+    [applyFolderMove, isAllowedFolderTarget, tree]
+  )
+
+  const onFolderDropOnFolder = useCallback(
+    (e: DragEvent, targetFolderId: number) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      void tryFolderMoveDnD(targetFolderId, movingId)
+    },
+    [resetFolderDragState, tryFolderMoveDnD]
+  )
+
+  const onFolderDropOnRoot = useCallback(
+    (e: DragEvent) => {
+      if (!isFolderDrag(e)) return
+      const raw = e.dataTransfer.getData(DND_FOLDER)
+      const movingId = Number.parseInt(raw, 10)
+      if (!Number.isFinite(movingId)) return
+      resetFolderDragState()
+      void tryFolderMoveDnD(null, movingId)
+    },
+    [resetFolderDragState, tryFolderMoveDnD]
+  )
+
+  const rootFolderDragOver = useCallback(
+    (e: DragEvent) => {
+      if (isTextureItemDrag(e)) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'none'
+        return
+      }
+      const mid = folderDragIdRef.current
+      if (!isFolderDrag(e) || mid == null || !isAllowedFolderTarget(null, mid)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+    },
+    [isAllowedFolderTarget]
+  )
+
+  const rootFolderDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      if (isTextureItemDrag(e)) {
+        setErr(
+          'Текстуру можно перенести только в папку — перетащите строку текстуры на папку в дереве или в открытую папку справа.'
+        )
+        return
+      }
+      if (!isFolderDrag(e)) return
+      onFolderDropOnRoot(e)
+    },
+    [onFolderDropOnRoot]
+  )
+
+  const onDropTextureOnFolder = useCallback(
+    (textureId: number, targetFolderId: number) => {
+      const tex = items.find((t) => t.id === textureId)
+      if (tex && tex.category === targetFolderId) {
+        setErr('Текстура уже в этой папке.')
+        return
+      }
+      void applyTextureMove(textureId, targetFolderId).catch((e) => setErr(String(e)))
+    },
+    [applyTextureMove, items]
+  )
+
+  const treeDnD = useMemo<AdminTexturesTreeDnD>(
+    () => ({
+      draggingFolderId,
+      forbiddenIdsForDrag,
+      onFolderDragStart,
+      onFolderDragEnd,
+      onFolderDropOnFolder,
+      onDropTextureOnFolder,
+    }),
+    [
+      draggingFolderId,
+      forbiddenIdsForDrag,
+      onFolderDragStart,
+      onFolderDragEnd,
+      onFolderDropOnFolder,
+      onDropTextureOnFolder,
+    ]
+  )
+
+  const onMainTexturesDragOver = useCallback(
+    (e: DragEvent) => {
+      if (selected == null) {
+        if (isFolderDrag(e) || isTextureItemDrag(e)) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'none'
+        }
+        return
+      }
+      if (isTextureItemDrag(e)) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        return
+      }
+      if (isFolderDrag(e)) {
+        const mid = folderDragIdRef.current
+        if (mid != null && isAllowedFolderTarget(selected, mid)) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        } else {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'none'
+        }
+      }
+    },
+    [isAllowedFolderTarget, selected]
+  )
+
+  const onMainTexturesDrop = useCallback(
+    (e: DragEvent) => {
+      if (selected == null) return
+      e.preventDefault()
+      if (isTextureItemDrag(e)) {
+        const raw = e.dataTransfer.getData(DND_TEXTURE_ITEM)
+        const tid = Number.parseInt(raw, 10)
+        if (Number.isFinite(tid)) onDropTextureOnFolder(tid, selected)
+        return
+      }
+      if (isFolderDrag(e)) {
+        const raw = e.dataTransfer.getData(DND_FOLDER)
+        const movingId = Number.parseInt(raw, 10)
+        if (!Number.isFinite(movingId)) return
+        resetFolderDragState()
+        void tryFolderMoveDnD(selected, movingId)
+      }
+    },
+    [onDropTextureOnFolder, resetFolderDragState, selected, tryFolderMoveDnD]
+  )
+
+  const onTextureRowDragStart = useCallback((e: DragEvent, t: TextureItem) => {
+    e.dataTransfer.setData(DND_TEXTURE_ITEM, String(t.id))
+    e.dataTransfer.setData('text/plain', String(t.id))
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
 
   const confirmDeleteFolder = useCallback(() => {
     const cat = folderDeleteModal
@@ -620,112 +926,329 @@ export function AdminTexturesPanel() {
 
   return (
     <>
-      <div className="admin-body" id="admin-panel-textures" role="tabpanel" aria-labelledby="admin-tab-textures">
+      <div
+        className="admin-body"
+        id="admin-panel-textures"
+        role="tabpanel"
+        aria-labelledby="admin-tab-textures"
+      >
         {err && <div className="admin-error">{err}</div>}
         {loading && <p className="admin-muted admin-initial-state">Загрузка…</p>}
         <aside className="admin-aside">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки текстур</h2>
-            <HintButton text="Структура как у материалов: папки слева, текстуры в папке по центру, карточка справа. Удаление папки каскадом убирает вложенные папки и все текстуры в них." />
+            <HintButton text="Клик по названию папки — выбрать её; «База текстур» в дереве слева — список всех текстур; стрелка слева от «База текстур» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База текстур» или в область открытой папки справа; текстуру — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку." />
           </div>
-          <div className="admin-stack">
-            <button type="button" className="admin-primary admin-folder-create-btn" onClick={() => setFolderCreateOpen(true)}>
-              + Создать папку
-            </button>
+          <div
+            className="admin-folder-toolbar"
+            role="toolbar"
+            aria-label="Действия с папками и текстурами"
+          >
+            <AdminFolderToolbarIcon
+              label="Создать папку"
+              onClick={() => setFolderCreateOpen(true)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.65"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M12 19h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-5l-1.33-1.5H5A1 1 0 0 0 4 6.5V18a1 1 0 0 0 1 1h7" />
+                <path d="M12 11v6M9 14h6" />
+              </svg>
+            </AdminFolderToolbarIcon>
+            <AdminFolderToolbarIcon
+              label="Переименовать выбранную папку"
+              disabled={selected == null}
+              onClick={triggerRenameSelectedFolder}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.65"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+            </AdminFolderToolbarIcon>
+            <AdminFolderToolbarIcon
+              className="admin-folder-toolbar-btn--danger"
+              label="Удалить выбранную папку"
+              disabled={selectedCategory == null}
+              onClick={() => selectedCategory && deleteFolder(selectedCategory)}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.65"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6h12zM10 11v6M14 11v6" />
+              </svg>
+            </AdminFolderToolbarIcon>
           </div>
-          <ul className="tree-root">
-            {tree.map((c) => (
-              <TextureTreeRow
-                key={c.id}
-                c={c}
-                depth={0}
-                selectedId={selected}
-                expandedIds={expandedIds}
-                onToggleExpanded={toggleExpanded}
-                onSelect={setSelected}
-                onRename={renameFolder}
-                onDelete={deleteFolder}
-                onMove={setFolderMoveTarget}
-              />
-            ))}
+          <ul
+            className="folder-explorer-tree-root admin-materials-tree-root"
+            aria-label="Дерево папок"
+          >
+            <li className="folder-explorer-tree-item folder-explorer-tree-item--materials-root">
+              <div
+                className={
+                  (selected == null
+                    ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
+                    : 'folder-explorer-tree-line') +
+                  (draggingFolderId != null && !isAllowedFolderTarget(null, draggingFolderId)
+                    ? ' folder-explorer-tree-line--move-blocked'
+                    : '')
+                }
+                draggable={false}
+                onDragOver={rootFolderDragOver}
+                onDrop={rootFolderDrop}
+              >
+                {tree.length > 0 ? (
+                  <button
+                    type="button"
+                    className="folder-explorer-tree-expander"
+                    draggable={false}
+                    aria-label={
+                      texturesRootTreeExpanded
+                        ? 'Свернуть список папок'
+                        : 'Развернуть список папок'
+                    }
+                    aria-expanded={texturesRootTreeExpanded}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setTexturesRootTreeExpanded((v) => !v)
+                    }}
+                  >
+                    <span aria-hidden>{texturesRootTreeExpanded ? '▾' : '▸'}</span>
+                  </button>
+                ) : (
+                  <span
+                    className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer"
+                    aria-hidden
+                  />
+                )}
+                <button
+                  type="button"
+                  className="folder-explorer-tree-link"
+                  draggable={false}
+                  onClick={() => setSelected(null)}
+                  title="База текстур — показать все папки"
+                >
+                  <span className="folder-explorer-icon" aria-hidden>
+                    🗂️
+                  </span>
+                  <span className="folder-explorer-tree-name">База текстур</span>
+                </button>
+              </div>
+              {texturesRootTreeExpanded && tree.length > 0 ? (
+                <ul className="folder-explorer-tree-children">
+                  {tree.map((c) => (
+                    <TextureTreeRow
+                      key={c.id}
+                      c={c}
+                      depth={0}
+                      selectedId={selected}
+                      expandedIds={expandedIds}
+                      onToggleExpanded={toggleExpanded}
+                      onSelect={setSelected}
+                      onRename={renameFolder}
+                      folderRenameRequest={folderRenameRequest}
+                      onFolderRenameConsumed={clearFolderRenameRequest}
+                      treeDnD={treeDnD}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+            </li>
           </ul>
         </aside>
         <div className="admin-main-col">
           <main className="admin-main">
-            {selected == null ? (
-              <p className="admin-muted admin-main-empty">
-                Выберите папку слева. <HintButton text="Здесь список именованных текстур выбранной папки." />
-              </p>
-            ) : (
-              <div className="admin-main-scroll">
-                <div className="admin-heading-row">
-                  <h2 className="admin-h2">Текстуры в папке</h2>
-                </div>
-                <button type="button" className="admin-primary" onClick={() => setEditing('new')}>
-                  + Текстура
-                </button>
-                <div className="mat-list-table mat-list-table--textures" aria-label="Список текстур в папке">
-                  <div className="mat-list-legend" role="row">
-                    <span role="columnheader">Превью</span>
-                    <span role="columnheader">Наименование</span>
+            <div
+              className="admin-main-scroll"
+              onDragOver={onMainTexturesDragOver}
+              onDrop={onMainTexturesDrop}
+            >
+              <div className="admin-heading-row">
+                <h2 className="admin-h2">
+                  {selected == null
+                    ? 'Текстуры: база текстур'
+                    : `Текстуры в папке: ${
+                        findCategoryNode(tree, selected)?.name?.trim() || '—'
+                      }`}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="admin-primary"
+                disabled={selected == null}
+                title={
+                  selected == null
+                    ? 'Сначала выберите папку слева — у текстуры должна быть категория'
+                    : undefined
+                }
+                onClick={() => setEditing('new')}
+              >
+                + Текстура
+              </button>
+              {editing ? (
+                <p className="admin-material-card-context" aria-live="polite">
+                  {editing === 'new' ? 'Новая текстура' : editing.name.trim() || '—'}
+                </p>
+              ) : null}
+              <div
+                className="mat-list-table mat-list-table--textures"
+                aria-label={
+                  selected == null
+                    ? 'Список всех текстур'
+                    : 'Список текстур в выбранной папке'
+                }
+              >
+                <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+                  <div className="mat-list-legend" role="presentation">
+                    {TEX_LIST_COLUMNS.map((label) => (
+                      <span key={label} role="columnheader">
+                        {label}
+                      </span>
+                    ))}
                   </div>
-                  <ul className="mat-list">
-                    {items.map((it) => {
-                      const url = resolveTextureImageUrl(it.image)
-                      return (
-                        <li key={it.id} className="mat-list-item">
-                          <button
-                            type="button"
+                  <span className="mat-list-legend-gear-slot" aria-hidden />
+                </div>
+                <ul className="mat-list">
+                  {items.map((it) => {
+                    const url = resolveTextureImageUrl(it.image)
+                    const rowActive =
+                      editing && editing !== 'new' && editing.id === it.id
+                    return (
+                      <li key={it.id} className="mat-list-item">
+                        <div className="mat-list-item-inner">
+                          <div
+                            role="button"
+                            tabIndex={0}
                             className={
-                              editing && editing !== 'new' && editing.id === it.id
-                                ? 'mat-list-row mat-list-row--active mat-list-row--texture'
+                              rowActive
+                                ? 'mat-list-row mat-list-row--texture mat-list-row--active'
                                 : 'mat-list-row mat-list-row--texture'
                             }
+                            aria-current={rowActive ? 'true' : undefined}
+                            aria-label={`Открыть карточку текстуры: ${it.name || 'текстура'}`}
+                            draggable
+                            onDragStart={(e) => onTextureRowDragStart(e, it)}
                             onClick={() => setEditing(it)}
-                            title="Открыть карточку текстуры"
-                            aria-current={
-                              editing && editing !== 'new' && editing.id === it.id ? 'true' : undefined
-                            }
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setEditing(it)
+                              }
+                            }}
                           >
                             <span className="mat-list-cell mat-list-cell-tex-prev">
                               {url ? (
-                                <span className="mat-list-tex-thumb" style={{ backgroundImage: `url(${url})` }} />
+                                <span
+                                  className="mat-list-tex-thumb"
+                                  style={{ backgroundImage: `url(${url})` }}
+                                />
                               ) : (
-                                <span className="mat-list-tex-thumb mat-list-tex-thumb--empty">—</span>
+                                <span className="mat-list-tex-thumb mat-list-tex-thumb--empty">
+                                  —
+                                </span>
                               )}
                             </span>
-                            <span className="mat-list-cell mat-list-cell-name">{it.name}</span>
+                            <span className="mat-list-cell mat-list-cell-name">
+                              {it.name}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="mat-list-gear-btn"
+                            title="Открыть карточку текстуры"
+                            aria-label={`Карточка: ${it.name || 'текстура'}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditing(it)
+                            }}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.65"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.575 6.575 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.871a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.281Z" />
+                              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
                           </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               </div>
-            )}
+            </div>
           </main>
         </div>
-        <section className="admin-panel">
-          {editing && selected != null && (
-            <TextureCardForm
-              key={editing === 'new' ? 'new' : editing.id}
-              categoryId={selected}
-              item={editing}
-              onClose={() => setEditing(null)}
-              onSaved={(t) => {
-                setItems((prev) => {
-                  if (editing === 'new') return [...prev, t]
-                  return prev.map((x) => (x.id === t.id ? t : x))
-                })
-                setEditing(t)
-              }}
-              onDeleted={(id) => {
-                setItems((prev) => prev.filter((x) => x.id !== id))
-                setEditing(null)
-              }}
-            />
-          )}
-        </section>
+        {editing && (editing !== 'new' || selected != null)
+          ? createPortal(
+              <div
+                className="admin-modal-backdrop"
+                role="presentation"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setEditing(null)
+                }}
+              >
+                <div
+                  className="admin-modal admin-modal--explorer admin-modal--material-card"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="texture-card-dialog-title"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <section className="admin-panel admin-panel--in-material-modal">
+                    <TextureCardForm
+                      key={editing === 'new' ? 'new' : editing.id}
+                      categoryId={
+                        editing === 'new' ? (selected as number) : editing.category
+                      }
+                      item={editing}
+                      onClose={() => setEditing(null)}
+                      onSaved={(t) => {
+                        setItems((prev) => {
+                          if (editing === 'new') {
+                            return t.category === selected ? [...prev, t] : prev
+                          }
+                          if (t.category !== selected) {
+                            return prev.filter((x) => x.id !== t.id)
+                          }
+                          return prev.map((x) => (x.id === t.id ? t : x))
+                        })
+                        setEditing(t)
+                      }}
+                      onDeleted={(id) => {
+                        setItems((prev) => prev.filter((x) => x.id !== id))
+                        setEditing(null)
+                      }}
+                    />
+                  </section>
+                </div>
+              </div>,
+              document.body
+            )
+          : null}
       </div>
       {folderCreateOpen ? (
         <FolderCreateModal
@@ -733,18 +1256,6 @@ export function AdminTexturesPanel() {
           initialParentId={selected}
           onClose={() => setFolderCreateOpen(false)}
           onCreate={submitNewFolder}
-        />
-      ) : null}
-      {folderMoveTarget ? (
-        <FolderMoveModal
-          key={folderMoveTarget.id}
-          tree={tree}
-          folderToMove={folderMoveTarget}
-          onClose={() => setFolderMoveTarget(null)}
-          onMove={applyFolderMove}
-          fetchItemsInFolder={(id) => fetchTextureItems(id)}
-          itemsLoadingLabel="Загрузка текстур…"
-          itemsEmptySuffix="текстур"
         />
       ) : null}
       {folderDeleteModal &&
@@ -758,19 +1269,32 @@ export function AdminTexturesPanel() {
               if (e.target === e.currentTarget) cancelDeleteFolder()
             }}
           >
-            <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="admin-modal"
+              role="document"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h4 id="tex-folder-delete-title" className="admin-modal-title">
                 Удалить папку?
               </h4>
               <p className="admin-modal-text">
-                Папка «{folderDeleteModal.name}» будет удалена вместе со всеми вложенными папками и текстурами.
-                Материалы с привязкой к этим текстурам потеряют ссылку. Продолжить?
+                Папка «{folderDeleteModal.name}» будет удалена вместе со всеми вложенными
+                папками и текстурами. Материалы с привязкой к этим текстурам потеряют ссылку.
+                Продолжить?
               </p>
               <div className="admin-modal-actions">
-                <button type="button" className="admin-secondary" onClick={cancelDeleteFolder}>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  onClick={cancelDeleteFolder}
+                >
                   Отмена
                 </button>
-                <button type="button" className="admin-primary admin-modal-confirm" onClick={confirmDeleteFolder}>
+                <button
+                  type="button"
+                  className="admin-primary admin-modal-confirm"
+                  onClick={confirmDeleteFolder}
+                >
                   Удалить
                 </button>
               </div>

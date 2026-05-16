@@ -218,6 +218,7 @@ export function FtSelect({
     <div className={rootClass}>
       <button
         ref={btnRef}
+        id={baseId}
         type="button"
         className={`ft-select-trigger${open ? ' ft-select-trigger--open' : ''}`}
         disabled={disabled}

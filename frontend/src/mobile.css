@@ -1,0 +1,1373 @@
+/*
+ * Furnitech — мобильная вёрстка для всех страниц.
+ * Импортируется ПОСЛЕДНИМ в main.tsx, чтобы перебивать стили десктопа
+ * за счёт обычного порядка каскада (без !important там, где не обязательно).
+ *
+ * Брейкпоинты:
+ *   ≤1024px — планшет / узкий ноутбук: основной сток с десктопа уже учитывает
+ *             эту ширину (одна колонка вместо двух), здесь — догоняем «хвосты»
+ *             (шапки, табы, отступы, эскизы, sticky-блоки калькулятора).
+ *   ≤768px  — широкий телефон / маленький планшет: меньше отступов, плотнее
+ *             модалки, табы калькулятора и админки прокручиваются горизонтально,
+ *             списки материалов читаемого кегля, кнопки в навигации шага не
+ *             прибиты к 12rem.
+ *   ≤560px  — телефон: одно-колоночные шаги/формы, модалки почти на весь
+ *             экран, кнопки full-width, эскиз масштабируется по ширине.
+ */
+
+/* ====================================================================== */
+/* 0. Общие правила: разрешаем скролл документа, безопасные области iOS    */
+/* ====================================================================== */
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Скролл документа, а не отдельных колонок: окна нет — нет смысла
+     запирать вьюпорт в 100dvh. На десктопе правило min-width:1025px
+     в index.css сохраняет старое поведение. */
+  html,
+  body,
+  #root {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    min-height: 100dvh;
+  }
+
+  /* На десктопе #root с overflow:hidden — public-shell__main скроллится
+     внутри. На мобиле скроллит документ, дочерний контейнер свободен. */
+  .public-shell,
+  .public-shell__main,
+  .admin {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .public-shell__main {
+    flex: 1 1 auto;
+  }
+}
+
+/* iOS не должен зумить при тапе на input — для этого 16px на полях ввода. */
+@media (max-width: 768px) {
+  .admin-input,
+  .login-input,
+  .ft-select-trigger,
+  textarea.admin-input,
+  textarea.step8-form__textarea,
+  input.admin-input,
+  select.admin-input {
+    font-size: 16px;
+  }
+}
+
+/* ====================================================================== */
+/* 1. PublicShell — шапка и табы                                          */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .public-shell__header {
+    padding: 0.7rem 1rem;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .public-shell__brand {
+    font-size: 0.92rem;
+    letter-spacing: 0.12em;
+  }
+
+  .public-shell__user-name {
+    max-width: min(160px, 38vw);
+    font-size: 0.8rem;
+  }
+
+  .public-shell__section-tabs {
+    padding: 0.45rem 0.85rem;
+    gap: 0.3rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .public-shell__section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .public-shell__section-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 0.84rem;
+    padding: 0.32rem 0.7rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .public-shell__header {
+    padding: 0.55rem 0.75rem;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .public-shell__brand {
+    font-size: 0.86rem;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+  }
+
+  .public-shell__nav {
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .public-shell__user {
+    gap: 0.45rem;
+  }
+
+  .public-shell__user-name {
+    max-width: min(120px, 40vw);
+    font-size: 0.78rem;
+  }
+
+  .public-shell__link,
+  .public-shell__logout {
+    padding: 0.32rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .public-shell__section-tab {
+    font-size: 0.8rem;
+    padding: 0.28rem 0.65rem;
+  }
+}
+
+/* ====================================================================== */
+/* 2. AdminApp — шапка, табы, фон контента                                */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .admin-header-top {
+    padding: 0.7rem 1rem;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .admin-brand {
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+  }
+
+  .admin-user {
+    gap: 0.45rem;
+  }
+
+  .admin-user-email {
+    max-width: min(180px, 38vw);
+    font-size: 0.8rem;
+  }
+
+  .admin-logout {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  /* Полоса разделов — горизонтальный скролл, чтобы не «прыгала» вторая строка. */
+  .admin-section-tabs {
+    padding: 0.45rem 0.85rem;
+    gap: 0.3rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin-section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-section-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 0.84rem;
+    padding: 0.32rem 0.7rem;
+  }
+
+  /* Колонка body админки: меньше отступов и пустые правые поля. */
+  .admin-body {
+    padding: 0.65rem 0.75rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .admin-aside,
+  .admin-main,
+  .admin-panel {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .admin-initial-state {
+    margin: 0 0.75rem 0.5rem;
+  }
+
+  .admin-error {
+    margin: 0.6rem 0.75rem;
+    font-size: 0.86rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-header-top {
+    padding: 0.55rem 0.7rem;
+    gap: 0.4rem 0.55rem;
+  }
+
+  .admin-brand {
+    font-size: 0.92rem;
+  }
+
+  .admin-user-email {
+    max-width: min(140px, 42vw);
+    font-size: 0.78rem;
+  }
+
+  .admin-section-tab {
+    font-size: 0.8rem;
+    padding: 0.28rem 0.65rem;
+  }
+
+  .admin-body {
+    padding: 0.45rem 0.55rem 0.85rem;
+  }
+
+  .admin-aside,
+  .admin-main,
+  .admin-panel {
+    padding: 0.6rem 0.7rem;
+    border-radius: 12px;
+  }
+}
+
+/* ====================================================================== */
+/* 3. Калькулятор — общий layout, табы шагов, .calc                       */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .calc {
+    padding: 0.7rem 0.85rem 1.1rem;
+  }
+
+  .calc-head {
+    margin-bottom: 0.6rem;
+  }
+
+  .admin-h2 {
+    font-size: 0.95rem;
+  }
+
+  /* Калькуляторские табы шагов — горизонтальный скролл с инерцией. */
+  .calc-steps-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    padding: 0.3rem;
+    gap: 0.3rem;
+    border-radius: 10px;
+  }
+
+  .calc-steps-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .calc-step-tab {
+    flex: 0 0 auto;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  /* Стек правой панели «Расчёт» — переезжает под основной контент. */
+  .calc-body-with-totals {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .calc-totals-card {
+    position: static;
+    top: auto;
+    padding: 0.85rem 1rem;
+  }
+
+  /* Левая высота шагов: на десктопе фиксированная, на мобиле — по контенту. */
+  .calc-side-panel {
+    --calc-side-h: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .calc-side-panel-scroll {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  /* Шаг 1: широкая карточка без жёсткого max-width. */
+  #calc-step-panel-1 .calc-card {
+    max-width: 100%;
+  }
+
+  .calc-card {
+    padding: 0.85rem 0.95rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .calc {
+    padding: 0.55rem 0.6rem 1rem;
+  }
+
+  .calc-card {
+    padding: 0.75rem 0.75rem;
+    border-radius: 12px;
+  }
+
+  .calc-step-tab {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* ====================================================================== */
+/* 4. Шаги «Рамочный фасад»: 2/3/4/5/6/7 — сетка, эскиз, формы            */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  /* Сама сетка шага уже превращается в одну колонку в Step2/3 CSS,
+     здесь только финальные мелочи. */
+  .frame2 {
+    gap: 1rem;
+  }
+
+  .frame2-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .frame2-card-head {
+    gap: 0.55rem;
+  }
+
+  .frame2-card-nav {
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    gap: 0.55rem;
+  }
+
+  /* На десктопе .frame2-card-nav button min-width: 12rem — на узком
+     экране заставляет одну кнопку «выпрыгивать» во вторую строку
+     с пустотой. Снимаем минимум, разрешаем кнопкам подстраиваться. */
+  .frame2-card-nav button {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  /* Плитки выбора (типы профиля/наполнения/петель, цвета) — компактнее. */
+  .tiles {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    --tile-h: 210px;
+    gap: 0.55rem;
+  }
+
+  .tiles--colors {
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    --tile-h: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Эскиз шага 2/3: занимает ширину колонки, высоту считаем от ширины. */
+  .sketch {
+    height: auto;
+    width: 100%;
+    max-width: min(420px, 100%);
+    margin: 0 auto;
+  }
+
+  .frame2-sketch-inner {
+    padding: 0;
+  }
+
+  /* Цепочки и габариты эскиза: помещаются в более узкий контейнер. */
+  .frame3-drawing {
+    --frame3-dim-sketch-gap-y: 22px;
+    --frame3-dim-sketch-gap-x: 18px;
+    --frame3-dim-vtrack: 22px;
+  }
+
+  .frame3-dim-drawing--left,
+  .frame3-dim-drawing--right {
+    width: 46px;
+  }
+
+  .frame3-dim-drawing {
+    font-size: 0.7rem;
+  }
+
+  .hinge-chain-dim {
+    font-size: 0.62rem;
+  }
+
+  /* Поле с двумя колонками (имя/значение) на узком экране — стек. */
+  .sketch-table {
+    max-width: 100%;
+  }
+
+  .sketch-row {
+    grid-template-columns: 5.4rem 1fr;
+    gap: 0.45rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .tiles,
+  .tiles--colors {
+    grid-template-columns: repeat(auto-fill, minmax(6.8rem, 1fr));
+    --tile-h: 180px;
+    gap: 0.45rem;
+  }
+
+  .tile {
+    padding: 0.45rem;
+    border-radius: 10px;
+  }
+
+  .tile-title {
+    font-size: 0.86rem;
+  }
+
+  .tile-sub {
+    font-size: 0.78rem;
+  }
+
+  .frame2-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .frame2-actions > button {
+    flex: 1 1 auto;
+  }
+
+  .frame2-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .frame2-card-head .frame2-actions {
+    justify-content: flex-start;
+  }
+
+  .frame2-card-nav {
+    flex-direction: column-reverse;
+  }
+
+  .frame2-card-nav button {
+    width: 100%;
+  }
+
+  /* Шаг 4 / каталог петель (FrameHingeCatalog) тоже использует .frame2-create-grid */
+  .frame2-create {
+    padding: 0.65rem 0.7rem;
+  }
+
+  /* Кнопка выбора файла на форме шага 2/4 — full width. */
+  button.admin-secondary.frame2-file-btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .frame2-file-picker-row {
+    flex-wrap: wrap;
+  }
+
+  .frame2-file-name {
+    width: 100%;
+  }
+
+  /* Чек-список материалов в формах: даём раздышаться */
+  .frame2-checkrow {
+    padding: 0.55rem 0.6rem;
+    gap: 0.5rem;
+  }
+
+  .frame2-check-name {
+    font-size: 0.86rem;
+  }
+
+  .frame-mortise-label {
+    font-size: 0.86rem;
+  }
+
+  /* Шаг 5 — каталог петель: отступ компактнее. */
+  .frame-hinge-catalog-wrap {
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+  }
+}
+
+/* ====================================================================== */
+/* 5. Шаг 8 «Итог»                                                        */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .frame2.step8-result {
+    gap: 1rem;
+  }
+
+  .step8-panel {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .step8-result__nav {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .step8-kv__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+    padding: 0.5rem 0;
+    font-size: 0.86rem;
+  }
+
+  .step8-kv__k {
+    font-size: 0.78rem;
+  }
+
+  /* Снимаем nowrap у нижнего ряда кнопок — иначе «Отправить»/«PDF»/«Назад»
+     ездят горизонтально без скролла и обрезаются. */
+  .step8-result__nav.frame2-card-nav,
+  .step8-result__nav-end {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .step8-result__nav-end {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .step8-result__footer-actions .admin-primary {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .step8-form__head {
+    font-size: 0.78rem;
+  }
+
+  .step8-result__nav.frame2-card-nav {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .step8-result__nav.frame2-card-nav > button.admin-secondary,
+  .step8-result__nav .step8-form__submit,
+  .step8-result__nav .step8-form__pdf {
+    width: 100%;
+  }
+
+  .step8-result__nav-end {
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .step8-result__footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .step8-table th,
+  .step8-table td {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.78rem;
+  }
+}
+
+/* ====================================================================== */
+/* 6. Шаги 6/7 — присадка/ручка: формы и кнопки                           */
+/* ====================================================================== */
+
+@media (max-width: 560px) {
+  .frame3-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .frame3-left {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .frame3-title {
+    font-size: 1rem;
+  }
+
+  .frame3-sub {
+    font-size: 0.86rem;
+  }
+}
+
+/* ====================================================================== */
+/* 7. Админка «Материалы» и «Текстуры» — плотная сетка → читаемая на тел.  */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  /* На странице материалов и текстур разделители .--mat-scroll-* зашиты
+     в 10px-кегль (для эксель-плотности на десктопе). На мобиле читать
+     невозможно — поднимаем до 13–14px. */
+  #admin-panel-materials.admin-body,
+  #admin-panel-textures.admin-body {
+    --mat-scroll-fs: 0.86rem;
+    --mat-scroll-lh: 1.35;
+    --mat-scroll-ls: 0.01em;
+    --admin-mat-add-btn-min-w: 7.5rem;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  #admin-panel-materials .admin-folder-toolbar-btn,
+  #admin-panel-textures .admin-folder-toolbar-btn {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 8px;
+  }
+
+  #admin-panel-materials .admin-folder-toolbar-btn svg,
+  #admin-panel-textures .admin-folder-toolbar-btn svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  #admin-panel-materials .folder-explorer-tree-line,
+  #admin-panel-textures .folder-explorer-tree-line {
+    padding: 0.32rem 0.4rem;
+    border-radius: 8px;
+    gap: 0.35rem;
+  }
+
+  #admin-panel-materials .folder-explorer-tree-expander,
+  #admin-panel-textures .folder-explorer-tree-expander {
+    width: 1.4rem;
+    height: 1.4rem;
+    font-size: 0.85rem;
+  }
+
+  #admin-panel-materials .folder-explorer-icon,
+  #admin-panel-textures .folder-explorer-icon {
+    font-size: 1rem;
+  }
+
+  #admin-panel-materials .tree-gear-btn,
+  #admin-panel-textures .tree-gear-btn {
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 6px;
+  }
+
+  /* Шапка дерева + тулбар выровнены к комфортному кеглю. */
+  #admin-panel-materials .admin-aside .hint-btn,
+  #admin-panel-textures .admin-aside .hint-btn {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-width: 1.15rem;
+    min-height: 1.15rem;
+    font-size: 0.7rem;
+  }
+
+  /* Список материалов: 4 колонки сжимаются — превратим в 2 (имя+артикул /
+     ед.изм.+цена), карточкой. Тогда не нужен горизонтальный скролл. */
+  #admin-panel-materials .mat-list-legend {
+    display: none;
+  }
+
+  #admin-panel-materials .mat-list-item-inner--legend {
+    display: none;
+  }
+
+  #admin-panel-materials .mat-list-row {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.2rem 0.65rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+  }
+
+  #admin-panel-materials .mat-list-cell-name {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+
+  #admin-panel-materials .mat-list-cell-article {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    font-size: 0.78rem;
+  }
+
+  #admin-panel-materials .mat-list-cell-uom {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    justify-self: end;
+    font-size: 0.82rem;
+  }
+
+  #admin-panel-materials .mat-list-cell-price {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+    justify-self: end;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ft-accent-2);
+  }
+
+  #admin-panel-materials .mat-list-item-inner {
+    grid-template-columns: minmax(0, 1fr) 2.3rem;
+    gap: 0.45rem;
+    align-items: stretch;
+  }
+
+  #admin-panel-materials .mat-list-gear-btn {
+    width: 2.3rem;
+    min-height: 2.3rem;
+    border-radius: 10px;
+  }
+
+  #admin-panel-materials .mat-list-gear-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  #admin-panel-materials .admin-main-scroll > button.admin-primary,
+  #admin-panel-textures .admin-main-scroll > button.admin-primary {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.86rem;
+    border-radius: 999px;
+    min-width: 0;
+    align-self: flex-start;
+  }
+
+  /* Текстуры: миниатюра крупнее; первая колонка — подпись «Превью», не только под иконку */
+  #admin-panel-textures .mat-list-legend,
+  #admin-panel-textures .mat-list-row--texture {
+    grid-template-columns: minmax(5rem, auto) minmax(0, 1fr) !important;
+    gap: 0.5rem;
+  }
+
+  #admin-panel-textures .mat-list-tex-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+  }
+
+  #admin-panel-textures .mat-list-row {
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+  }
+
+  #admin-panel-textures .mat-list-legend {
+    padding: 0.45rem 0.6rem;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-bottom-color: var(--ft-border);
+  }
+
+  #admin-panel-textures .mat-list-cell-name {
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+
+  /* Сопутствующие в доке: на телефон превращаем 7-колоночную строку в
+     карточку из меток-значений (горизонтальный скролл не помогает,
+     потому что внутри есть селекты и инпуты). */
+  #admin-panel-materials .admin-extras-dock {
+    max-height: none;
+  }
+
+  #admin-panel-materials .admin-extras-dock .mat-extras-legend {
+    display: none;
+  }
+
+  #admin-panel-materials .admin-extras-dock .mat-extras-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    grid-auto-flow: row dense;
+    gap: 0.35rem 0.5rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 10px;
+    font-size: 0.82rem;
+  }
+
+  #admin-panel-materials .admin-extras-dock .mat-extras-row > span:nth-child(1) {
+    grid-column: 1 / 3;
+  }
+
+  #admin-panel-materials .admin-extras-dock .mat-extras-row .mat-extras-rm {
+    grid-column: 2 / 3;
+    justify-self: end;
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    border-radius: 8px;
+  }
+
+  #admin-panel-materials .admin-extras-dock-actions {
+    justify-content: stretch;
+    gap: 0.5rem;
+  }
+
+  #admin-panel-materials .admin-extras-dock-actions .admin-primary,
+  #admin-panel-materials .admin-extras-dock-actions .admin-secondary {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.86rem;
+    border-radius: 999px;
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 560px) {
+  #admin-panel-materials .admin-folder-toolbar,
+  #admin-panel-textures .admin-folder-toolbar {
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+}
+
+/* ====================================================================== */
+/* 8. Админка «Заказы» и «Пользователи» — таблицы → карточный вид          */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .admin-orders-toolbar {
+    gap: 0.45rem;
+  }
+
+  .admin-orders-table-wrap,
+  .admin-users-table-wrap {
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  /* Таблица превращается в список карточек. */
+  .admin-orders-table,
+  .admin-users-table {
+    display: block;
+    width: 100%;
+    border-collapse: separate;
+  }
+
+  .admin-orders-table thead,
+  .admin-users-table thead {
+    display: none;
+  }
+
+  .admin-orders-table tbody,
+  .admin-users-table tbody {
+    display: block;
+  }
+
+  .admin-orders-table tr,
+  .admin-users-table tr {
+    display: block;
+    margin-bottom: 0.7rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--ft-border);
+    border-radius: var(--ft-radius-md);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .admin-orders-table td,
+  .admin-users-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.32rem 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    vertical-align: middle;
+  }
+
+  .admin-orders-table td:last-child,
+  .admin-users-table td:last-child {
+    border-bottom: 0;
+  }
+
+  /* Подпись колонки слева — берётся из data-label, который добавим
+     в TSX, или из ::before fallback. Мы применяем data-label через
+     CSS attr(): сами надписи можно зашить здесь, но мобильный
+     порядок чтения и так понятен. */
+  .admin-orders-table td::before,
+  .admin-users-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ft-muted);
+    font-weight: 600;
+  }
+
+  .admin-orders-table td > *,
+  .admin-users-table td > * {
+    text-align: right;
+    min-width: 0;
+  }
+
+  .admin-orders-cell-strong,
+  .admin-orders-cell-sub {
+    display: block;
+    text-align: right;
+  }
+
+  .admin-orders-mono {
+    color: var(--ft-accent-2);
+  }
+
+  .admin-orders-contacts,
+  .admin-users-email {
+    max-width: 100%;
+  }
+
+  .admin-orders-status-ft.ft-select,
+  .admin-users-role-ft.ft-select {
+    min-width: 10rem;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .admin-orders-actions-cell,
+  .admin-users-actions-cell {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-orders-table tr,
+  .admin-users-table tr {
+    padding: 0.6rem 0.7rem;
+  }
+
+  .admin-orders-table td,
+  .admin-users-table td {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+  }
+
+  .admin-orders-table td > *,
+  .admin-users-table td > * {
+    text-align: left;
+    align-self: stretch;
+  }
+
+  .admin-orders-cell-strong,
+  .admin-orders-cell-sub {
+    text-align: left;
+  }
+}
+
+/* ====================================================================== */
+/* 9. Модалки — почти на весь экран на мобиле                              */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .admin-modal-backdrop {
+    padding: 0.65rem;
+    align-items: flex-end;
+  }
+
+  .admin-modal {
+    max-width: 100%;
+    padding: 1rem 1.1rem 0.95rem;
+    border-radius: 14px;
+  }
+
+  .admin-modal-title {
+    font-size: 1rem;
+  }
+
+  .admin-modal-text {
+    font-size: 0.86rem;
+  }
+
+  /* «Explorer»-окна (создание/перенос папки, выбор материалов, карточка):
+     почти на весь экран, две колонки превращаются в одну за счёт
+     existing rule .folder-explorer{grid-template-columns:1fr} @720px. */
+  .admin-modal--explorer {
+    max-width: 100%;
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    padding: 0.75rem 0.9rem 0.85rem;
+  }
+
+  .admin-modal--material-card.admin-modal--explorer {
+    max-width: 100%;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    padding: 0.65rem 0.8rem 0.8rem;
+    border-radius: 0;
+  }
+
+  .admin-modal--material-card .admin-panel--in-material-modal {
+    padding: 0.65rem 0.6rem 0.85rem;
+  }
+
+  .admin-modal-backdrop:has(> .admin-modal--explorer),
+  .admin-modal-backdrop:has(> .admin-modal--material-card) {
+    padding: 0;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .folder-explorer {
+    grid-template-columns: 1fr;
+    min-height: 220px;
+  }
+
+  .folder-explorer-tree,
+  .folder-explorer-content {
+    max-height: 38dvh;
+  }
+
+  .folder-explorer-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.45rem;
+  }
+
+  .folder-explorer-tile {
+    padding: 0.5rem;
+    min-height: 76px;
+    font-size: 0.78rem;
+  }
+
+  .folder-explorer-tile-icon {
+    font-size: 1.4rem;
+  }
+
+  .folder-explorer-breadcrumb {
+    padding: 0.35rem 0.45rem;
+  }
+
+  .folder-explorer-crumb {
+    font-size: 0.78rem;
+    padding: 0.18rem 0.45rem;
+  }
+
+  /* MaterialSearchModal: легенда исчезает, строки превращаются в карточки */
+  .material-search-filters {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem 0.55rem;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .material-search-results-legend {
+    display: none;
+  }
+
+  .material-search-result-line {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.2rem 0.55rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    margin: 0.32rem 0;
+    border: 1px solid var(--ft-border);
+  }
+
+  .material-search-result-check {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    justify-self: center;
+  }
+
+  /* Имя — крупно сверху; остальные ячейки (артикул, цена, классы, папка) —
+     одной строкой подзаголовка под ним. */
+  .material-search-result-cell--name {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: normal;
+  }
+
+  .material-search-result-line > .material-search-result-cell:not(.material-search-result-cell--name) {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+    font-size: 0.78rem;
+    color: var(--ft-muted);
+    align-self: start;
+    display: inline;
+  }
+
+  /* Если в строке несколько таких ячеек — рендерим их через слэш-разделитель. */
+  .material-search-result-line > .material-search-result-cell:not(.material-search-result-cell--name) ~
+    .material-search-result-cell:not(.material-search-result-cell--name)::before {
+    content: ' · ';
+    opacity: 0.55;
+  }
+
+  .material-search-results-table--navigate .material-search-result-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .material-search-results-table--navigate .material-search-result-line > .material-search-result-cell:not(.material-search-result-cell--name),
+  .material-search-results-table--navigate .material-search-result-cell--name {
+    grid-column: 1 / -1;
+  }
+
+  .material-search-results-list {
+    max-height: 55dvh;
+  }
+
+  .material-search-class-chips {
+    max-height: 110px;
+  }
+
+  /* TexturePickerModal */
+  .texture-picker-split {
+    grid-template-columns: 1fr;
+    max-height: none;
+    min-height: 280px;
+  }
+
+  .texture-picker-aside {
+    border-right: 0;
+    border-bottom: 1px solid var(--ft-border);
+    padding-right: 0;
+    padding-bottom: 0.55rem;
+    max-height: 30dvh;
+  }
+
+  .texture-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 0.45rem;
+  }
+
+  .texture-picker-thumb {
+    height: 64px;
+  }
+
+  /* Модалка карточки материала: вкладки кладём на 2 ряда / без оверфлоу. */
+  .mat-form-tabs {
+    flex-wrap: wrap;
+    gap: 0.15rem;
+  }
+
+  .mat-form-tab {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.55rem;
+  }
+
+  .field-row {
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .admin-modal--material-card .mat-form-tab-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-modal--material-card .mat-form-split-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .tex-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-modal {
+    padding: 0.85rem 0.95rem 0.85rem;
+  }
+
+  .admin-modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .admin-modal-actions > * {
+    width: 100%;
+  }
+
+  .admin-modal--explorer,
+  .admin-modal--material-card.admin-modal--explorer {
+    padding: 0.6rem 0.7rem 0.7rem;
+  }
+
+  .admin-modal-head-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .material-search-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .frame2-modal-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .frame2-modal {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding: 0.75rem 0.85rem 0.9rem;
+  }
+
+  .frame2-modal-head {
+    gap: 0.45rem;
+  }
+
+  .frame2-modal-title {
+    font-size: 0.92rem;
+    letter-spacing: 0.08em;
+    white-space: normal;
+  }
+}
+
+/* ====================================================================== */
+/* 10. Login / Register / Public страницы клиента                          */
+/* ====================================================================== */
+
+@media (max-width: 1024px) {
+  .public-page {
+    padding: 1rem 0.9rem 1.75rem;
+  }
+
+  .public-page__inner {
+    max-width: 36rem;
+  }
+
+  .public-page__title {
+    font-size: 1.2rem;
+  }
+
+  .public-orders-card {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .public-orders-card__row {
+    gap: 0.35rem 0.55rem;
+  }
+
+  .public-orders-card__num {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .login-wrap {
+    padding: 1rem 0.85rem;
+    min-height: 100dvh;
+    align-items: stretch;
+  }
+
+  .login-card {
+    align-self: center;
+    max-width: 100%;
+    padding: 1.35rem 1.1rem 1.5rem;
+    border-radius: 14px;
+  }
+
+  .login-title {
+    font-size: 1.15rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 1rem;
+  }
+
+  .login-input {
+    padding: 0.55rem 0.7rem;
+  }
+
+  .login-btn {
+    padding: 0.65rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  .register-page__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .register-page__link {
+    justify-content: center;
+  }
+
+  .public-page {
+    padding: 0.85rem 0.7rem 1.4rem;
+  }
+
+  .public-orders-card__row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .public-orders-card__status-wrap {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .public-orders-card__status {
+    text-align: left;
+  }
+}
+
+/* ====================================================================== */
+/* 11. Прочее: ховеры на тач-устройствах не должны «залипать»              */
+/* ====================================================================== */
+
+@media (hover: none) {
+  /* Шестерёнки рядом со строкой/папкой/плиткой материала на тач-устройствах
+     всегда видимы (на десктопе они появляются по hover). */
+  .tree-line-actions,
+  .tile-gear-menu-anchor.tree-line-actions,
+  .tile-cell .tile-gear {
+    opacity: 1 !important;
+  }
+}
