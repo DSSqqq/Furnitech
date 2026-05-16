@@ -4,6 +4,7 @@ import json
 from django.db import IntegrityError
 from rest_framework import serializers
 
+from .media_urls import absolute_media_url
 from .models import (
     CalculatorFillingType,
     CalculatorFillingTypeMaterial,
@@ -106,6 +107,23 @@ class TextureItemSerializer(serializers.ModelSerializer):
         model = TextureItem
         fields = ("id", "category", "name", "image", "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        """При создании запись без файла в БД не создаём — иначе «пустые» текстуры на проде."""
+        if self.instance is None and not attrs.get("image"):
+            raise serializers.ValidationError(
+                {"image": "Загрузите файл изображения."}
+            )
+        return attrs
+
+    def to_representation(self, instance) -> dict:
+        data = super().to_representation(instance)
+        req = self.context.get("request")
+        if instance.image:
+            data["image"] = absolute_media_url(req, instance.image.url)
+        else:
+            data["image"] = None
+        return data
 
 
 def _as_decimal(x) -> Decimal:
@@ -230,11 +248,9 @@ class MaterialSerializer(serializers.ModelSerializer):
         if instance.texture_item_id:
             ti = getattr(instance, "texture_item", None)
             if ti and ti.image:
-                url = ti.image.url
-                return request.build_absolute_uri(url) if request else url
+                return absolute_media_url(request, ti.image.url)
         if instance.texture_image:
-            url = instance.texture_image.url
-            return request.build_absolute_uri(url) if request else url
+            return absolute_media_url(request, instance.texture_image.url)
         return None
 
     def validate_article(self, value: str) -> str:

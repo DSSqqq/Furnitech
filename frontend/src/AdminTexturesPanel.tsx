@@ -1241,11 +1241,12 @@ export function AdminTexturesPanel() {
                       item={editing}
                       onClose={() => setEditing(null)}
                       onSaved={(t) => {
+                        const savedCategoryId = Number(t.category)
                         setItems((prev) => {
                           if (editing === 'new') {
-                            return t.category === selected ? [...prev, t] : prev
+                            return savedCategoryId === selected ? [...prev, t] : prev
                           }
-                          if (t.category !== selected) {
+                          if (savedCategoryId !== selected) {
                             return prev.filter((x) => x.id !== t.id)
                           }
                           return prev.map((x) => (x.id === t.id ? t : x))

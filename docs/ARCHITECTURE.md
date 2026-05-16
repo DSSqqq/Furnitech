@@ -12,7 +12,7 @@
 
 ## Зависимости
 
-- **Backend:** `requirements.txt` — Django, DRF, `djangorestframework-simplejwt`, `cors`, `python-dotenv`, **Pillow** (загрузка текстур), **rapidfuzz** (нечёткий поиск по материалам в `MaterialViewSet`).
+- **Backend:** `requirements.txt` — Django, DRF, `djangorestframework-simplejwt`, `cors`, `python-dotenv`, **`django-storages[s3]`** + **boto3** (опционально **Supabase Storage** при `SUPABASE_MEDIA_ENABLED`; см. [SUPABASE_STORAGE.md](SUPABASE_STORAGE.md)), **Pillow** (загрузка текстур), **rapidfuzz** (нечёткий поиск по материалам в `MaterialViewSet`).
 - **Frontend:** `package.json` — React 19, Vite, TypeScript, ESLint; для PDF клиента на шаге 8 — **`jspdf`**, **`jspdf-autotable`**, модуль **`calculator/frameClientPdf.ts`** (подключение из **`Step8FrameResult`** обычным `import`); кириллица — встроенный **Noto Sans** из **`public/fonts/NotoSans-Regular.ttf`** (см. код регистрации шрифта на каждом документе).
 
 ## Каталоги
@@ -34,7 +34,7 @@ Furnitech/
 | `/api/auth/token/`, `token/refresh/`, `me/`, **`register/`**, **`admin-users/`**, **`admin-users/<id>/`** | JWT; **`POST /api/auth/token/`** обслуживает **`FurnitechTokenObtainPairView`** — в поле **`username`** можно передать **email** (поиск пользователя по **`email__iexact`**, см. `materials/jwt_auth.py`); публичная регистрация; для сотрудника SPA: список пользователей, PATCH `is_staff`, DELETE учётной записи (см. `materials/user_admin_views.py`) |
 | **`/api/materials-export/`**, **`/api/materials-import/`** | Импорт и экспорт каталога материалов (таблица **XLSX** / **XML**). Маршруты в **`config/urls.py`** **выше** **`path("api/", include("materials.urls"))`**, чтобы не пересекаться с **`/api/materials/<pk>/`**. Подробно: **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**. |
 | `/api/` | DRF router — см. ниже |
-| `/media/` | Файлы (dev): текстуры материалов (`DEBUG=1`) |
+| `/media/` | Локально и при **`DJANGO_SERVE_MEDIA=true`** на Render: раздача с диска. При **`SUPABASE_MEDIA_ENABLED`** — файлы на **Supabase Storage**, в API приходят **absolute URL**, см. [SUPABASE_STORAGE.md](SUPABASE_STORAGE.md). |
 
 ## URL-маршрутизация (фронтенд, SPA)
 
@@ -348,7 +348,7 @@ npm run dev
 
 ## Деплой (production)
 
-Краткая схема и переменные окружения: **[DEPLOY.md](DEPLOY.md)** (Vercel + Render + Supabase Postgres). Фронт в production использует **`VITE_API_ORIGIN`** для API и `/media`.
+Краткая схема и переменные окружения: **[DEPLOY.md](DEPLOY.md)** (Vercel + Render + Supabase Postgres). Фронт в production использует **`VITE_API_ORIGIN`** для API; URL к загружаемым картинкам сериализатор отдаёт **абсолютными** (**Render `/media/`** или **Supabase CDN** при Storage — см. [SUPABASE_STORAGE.md](SUPABASE_STORAGE.md)).
 
 ## Handoff
 

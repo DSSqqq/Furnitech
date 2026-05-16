@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "storages",
     "corsheaders",
     "rest_framework",
     "materials",
@@ -173,13 +174,51 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+SUPABASE_MEDIA_ENABLED = os.environ.get("SUPABASE_MEDIA_ENABLED", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+if SUPABASE_MEDIA_ENABLED:
+    _sb_keys = (
+        "SUPABASE_URL",
+        "SUPABASE_MEDIA_BUCKET",
+        "SUPABASE_S3_ENDPOINT",
+        "SUPABASE_S3_REGION",
+        "SUPABASE_S3_ACCESS_KEY",
+        "SUPABASE_S3_SECRET_KEY",
+    )
+    _missing_sb = [k for k in _sb_keys if not os.environ.get(k, "").strip()]
+    if _missing_sb:
+        raise RuntimeError(
+            "SUPABASE_MEDIA_ENABLED включён, но не заданы переменные окружения: "
+            + ", ".join(_missing_sb)
+            + ". См. docs/SUPABASE_STORAGE.md."
+        )
+
+
+def _default_media_storage_backend() -> str:
+    if SUPABASE_MEDIA_ENABLED:
+        return "config.supabase_s3_media.SupabasePublicMediaStorage"
+    return "django.core.files.storage.FileSystemStorage"
+
+
 if not DEBUG:
     STORAGES = {
         "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "BACKEND": _default_media_storage_backend(),
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
+elif SUPABASE_MEDIA_ENABLED:
+    STORAGES = {
+        "default": {
+            "BACKEND": _default_media_storage_backend(),
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
 

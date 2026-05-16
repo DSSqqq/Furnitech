@@ -16,3 +16,7 @@ services:
         value: "3.12.7"
       - key: DJANGO_DEBUG
         value: "False"
+      # Иначе при DEBUG=False /media/ не монтируется — превью текстур и материалов с диска не откроются.
+      # Файлы на Free-тире эфемерны без Persistent Disk; для постоянства — внешнее хранилище (см. docs/DEPLOY.md).
+      - key: DJANGO_SERVE_MEDIA
+        value: "true"

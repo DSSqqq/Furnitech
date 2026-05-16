@@ -171,10 +171,11 @@ postgresql://postgres.xxxx:ВАШ_ПАРОЛЬ@aws-0-eu-central-1.pooler.supabas
 
 ### Загрузки (картинки материалов, текстуры)
 
-На бесплатном Render файловая система **эфемерная**: после перезапуска загрузки пропадут, если не подключён **Persistent Disk** или внешнее хранилище (S3, Supabase Storage и т.д.). Сейчас в коде:
+На бесплатном Render файловая система **эфемерная**: после перезапуска загрузки пропадут, если не подключён **Persistent Disk** или внешнее хранилище. Сейчас в коде:
 
 - при **`DJANGO_DEBUG=False`** раздача `/media/` включается только если **`DJANGO_SERVE_MEDIA=true`**;
-- для production с постоянными файлами лучше спланировать **Supabase Storage** или аналог и отдельный PR.
+- для **постоянных файлов** на той же Supabase-проекте, что и Postgres, см. **[docs/SUPABASE_STORAGE.md](SUPABASE_STORAGE.md)** ( Django + ключи S3 + публичный bucket );
+- для долгоживущих только на Render без Storage — см. Persistent Disk на Render.
 
 ## 3. Vercel: фронтенд
 

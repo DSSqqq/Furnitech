@@ -1,6 +1,21 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-16 (вкладка **«Текстуры»** — оверлей начальной загрузки дерева с blur и спиннером; также карточка **`MaterialForm`**, мобильная вёрстка — см. блоки ниже).
+**Последнее обновление:** 2026-05-16 (опциональный **Supabase Storage** для медиафайлов; текстуры на проде; **`MaterialForm`**; мобильная вёрстка — см. блоки ниже).
+
+### Изменения 2026-05-16 (Supabase Storage — опционально)
+
+- Полная инструкция: **`docs/SUPABASE_STORAGE.md`** (bucket, S3-ключи, переменные на Render).
+- **`requirements.txt`:** **`django-storages[s3]`**; приложение **`storages`** в **`INSTALLED_APPS`** (`backend/config/settings.py`).
+- **`SUPABASE_MEDIA_ENABLED`:** включает **`config.supabase_s3_media.SupabasePublicMediaStorage`**, загрузки идут в bucket через endpoint **`….storage.supabase.co/storage/v1/s3`**; **`MaterialSerializer`** / **`TextureItemSerializer`** не дублируют origin Django для уже абсолютных URL (**`backend/materials/media_urls.py`**).
+- **`DEPLOY.md`**, **`backend/.env.example`**, **`docs/ARCHITECTURE.md`** — перекрёстные ссылки и комментарии.
+
+### Изменения 2026-05-16 (текстуры на проде — сохранение и раздача файлов)
+
+- **Проблема:** при **`DJANGO_DEBUG=False`** маршрут **`/media/`** не включался без **`DJANGO_SERVE_MEDIA`**, поэтому запись в **`TextureItem`** могла происходить (файл на диске сервиса), а превью и скачивание по URL не работали; на **Render Free** без диска файлы дополнительно теряются после рестарта.
+- **`render.yaml`:** в Blueprint добавлено **`DJANGO_SERVE_MEDIA=true`**, чтобы **`/media/`** монтировался для новых деплоев.
+- **`TextureItemSerializer`:** в ответе API поле **`image`** — абсолютный URL (как у **`MaterialSerializer.texture_image`**); при **создании** без файла — ошибка валидации (не создаём «пустые» записи).
+- **`AdminTexturesPanel.tsx`:** после сохранения сравнение папки через **`Number(t.category)`**, чтобы новая текстура не терялась в списке при несовпадении типов.
+- **`backend/.env.example`:** уточнён комментарий про **`DJANGO_SERVE_MEDIA`**.
 
 ### Изменения 2026-05-16 (админка «Текстуры» — UX начальной загрузки)
 
