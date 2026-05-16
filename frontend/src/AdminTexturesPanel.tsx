@@ -927,13 +927,27 @@ export function AdminTexturesPanel() {
   return (
     <>
       <div
-        className="admin-body"
+        className={loading ? 'admin-body admin-body--textures-loading-host' : 'admin-body'}
         id="admin-panel-textures"
         role="tabpanel"
         aria-labelledby="admin-tab-textures"
       >
+        {loading ? (
+          <div
+            className="admin-textures-loading"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            aria-label="Загрузка папок текстур"
+          >
+            <div className="admin-textures-loading__shade" aria-hidden />
+            <div className="admin-textures-loading__card">
+              <span className="admin-textures-loading__spinner" aria-hidden />
+              <span className="admin-textures-loading__label">Загрузка</span>
+            </div>
+          </div>
+        ) : null}
         {err && <div className="admin-error">{err}</div>}
-        {loading && <p className="admin-muted admin-initial-state">Загрузка…</p>}
         <aside className="admin-aside">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки текстур</h2>

@@ -1979,6 +1979,87 @@ button.admin-primary.admin-modal-confirm:hover {
   line-height: 1;
 }
 
+/* Первоначальная загрузка дерева текстур: размытие панели + спиннер по центру */
+#admin-panel-textures.admin-body--textures-loading-host {
+  position: relative;
+}
+
+.admin-textures-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: auto;
+}
+
+.admin-textures-loading__shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 8, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-textures-loading__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  padding: 1.35rem 1.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(203, 176, 121, 0.22);
+  background: linear-gradient(
+    165deg,
+    rgba(22, 20, 17, 0.92),
+    rgba(14, 13, 12, 0.88)
+  );
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.admin-textures-loading__spinner {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(203, 176, 121, 0.95);
+  border-radius: 50%;
+  animation: admin-textures-loading-spin 0.72s linear infinite;
+}
+
+.admin-textures-loading__label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ft-text);
+  opacity: 0.94;
+}
+
+@keyframes admin-textures-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-textures-loading__spinner {
+    animation: none;
+    border-top-color: rgba(203, 176, 121, 0.95);
+    opacity: 0.92;
+  }
+
+  .admin-textures-loading__shade {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(5, 5, 8, 0.72);
+  }
+}
+
 @media (min-width: 1025px) {
   .admin-body {
     overflow: hidden;
