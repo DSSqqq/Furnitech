@@ -12,7 +12,7 @@ description: >-
 
 1. Из **корня репозитория** выполнить: `py scripts/furnitech_status.py`  
    (в Unix/mac: `python3 scripts/furnitech_status.py` при необходимости.)
-2. Прочитать **полный** [docs/PROGRESS.md](docs/PROGRESS.md) и при необходимости [docs/PLAN.md](docs/PLAN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). В PROGRESS и ARCHITECTURE зафиксированы **публичный калькулятор** (`/` без входа) и **анонимное GET** части API — не путать с полностью закрытым JWT API прошлых версий.
+2. Прочитать **полный** [docs/PROGRESS.md](docs/PROGRESS.md) и при необходимости [docs/PLAN.md](docs/PLAN.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Если задачи касаются **классов материалов** или **формул расчёта** — см. [docs/CALCULATION_FORMULAS.md](docs/CALCULATION_FORMULAS.md). В PROGRESS и ARCHITECTURE зафиксированы **публичный калькулятор** (`/` без входа) и **анонимное GET** части API — не путать с полностью закрытым JWT API прошлых версий.
 
 ## Команда для нового агента (кратко)
 
@@ -23,7 +23,7 @@ py scripts/furnitech_status.py
 ## Что фиксировать в конце работы
 
 - Обнови `docs/PROGRESS.md`: дата, фактическое состояние, снятые/новые чекпоинты.
-- При смене API или структуры папок — правка `docs/ARCHITECTURE.md`.
+- При смене API или структуры папок — правка `docs/ARCHITECTURE.md`; при изменении семантики формул или классов — правка **`docs/CALCULATION_FORMULAS.md`** и краткая пометка в **`docs/PROGRESS.md`**.
 
 ## Стек и ориентиры
 

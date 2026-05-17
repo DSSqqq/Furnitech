@@ -145,7 +145,7 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
       return
     }
     setItemsLoading(true)
-    fetchTextureItems(selectedFolderId)
+    fetchTextureItems({ category: selectedFolderId })
       .then((r) => setItems(r.results))
       .catch((e) => setErr(String(e)))
       .finally(() => setItemsLoading(false))

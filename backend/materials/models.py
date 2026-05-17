@@ -26,9 +26,49 @@ class RelatedQuantityScale(models.TextChoices):
     )
 
 
+class MaterialClassCategory(models.Model):
+    """Папки для справочника классов материалов (отдельно от категорий номенклатуры)."""
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="Родительская папка",
+    )
+    name = models.CharField("Наименование", max_length=255)
+    code = models.SlugField("Код", max_length=64, blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Папка классов материалов"
+        verbose_name_plural = "Папки классов материалов"
+        ordering = ["sort_order", "name"]
+        unique_together = [("parent", "name")]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def path(self) -> str:
+        parts = [self.name]
+        p: MaterialClassCategory | None = self.parent
+        while p is not None:
+            parts.append(p.name)
+            p = p.parent
+        return " / ".join(reversed(parts))
+
+
 class MaterialClass(models.Model):
     """Справочник классов материалов (премиум, стандарт, …)."""
 
+    category = models.ForeignKey(
+        MaterialClassCategory,
+        on_delete=models.PROTECT,
+        related_name="classes",
+        verbose_name="Папка",
+    )
     name = models.CharField("Наименование", max_length=255)
     code = models.SlugField("Код", max_length=64, blank=True)
     external_id = models.CharField("ID 1С", max_length=64, blank=True, null=True, db_index=True)
@@ -38,6 +78,66 @@ class MaterialClass(models.Model):
         verbose_name = "Класс материала"
         verbose_name_plural = "Классы материалов"
         ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class CalculationFormulaCategory(models.Model):
+    """Папки для списка формул расчёта (аналог папок классов материалов)."""
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="Родительская папка",
+    )
+    name = models.CharField("Наименование", max_length=255)
+    code = models.SlugField("Код", max_length=64, blank=True)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Папка формул расчёта"
+        verbose_name_plural = "Папки формул расчёта"
+        ordering = ["sort_order", "name"]
+        unique_together = [("parent", "name")]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def path(self) -> str:
+        parts = [self.name]
+        p: CalculationFormulaCategory | None = self.parent
+        while p is not None:
+            parts.append(p.name)
+            p = p.parent
+        return " / ".join(reversed(parts))
+
+
+class CalculationFormula(models.Model):
+    """Именованная формула расчёта по классам выбранных материалов."""
+
+    category = models.ForeignKey(
+        CalculationFormulaCategory,
+        on_delete=models.PROTECT,
+        related_name="formulas",
+        verbose_name="Папка",
+    )
+    name = models.CharField("Наименование", max_length=255)
+    expression = models.CharField("Выражение", max_length=1000, blank=True)
+    tokens = models.JSONField("Токены формулы", default=list, blank=True)
+    is_active = models.BooleanField("Активна", default=False)
+    sort_order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Формула расчёта"
+        verbose_name_plural = "Формулы расчёта"
+        ordering = ["sort_order", "name"]
 
     def __str__(self) -> str:
         return self.name

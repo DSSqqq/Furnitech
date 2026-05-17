@@ -1034,7 +1034,8 @@
     padding: 0.75rem 0.9rem 0.85rem;
   }
 
-  .admin-modal--material-card.admin-modal--explorer {
+  .admin-modal--material-card.admin-modal--explorer,
+  .admin-material-card-dialog.admin-panel--in-material-modal {
     max-width: 100%;
     width: 100%;
     height: 100dvh;
@@ -1044,12 +1045,14 @@
     border-radius: 0;
   }
 
-  .admin-modal--material-card .admin-panel--in-material-modal {
+  .admin-modal--material-card .admin-panel--in-material-modal,
+  .admin-material-card-dialog.admin-panel--in-material-modal {
     padding: 0.65rem 0.6rem 0.85rem;
   }
 
   .admin-modal-backdrop:has(> .admin-modal--explorer),
-  .admin-modal-backdrop:has(> .admin-modal--material-card) {
+  .admin-modal-backdrop:has(> .admin-modal--material-card),
+  .admin-modal-backdrop:has(> .admin-material-card-dialog) {
     padding: 0;
     align-items: stretch;
   }
@@ -1205,11 +1208,13 @@
     gap: 0.55rem;
   }
 
-  .admin-modal--material-card .mat-form-tab-panel {
+  .admin-modal--material-card .mat-form-tab-panel,
+  .admin-material-card-dialog .mat-form-tab-panel {
     grid-template-columns: 1fr;
   }
 
-  .admin-modal--material-card .mat-form-split-2 {
+  .admin-modal--material-card .mat-form-split-2,
+  .admin-material-card-dialog .mat-form-split-2 {
     grid-template-columns: 1fr;
   }
 
@@ -1234,7 +1239,8 @@
   }
 
   .admin-modal--explorer,
-  .admin-modal--material-card.admin-modal--explorer {
+  .admin-modal--material-card.admin-modal--explorer,
+  .admin-material-card-dialog.admin-panel--in-material-modal {
     padding: 0.6rem 0.7rem 0.7rem;
   }
 

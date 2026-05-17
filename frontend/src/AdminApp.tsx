@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   type DragEvent,
-  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -23,17 +22,22 @@ import {
   fetchAdminUsers,
   fetchMaterial,
   fetchCategoryTree,
+  fetchMaterialClassCategoryTree,
   fetchMaterialClasses,
   fetchMaterials,
   fetchMaterialsFiltered,
   fetchUom,
   importMaterialsTable,
   patchAdminUserStaff,
+  pickDefaultMaterialClassCategoryId,
   updateCategory,
   updateMaterial,
   type AdminUserRow,
 } from './api'
+import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
 import { AdminOrdersPanel } from './AdminOrdersPanel'
+import { AdminCalculationsPanel } from './AdminCalculationsPanel'
+import { AdminMaterialClassesPanel } from './AdminMaterialClassesPanel'
 import { AdminTexturesPanel } from './AdminTexturesPanel'
 import { FolderCreateModal } from './FolderCreateModal'
 import { DND_FOLDER, DND_MATERIAL, isFolderDrag, isMaterialDrag } from './folderMoveDnD'
@@ -55,6 +59,12 @@ import { CalculatorPage } from './CalculatorPage'
 import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
 import type { Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure } from './types'
 import './AdminApp.css'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 
 function collectIdsWithChildren(tree: MaterialCategory[]): Set<number> {
   const out = new Set<number>()
@@ -98,39 +108,6 @@ function findCategoryNode(nodes: MaterialCategory[], id: number): MaterialCatego
 }
 
 type FolderRenameRequest = { targetId: number; nonce: number }
-
-function AdminFolderToolbarIcon({
-  label,
-  disabled,
-  onClick,
-  className,
-  children,
-  ariaExpanded,
-  ariaHasPopup,
-}: {
-  label: string
-  disabled?: boolean
-  onClick?: () => void
-  className?: string
-  children: ReactNode
-  ariaExpanded?: boolean
-  ariaHasPopup?: boolean | 'menu'
-}) {
-  return (
-    <button
-      type="button"
-      className={className ? `admin-folder-toolbar-btn ${className}` : 'admin-folder-toolbar-btn'}
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      aria-expanded={ariaExpanded}
-      aria-haspopup={ariaHasPopup}
-    >
-      {children}
-    </button>
-  )
-}
 
 /** Папка и все вложенные папки (по объекту из дерева). */
 function collectSubtreeCategoryIds(cat: MaterialCategory): Set<number> {
@@ -380,9 +357,11 @@ function formatListBasePrice(m: Material) {
 export function AdminApp({ user, onLogout }: AdminProps) {
   const nav = useNavigate()
   const loc = useLocation()
-  const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'users' = (() => {
+  const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'classes' | 'calculations' | 'users' = (() => {
     const p = (loc.pathname || '/materials').toLowerCase()
     if (p.startsWith('/calculator')) return 'calculator'
+    if (p.startsWith('/classes')) return 'classes'
+    if (p.startsWith('/calculations')) return 'calculations'
     if (p.startsWith('/orders')) return 'orders'
     if (p.startsWith('/users')) return 'users'
     if (p.startsWith('/textures')) return 'textures'
@@ -396,6 +375,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [materials, setMaterials] = useState<Material[]>([])
   const [uom, setUom] = useState<UnitOfMeasure[]>([])
   const [mclasses, setMclasses] = useState<MaterialClass[]>([])
+  const [defaultMaterialClassCategoryId, setDefaultMaterialClassCategoryId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
@@ -490,9 +470,10 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   }, [])
 
   const loadRefs = useCallback(() => {
-    return Promise.all([fetchUom(), fetchMaterialClasses()]).then(([u, mc]) => {
+    return Promise.all([fetchUom(), fetchMaterialClasses(), fetchMaterialClassCategoryTree()]).then(([u, mc, mccTree]) => {
       setUom(sortUomForSelect(u.results))
       setMclasses(mc.results)
+      setDefaultMaterialClassCategoryId(pickDefaultMaterialClassCategoryId(mccTree))
     })
   }, [])
 
@@ -1077,15 +1058,26 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <button
             type="button"
             role="tab"
-            className={
-              section === 'calculator' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
-            }
-            aria-selected={section === 'calculator'}
-            aria-controls="admin-panel-calculator"
-            id="admin-tab-calculator"
-            onClick={() => nav('/calculator')}
+            className={section === 'classes' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
+            aria-selected={section === 'classes'}
+            aria-controls="admin-panel-classes"
+            id="admin-tab-classes"
+            onClick={() => nav('/classes')}
           >
-            Калькулятор
+            Классы
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={
+              section === 'calculations' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
+            }
+            aria-selected={section === 'calculations'}
+            aria-controls="admin-panel-calculations"
+            id="admin-tab-calculations"
+            onClick={() => nav('/calculations')}
+          >
+            Формулы
           </button>
           <button
             type="button"
@@ -1108,6 +1100,19 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             onClick={() => nav('/users')}
           >
             Пользователи
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={
+              section === 'calculator' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
+            }
+            aria-selected={section === 'calculator'}
+            aria-controls="admin-panel-calculator"
+            id="admin-tab-calculator"
+            onClick={() => nav('/calculator')}
+          >
+            Калькулятор
           </button>
         </nav>
       </header>
@@ -1436,46 +1441,45 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   if (e.target === e.currentTarget) setEditing(null)
                 }}
               >
-                <div
-                  className="admin-modal admin-modal--explorer admin-modal--material-card"
+                <section
+                  className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="material-card-dialog-title"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <section className="admin-panel admin-panel--in-material-modal">
-                    <MaterialForm
-                      key={editing === 'new' ? 'new' : (editing as Material).id}
-                      uomList={uom}
-                      mclassesList={mclasses}
-                      onMaterialClassCreated={(c) => {
-                        setMclasses((prev) => {
-                          if (prev.some((x) => x.id === c.id)) return prev
-                          return [...prev, c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-                        })
-                      }}
-                      onMaterialClassesDeleted={(ids) => {
-                        const remove = new Set(ids.map((x) => Number(x)))
-                        setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
-                      }}
-                      categoryId={editing === 'new' ? (selected as number) : (editing as Material).category}
-                      material={editing === 'new' ? null : editing}
-                      onClose={() => setEditing(null)}
-                      onDeleted={(id) => {
-                        setMaterials((prev) => prev.filter((m) => m.id !== id))
-                        setEditing(null)
-                        setExtrasTarget((et) => (et?.id === id ? null : et))
-                      }}
-                      onSaved={(m) => {
-                        setMaterials((prev) => {
-                          if (editing === 'new') return [...prev, m]
-                          return prev.map((x) => (x.id === m.id ? m : x))
-                        })
-                        setEditing(m)
-                      }}
-                    />
-                  </section>
-                </div>
+                  <MaterialForm
+                    key={editing === 'new' ? 'new' : (editing as Material).id}
+                    uomList={uom}
+                    mclassesList={mclasses}
+                    defaultMaterialClassCategoryId={defaultMaterialClassCategoryId}
+                    onMaterialClassCreated={(c) => {
+                      setMclasses((prev) => {
+                        if (prev.some((x) => x.id === c.id)) return prev
+                        return [...prev, c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+                      })
+                    }}
+                    onMaterialClassesDeleted={(ids) => {
+                      const remove = new Set(ids.map((x) => Number(x)))
+                      setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
+                    }}
+                    categoryId={editing === 'new' ? (selected as number) : (editing as Material).category}
+                    material={editing === 'new' ? null : editing}
+                    onClose={() => setEditing(null)}
+                    onDeleted={(id) => {
+                      setMaterials((prev) => prev.filter((m) => m.id !== id))
+                      setEditing(null)
+                      setExtrasTarget((et) => (et?.id === id ? null : et))
+                    }}
+                    onSaved={(m) => {
+                      setMaterials((prev) => {
+                        if (editing === 'new') return [...prev, m]
+                        return prev.map((x) => (x.id === m.id ? m : x))
+                      })
+                      setEditing(m)
+                    }}
+                  />
+                </section>
               </div>,
               document.body
             )}
@@ -1493,6 +1497,10 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             <CalculatorPage variant="admin" />
           </div>
         </div>
+      ) : section === 'classes' ? (
+        <AdminMaterialClassesPanel />
+      ) : section === 'calculations' ? (
+        <AdminCalculationsPanel />
       ) : section === 'orders' ? (
         <div className="admin-body" id="admin-panel-orders" role="tabpanel" aria-labelledby="admin-tab-orders">
           <div className="admin-orders-placeholder admin-orders-placeholder--filled">
@@ -1671,6 +1679,7 @@ function normalizeMaterialClassIds(raw: number[] | undefined | null): number[] {
 function MaterialForm({
   uomList,
   mclassesList,
+  defaultMaterialClassCategoryId,
   onMaterialClassCreated,
   onMaterialClassesDeleted,
   categoryId,
@@ -1681,6 +1690,8 @@ function MaterialForm({
 }: {
   uomList: UnitOfMeasure[]
   mclassesList: MaterialClass[]
+  /** Папка для новых классов из карточки материала (справочник классов). */
+  defaultMaterialClassCategoryId: number | null
   onMaterialClassCreated: (c: MaterialClass) => void
   onMaterialClassesDeleted: (ids: number[]) => void
   categoryId: number
@@ -1846,7 +1857,12 @@ function MaterialForm({
     }
     setAddingClass(true)
     setLocalErr(null)
-    createMaterialClass({ name })
+    if (defaultMaterialClassCategoryId == null) {
+      setLocalErr('Не найдена папка классов по умолчанию. Обновите страницу или проверьте API папок классов.')
+      setAddingClass(false)
+      return
+    }
+    createMaterialClass({ name, category: defaultMaterialClassCategoryId })
       .then((c) => {
         onMaterialClassCreated(c)
         const cid = Number(c.id)
@@ -2011,8 +2027,15 @@ function MaterialForm({
           </h3>
           <HintButton text="Общие параметры и габариты — на первой вкладке; текстура и превью — «Параметры текстуры». Сопутствующие материалы — по клику на строку в списке (панель внизу)." />
         </div>
-        <button type="button" className="admin-primary" onClick={onClose}>
-          Закрыть
+        <button
+          type="button"
+          className="admin-primary admin-modal-head-icon-close"
+          aria-label="Закрыть"
+          title="Закрыть"
+          disabled={saving || classSyncPending}
+          onClick={onClose}
+        >
+          {MODAL_CLOSE_X_SVG}
         </button>
       </div>
       {localErr && <div className="admin-error">{localErr}</div>}
@@ -2060,10 +2083,7 @@ function MaterialForm({
             />
           </label>
           <label className="field">
-            <div className="field-label-row">
-              <span>Артикул</span>
-              <HintButton text="Необязательно. Можно использовать как артикул поставщика или код сопоставления с учётом (1С и др.)." />
-            </div>
+            <span>Артикул</span>
             <input
               className="admin-input"
               value={form.article}
@@ -2140,6 +2160,7 @@ function MaterialForm({
             <div className="mat-form-uom-select-cell">
               <FtSelect
                 id={materialUomSelectId}
+                compact
                 value={String(form.uom_id)}
                 onChange={(v) => setField('uom_id', Number(v))}
                 options={uomList.map((u) => ({
@@ -2314,14 +2335,6 @@ function MaterialForm({
           </label>
 
           <div className="admin-row mat-form-actions">
-            <button
-              type="button"
-              className="admin-primary"
-              disabled={saving || classSyncPending}
-              onClick={save}
-            >
-              {saving ? 'Сохранение…' : 'Сохранить'}
-            </button>
             {material && (
               <button
                 type="button"
@@ -2332,6 +2345,14 @@ function MaterialForm({
                 Удалить
               </button>
             )}
+            <button
+              type="button"
+              className="admin-primary"
+              disabled={saving || classSyncPending}
+              onClick={save}
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </div>
         </div>
       )}
@@ -2474,14 +2495,6 @@ function MaterialForm({
               </div>
 
               <div className="admin-row mat-form-actions">
-                <button
-                  type="button"
-                  className="admin-primary"
-                  disabled={saving || classSyncPending}
-                  onClick={save}
-                >
-                  {saving ? 'Сохранение…' : 'Сохранить'}
-                </button>
                 {material && (
                   <button
                     type="button"
@@ -2492,6 +2505,14 @@ function MaterialForm({
                     Удалить
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="admin-primary"
+                  disabled={saving || classSyncPending}
+                  onClick={save}
+                >
+                  {saving ? 'Сохранение…' : 'Сохранить'}
+                </button>
               </div>
             </div>
           </div>

@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { createFacadeOrder, fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import {
+  createFacadeOrder,
+  fetchCalculationFormulas,
+  fetchCalculatorHingeTypes,
+  fetchCalculatorProfileTypes,
+  fetchMaterial,
+} from '../api'
 import { fetchMe, hasValidSession } from '../auth'
 import { BASE_CURRENCY } from '../currencies'
-import type { Material } from '../types'
+import type { CalculationFormula, Material } from '../types'
 import { formatNumberForUi } from '../floatInput'
 import { useCalcPaths } from './calcPathsContext'
 import { collectCurrencies, computeFramePriceBreakdown } from './framePriceEstimate'
@@ -26,6 +32,7 @@ import './Step8FrameResult.css'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { buildFrameClientPdfBlob, preloadFramePdfFont } from './frameClientPdf'
 import { useFillingTypeName } from './useFillingTypeName'
+import { matchFormulaTotalForFrame } from './calculationFormula'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -114,6 +121,7 @@ export function Step8FrameResult() {
   const [frameTypeName, setFrameTypeName] = useState('—')
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [formulasList, setFormulasList] = useState<CalculationFormula[]>([])
   const [mortiseLine, setMortiseLine] = useState('—')
   const [contactName, setContactName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -159,6 +167,20 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     void preloadFramePdfFont()
+  }, [])
+
+  useEffect(() => {
+    let cancel = false
+    fetchCalculationFormulas()
+      .then((r) => {
+        if (!cancel) setFormulasList(r.results ?? [])
+      })
+      .catch(() => {
+        if (!cancel) setFormulasList([])
+      })
+    return () => {
+      cancel = true
+    }
   }, [])
 
   useEffect(() => {
@@ -249,17 +271,37 @@ export function Step8FrameResult() {
     }
   }, [cfgKey, parsed.hingeMatId, parsed.hingeSource, parsed.hingeTypeId, parsed.mortiseMode])
 
-  const breakdown = useMemo(
-    () =>
-      computeFramePriceBreakdown(
-        colorMaterial,
-        fillingMaterial,
-        parsed.heightMm,
-        parsed.widthMm,
-        parsed.facadeCount,
-      ),
-    [colorMaterial, fillingMaterial, parsed.heightMm, parsed.widthMm, parsed.facadeCount],
-  )
+  const breakdown = useMemo(() => {
+    const base = computeFramePriceBreakdown(
+      colorMaterial,
+      fillingMaterial,
+      parsed.heightMm,
+      parsed.widthMm,
+      parsed.facadeCount,
+    )
+    const matched = matchFormulaTotalForFrame(
+      formulasList,
+      colorMaterial,
+      fillingMaterial,
+      parsed.heightMm,
+      parsed.widthMm,
+      parsed.facadeCount,
+    )
+    if (!matched) return base
+    return {
+      ...base,
+      total: matched.total,
+      formulaName: matched.formula.name,
+      formulaExpression: matched.formula.expression,
+    }
+  }, [
+    formulasList,
+    colorMaterial,
+    fillingMaterial,
+    parsed.heightMm,
+    parsed.widthMm,
+    parsed.facadeCount,
+  ])
 
   const currencies = useMemo(
     () => collectCurrencies(colorMaterial, fillingMaterial),
@@ -297,6 +339,7 @@ export function Step8FrameResult() {
       ...(parsed.mortiseMode === 'hinge' ? [`Раскладка петель: ${hingeLayoutLine}`] : []),
       `Ручка: ${handleLine}`,
       '',
+      ...(breakdown.formulaName ? [`Формула: ${breakdown.formulaName}`] : []),
       `Итого: ${formatSum(breakdown.total)} ${currency}`,
     ]
     return lines.join('\n')
@@ -389,6 +432,7 @@ export function Step8FrameResult() {
         filling: breakdown.filling,
         related: breakdown.related,
         total: breakdown.total,
+        formulaName: breakdown.formulaName,
       },
       currency,
       currencyMismatch,
@@ -427,6 +471,8 @@ export function Step8FrameResult() {
       hingeLayoutLine: p.hingeLayoutLine,
       handleLine: p.handleLine,
       breakdown: p.breakdown,
+      formulaName: breakdown.formulaName,
+      formulaExpression: breakdown.formulaExpression,
       currency: p.currency,
       currencyMismatch: p.currencyMismatch,
       hingeLayout: p.hingeLayout,
@@ -623,34 +669,55 @@ export function Step8FrameResult() {
             <p className="step8-panel__warn">В конфигурации разные валюты — сумма ориентировочная.</p>
           ) : null}
           <div className="step8-table-wrap">
-            <table className="step8-table">
-              <thead>
-                <tr>
-                  <th>№</th>
-                  <th>Профиль</th>
-                  <th>Наполнение</th>
-                  <th>Сопутствующие</th>
-                  <th>Итого</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>1</td>
-                  <td>
-                    {formatSum(breakdown.profile)} {currency}
-                  </td>
-                  <td>
-                    {formatSum(breakdown.filling)} {currency}
-                  </td>
-                  <td>
-                    {formatSum(breakdown.related)} {currency}
-                  </td>
-                  <td className="step8-table__total">
-                    {formatSum(breakdown.total)} {currency}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            {breakdown.formulaName ? (
+              <table className="step8-table">
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Формула</th>
+                    <th>Итого</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>{breakdown.formulaName}</td>
+                    <td className="step8-table__total">
+                      {formatSum(breakdown.total)} {currency}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            ) : (
+              <table className="step8-table">
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Профиль</th>
+                    <th>Наполнение</th>
+                    <th>Сопутствующие</th>
+                    <th>Итого</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>
+                      {formatSum(breakdown.profile)} {currency}
+                    </td>
+                    <td>
+                      {formatSum(breakdown.filling)} {currency}
+                    </td>
+                    <td>
+                      {formatSum(breakdown.related)} {currency}
+                    </td>
+                    <td className="step8-table__total">
+                      {formatSum(breakdown.total)} {currency}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
           </div>
           <p className="step8-panel__note">
             * Цена ориентировочная, без учёта доставки и монтажа. Уточняйте детали у менеджера.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { fetchMaterial } from '../api'
+import { fetchCalculationFormulas, fetchMaterial } from '../api'
 import { BASE_CURRENCY } from '../currencies'
-import type { Material } from '../types'
+import type { CalculationFormula, Material } from '../types'
 import {
   collectCurrencies,
   computeFramePriceBreakdown,
@@ -17,6 +17,7 @@ import {
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { useFillingTypeName } from './useFillingTypeName'
+import { matchFormulaTotalForFrame } from './calculationFormula'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -84,8 +85,23 @@ function CalcPriceTotalsActive() {
 
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [formulas, setFormulas] = useState<CalculationFormula[]>([])
   const [loading, setLoading] = useState(false)
   const [fetchErr, setFetchErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    fetchCalculationFormulas()
+      .then((r) => {
+        if (!cancel) setFormulas(r.results ?? [])
+      })
+      .catch(() => {
+        if (!cancel) setFormulas([])
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancel = false
@@ -121,17 +137,30 @@ function CalcPriceTotalsActive() {
     }
   }, [parsed.colorId, parsed.fillMatId])
 
-  const breakdown = useMemo(
-    () =>
-      computeFramePriceBreakdown(
-        colorMaterial,
-        fillingMaterial,
-        parsed.heightMm,
-        parsed.widthMm,
-        parsed.facadeCount
-      ),
-    [colorMaterial, fillingMaterial, parsed.heightMm, parsed.widthMm, parsed.facadeCount]
-  )
+  const breakdown = useMemo(() => {
+    const base = computeFramePriceBreakdown(
+      colorMaterial,
+      fillingMaterial,
+      parsed.heightMm,
+      parsed.widthMm,
+      parsed.facadeCount
+    )
+    const matched = matchFormulaTotalForFrame(
+      formulas,
+      colorMaterial,
+      fillingMaterial,
+      parsed.heightMm,
+      parsed.widthMm,
+      parsed.facadeCount
+    )
+    if (!matched) return base
+    return {
+      ...base,
+      total: matched.total,
+      formulaName: matched.formula.name,
+      formulaExpression: matched.formula.expression,
+    }
+  }, [formulas, colorMaterial, fillingMaterial, parsed.heightMm, parsed.widthMm, parsed.facadeCount])
 
   const currencies = useMemo(
     () => collectCurrencies(colorMaterial, fillingMaterial),
@@ -168,27 +197,38 @@ function CalcPriceTotalsActive() {
               </p>
             )}
             <dl className="calc-totals-lines">
-              <div className="calc-totals-line">
-                <dt>Профиль (цвет)</dt>
-                <dd>
-                  {formatSum(breakdown.profile)} {currency}
-                </dd>
-              </div>
-              {breakdown.related > 0 && (
+              {breakdown.formulaName ? (
                 <div className="calc-totals-line">
-                  <dt>Сопутствующие</dt>
+                  <dt>Формула: {breakdown.formulaName}</dt>
                   <dd>
-                    {formatSum(breakdown.related)} {currency}
+                    {formatSum(breakdown.total)} {currency}
                   </dd>
                 </div>
-              )}
-              {breakdown.filling > 0 && (
-                <div className="calc-totals-line">
-                  <dt>Наполнение</dt>
-                  <dd>
-                    {formatSum(breakdown.filling)} {currency}
-                  </dd>
-                </div>
+              ) : (
+                <>
+                  <div className="calc-totals-line">
+                    <dt>Профиль (цвет)</dt>
+                    <dd>
+                      {formatSum(breakdown.profile)} {currency}
+                    </dd>
+                  </div>
+                  {breakdown.related > 0 && (
+                    <div className="calc-totals-line">
+                      <dt>Сопутствующие</dt>
+                      <dd>
+                        {formatSum(breakdown.related)} {currency}
+                      </dd>
+                    </div>
+                  )}
+                  {breakdown.filling > 0 && (
+                    <div className="calc-totals-line">
+                      <dt>Наполнение</dt>
+                      <dd>
+                        {formatSum(breakdown.filling)} {currency}
+                      </dd>
+                    </div>
+                  )}
+                </>
               )}
             </dl>
             <div className="calc-totals-grand">

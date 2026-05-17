@@ -1,4 +1,6 @@
 import type {
+  CalculationFormula,
+  CalculationFormulaCategory,
   CalculatorFillingType,
   CalculatorHandleHoleDiameter,
   CalculatorHingeType,
@@ -7,6 +9,7 @@ import type {
   Material,
   MaterialCategory,
   MaterialClass,
+  MaterialClassCategory,
   TextureCategory,
   TextureItem,
   UnitOfMeasure,
@@ -170,10 +173,35 @@ export function deleteTextureCategory(id: number) {
   })
 }
 
-export function fetchTextureItems(categoryId: number) {
-  return apiFetch(`/api/texture-items/?category=${categoryId}`).then((r) =>
-    json<{ results: TextureItem[] }>(r)
-  )
+/** Все страницы списка текстур; без `category` — вся база; с `category` + `subtree` — папка и вложенные. */
+export async function fetchTextureItems(
+  params?: { category?: number; subtree?: boolean }
+): Promise<{ results: TextureItem[] }> {
+  const sp = new URLSearchParams()
+  if (params?.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  if (params?.subtree) sp.set('subtree', '1')
+  const q = sp.toString()
+  let path: string | null = `/api/texture-items/${q ? `?${q}` : ''}`
+  const collected: TextureItem[] = []
+  while (path) {
+    const r = await apiFetch(path)
+    const data = await json<{ results: TextureItem[]; next: string | null }>(r)
+    for (const row of data.results ?? []) collected.push(row)
+    const nxt = data.next
+    if (!nxt) {
+      path = null
+    } else {
+      try {
+        const u = new URL(nxt)
+        path = u.pathname + u.search
+      } catch {
+        path = null
+      }
+    }
+  }
+  return { results: collected }
 }
 
 export function createTextureItem(data: Record<string, unknown> | FormData) {
@@ -250,19 +278,199 @@ export function fetchUom() {
   return apiFetch('/api/uom/').then((r) => json<{ results: UnitOfMeasure[] }>(r))
 }
 
-export function fetchMaterialClasses() {
-  return apiFetch('/api/material-classes/').then((r) => json<{ results: MaterialClass[] }>(r))
+export function fetchMaterialClassCategoryTree() {
+  return apiFetch('/api/material-class-categories/?tree=1').then((r) => json<MaterialClassCategory[]>(r))
 }
 
-export function createMaterialClass(data: { name: string; code?: string }) {
+export function createMaterialClassCategory(data: { parent: number | null; name: string; sort_order?: number }) {
+  return apiFetch('/api/material-class-categories/', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, sort_order: data.sort_order ?? 0 }),
+  }).then((r) => json<MaterialClassCategory>(r))
+}
+
+export function updateMaterialClassCategory(
+  id: number,
+  data: Partial<{ parent: number | null; name: string; code: string; sort_order: number }>
+) {
+  return apiFetch(`/api/material-class-categories/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<MaterialClassCategory>(r))
+}
+
+export function deleteMaterialClassCategory(id: number) {
+  return apiFetch(`/api/material-class-categories/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+/** Все страницы списка классов; при `category` + `subtree` — классы в папке и вложенных. */
+export async function fetchMaterialClasses(
+  params?: { category?: number | null; subtree?: boolean }
+): Promise<{ results: MaterialClass[] }> {
+  const sp = new URLSearchParams()
+  if (params?.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  if (params?.subtree) sp.set('subtree', '1')
+  const q = sp.toString()
+  let path: string | null = `/api/material-classes/${q ? `?${q}` : ''}`
+  const collected: MaterialClass[] = []
+  while (path) {
+    const r = await apiFetch(path)
+    const data = await json<{ results: MaterialClass[]; next: string | null }>(r)
+    for (const row of data.results ?? []) collected.push(row)
+    const nxt = data.next
+    if (!nxt) {
+      path = null
+    } else {
+      try {
+        const u = new URL(nxt)
+        path = u.pathname + u.search
+      } catch {
+        path = null
+      }
+    }
+  }
+  return { results: collected }
+}
+
+export function createMaterialClass(data: { name: string; category: number; code?: string }) {
   return apiFetch('/api/material-classes/', {
     method: 'POST',
     body: JSON.stringify(data),
   }).then((r) => json<MaterialClass>(r))
 }
 
+export function updateMaterialClass(id: number, data: Partial<{ name: string; code: string; category: number }>) {
+  return apiFetch(`/api/material-classes/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<MaterialClass>(r))
+}
+
 export function deleteMaterialClass(id: number) {
   return apiFetch(`/api/material-classes/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+/** Корневая папка «База классов» после миграции или первый узел дерева. */
+export function pickDefaultMaterialClassCategoryId(tree: MaterialClassCategory[]): number | null {
+  const walk = (nodes: MaterialClassCategory[], name: string): MaterialClassCategory | null => {
+    for (const n of nodes) {
+      if (n.name.trim() === name) return n
+      const inChildren = walk(n.children ?? [], name)
+      if (inChildren) return inChildren
+    }
+    return null
+  }
+  const base = walk(tree, 'База классов')
+  if (base) return base.id
+  return tree[0]?.id ?? null
+}
+
+export function fetchCalculationFormulaCategoryTree() {
+  return apiFetch('/api/calculation-formula-categories/?tree=1').then((r) =>
+    json<CalculationFormulaCategory[]>(r)
+  )
+}
+
+export function createCalculationFormulaCategory(data: {
+  parent: number | null
+  name: string
+  sort_order?: number
+}) {
+  return apiFetch('/api/calculation-formula-categories/', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, sort_order: data.sort_order ?? 0 }),
+  }).then((r) => json<CalculationFormulaCategory>(r))
+}
+
+export function updateCalculationFormulaCategory(
+  id: number,
+  data: Partial<{ parent: number | null; name: string; code: string; sort_order: number }>
+) {
+  return apiFetch(`/api/calculation-formula-categories/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<CalculationFormulaCategory>(r))
+}
+
+export function deleteCalculationFormulaCategory(id: number) {
+  return apiFetch(`/api/calculation-formula-categories/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
+}
+
+/** Корневая папка «База формул» или первый узел дерева. */
+export function pickDefaultCalculationFormulaCategoryId(tree: CalculationFormulaCategory[]): number | null {
+  const walk = (nodes: CalculationFormulaCategory[], name: string): CalculationFormulaCategory | null => {
+    for (const n of nodes) {
+      if (n.name.trim() === name) return n
+      const inChildren = walk(n.children ?? [], name)
+      if (inChildren) return inChildren
+    }
+    return null
+  }
+  const base = walk(tree, 'База формул')
+  if (base) return base.id
+  return tree[0]?.id ?? null
+}
+
+export function fetchCalculationFormulas(params?: {
+  active?: boolean
+  category?: number | null
+  subtree?: boolean
+}): Promise<{ results: CalculationFormula[] }> {
+  const sp = new URLSearchParams()
+  if (params?.active) sp.set('active', '1')
+  if (params?.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  if (params?.subtree) sp.set('subtree', '1')
+  const q = sp.toString()
+  const basePath = `/api/calculation-formulas/${q ? `?${q}` : ''}`
+  return (async () => {
+    let path: string | null = basePath
+    const collected: CalculationFormula[] = []
+    while (path) {
+      const r = await apiFetch(path)
+      const data = await json<{ results: CalculationFormula[]; next: string | null }>(r)
+      for (const row of data.results ?? []) collected.push(row)
+      const nxt = data.next
+      if (!nxt) {
+        path = null
+      } else {
+        try {
+          const u = new URL(nxt)
+          path = u.pathname + u.search
+        } catch {
+          path = null
+        }
+      }
+    }
+    return { results: collected }
+  })()
+}
+
+export function createCalculationFormula(data: Partial<CalculationFormula>) {
+  return apiFetch('/api/calculation-formulas/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => json<CalculationFormula>(r))
+}
+
+export function updateCalculationFormula(id: number, data: Partial<CalculationFormula>) {
+  return apiFetch(`/api/calculation-formulas/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<CalculationFormula>(r))
+}
+
+export function deleteCalculationFormula(id: number) {
+  return apiFetch(`/api/calculation-formulas/${id}/`, { method: 'DELETE' }).then(async (r) => {
     if (!r.ok) await parseJsonError(r)
   })
 }

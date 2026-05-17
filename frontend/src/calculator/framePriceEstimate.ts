@@ -129,21 +129,29 @@ export function relatedItemsCalculatorCost(
   facadeCount: number
 ): number {
   if (!items?.length) return 0
-  const fc = Math.max(0, facadeCount)
   let sum = 0
   for (const r of items) {
-    const unit = parseMoney(r.quantity) * parseMoney(r.related_material.base_price)
-    const scale = normalizeRelatedScale(r.quantity_scale)
-    if (scale === 'per_facade') {
-      sum += unit * fc
-    } else if (scale === 'use_related_uom') {
-      const g = pricedUnitsForMaterial(r.related_material, heightMm, widthMm, fc)
-      sum += unit * g
-    } else {
-      sum += unit * parentGeomUnits
-    }
+    sum += relatedItemCalculatorCost(r, parentGeomUnits, heightMm, widthMm, facadeCount)
   }
   return sum
+}
+
+export function relatedItemCalculatorCost(
+  item: MaterialRelatedItemDto,
+  parentGeomUnits: number,
+  heightMm: number,
+  widthMm: number,
+  facadeCount: number
+): number {
+  const fc = Math.max(0, facadeCount)
+  const unit = parseMoney(item.quantity) * parseMoney(item.related_material.base_price)
+  const scale = normalizeRelatedScale(item.quantity_scale)
+  if (scale === 'per_facade') return unit * fc
+  if (scale === 'use_related_uom') {
+    const g = pricedUnitsForMaterial(item.related_material, heightMm, widthMm, fc)
+    return unit * g
+  }
+  return unit * parentGeomUnits
 }
 
 export type FramePriceBreakdown = {
@@ -151,6 +159,8 @@ export type FramePriceBreakdown = {
   related: number
   filling: number
   total: number
+  formulaName?: string
+  formulaExpression?: string
 }
 
 /**

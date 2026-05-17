@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 from .models import (
+    CalculationFormula,
+    CalculationFormulaCategory,
     CalculatorFillingType,
     CalculatorFillingTypeMaterial,
     CalculatorHandleHoleDiameter,
@@ -10,6 +12,7 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
+    MaterialClassCategory,
     MaterialRelatedItem,
     TextureCategory,
     TextureItem,
@@ -17,10 +20,39 @@ from .models import (
 )
 
 
+class MaterialClassCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "parent", "sort_order", "code")
+    list_filter = ("parent",)
+    search_fields = ("name", "code")
+    raw_id_fields = ("parent",)
+
+
+admin.site.register(MaterialClassCategory, MaterialClassCategoryAdmin)
+
+
 @admin.register(MaterialClass)
 class MaterialClassAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "external_id")
+    list_display = ("name", "category", "code", "external_id")
     search_fields = ("name", "code", "external_id")
+    raw_id_fields = ("category",)
+
+
+class CalculationFormulaCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "parent", "sort_order", "code")
+    list_filter = ("parent",)
+    search_fields = ("name", "code")
+    raw_id_fields = ("parent",)
+
+
+admin.site.register(CalculationFormulaCategory, CalculationFormulaCategoryAdmin)
+
+
+@admin.register(CalculationFormula)
+class CalculationFormulaAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "is_active", "sort_order", "updated_at")
+    list_filter = ("is_active", "category")
+    search_fields = ("name", "expression")
+    raw_id_fields = ("category",)
 
 
 @admin.register(UnitOfMeasure)

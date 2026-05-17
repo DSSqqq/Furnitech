@@ -14,6 +14,8 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 
 from .models import (
+    CalculationFormula,
+    CalculationFormulaCategory,
     CalculatorFillingType,
     CalculatorHandleHoleDiameter,
     CalculatorHingeType,
@@ -23,6 +25,7 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
+    MaterialClassCategory,
     TextureCategory,
     TextureItem,
     UnitOfMeasure,
@@ -38,6 +41,8 @@ from .material_import_export import (
     import_materials_table_file,
 )
 from .serializers import (
+    CalculationFormulaCategorySerializer,
+    CalculationFormulaSerializer,
     CalculatorFillingTypeSerializer,
     CalculatorHandleHoleDiameterSerializer,
     CalculatorHingeTypeSerializer,
@@ -47,6 +52,7 @@ from .serializers import (
     FacadeOrderSerializer,
     FacadeOrderStaffUpdateSerializer,
     MaterialCategorySerializer,
+    MaterialClassCategorySerializer,
     MaterialClassSerializer,
     MaterialSerializer,
     TextureCategorySerializer,
@@ -74,10 +80,185 @@ def material_category_subtree_ids(root_id: int) -> list[int]:
     return out
 
 
+def material_class_category_subtree_ids(root_id: int) -> list[int]:
+    rows = MaterialClassCategory.objects.values_list("id", "parent_id")
+    by_parent: dict[int | None, list[int]] = {}
+    for cid, pid in rows:
+        by_parent.setdefault(pid, []).append(cid)
+    out: list[int] = []
+    stack = [root_id]
+    seen: set[int] = set()
+    while stack:
+        cid = stack.pop()
+        if cid in seen:
+            continue
+        seen.add(cid)
+        out.append(cid)
+        stack.extend(by_parent.get(cid, ()))
+    return out
+
+
+def texture_category_subtree_ids(root_id: int) -> list[int]:
+    """Идентификаторы папки root_id и всех вложенных папок текстур (по parent_id)."""
+    rows = TextureCategory.objects.values_list("id", "parent_id")
+    by_parent: dict[int | None, list[int]] = {}
+    for cid, pid in rows:
+        by_parent.setdefault(pid, []).append(cid)
+    out: list[int] = []
+    stack = [root_id]
+    seen: set[int] = set()
+    while stack:
+        cid = stack.pop()
+        if cid in seen:
+            continue
+        seen.add(cid)
+        out.append(cid)
+        stack.extend(by_parent.get(cid, ()))
+    return out
+
+
+def calculation_formula_category_subtree_ids(root_id: int) -> list[int]:
+    rows = CalculationFormulaCategory.objects.values_list("id", "parent_id")
+    by_parent: dict[int | None, list[int]] = {}
+    for cid, pid in rows:
+        by_parent.setdefault(pid, []).append(cid)
+    out: list[int] = []
+    stack = [root_id]
+    seen: set[int] = set()
+    while stack:
+        cid = stack.pop()
+        if cid in seen:
+            continue
+        seen.add(cid)
+        out.append(cid)
+        stack.extend(by_parent.get(cid, ()))
+    return out
+
+
+class CalculationFormulaCategoryViewSet(viewsets.ModelViewSet):
+    queryset = CalculationFormulaCategory.objects.all()
+    serializer_class = CalculationFormulaCategorySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    @staticmethod
+    def _build_tree(categories: list, parent_id: int | None) -> list:
+        def is_child(c: CalculationFormulaCategory) -> bool:
+            if parent_id is None:
+                return c.parent_id is None
+            return c.parent_id == parent_id
+
+        children = [c for c in categories if is_child(c)]
+        out = []
+        for c in sorted(children, key=lambda x: (x.sort_order, x.name)):
+            out.append(
+                {
+                    **CalculationFormulaCategorySerializer(c).data,
+                    "children": CalculationFormulaCategoryViewSet._build_tree(categories, c.id),
+                }
+            )
+        return out
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("tree") == "1":
+            all_cats = list(
+                CalculationFormulaCategory.objects.all().select_related("parent")
+            )
+            return Response(self._build_tree(all_cats, None))
+        return super().list(request, *args, **kwargs)
+
+
+class MaterialClassCategoryViewSet(viewsets.ModelViewSet):
+    queryset = MaterialClassCategory.objects.all()
+    serializer_class = MaterialClassCategorySerializer
+    permission_classes = [DjangoModelPermissions]
+
+    @staticmethod
+    def _build_tree(categories: list, parent_id: int | None) -> list:
+        def is_child(c: MaterialClassCategory) -> bool:
+            if parent_id is None:
+                return c.parent_id is None
+            return c.parent_id == parent_id
+
+        children = [c for c in categories if is_child(c)]
+        out = []
+        for c in sorted(children, key=lambda x: (x.sort_order, x.name)):
+            out.append(
+                {
+                    **MaterialClassCategorySerializer(c).data,
+                    "children": MaterialClassCategoryViewSet._build_tree(categories, c.id),
+                }
+            )
+        return out
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("tree") == "1":
+            all_cats = list(
+                MaterialClassCategory.objects.all().select_related("parent")
+            )
+            return Response(self._build_tree(all_cats, None))
+        return super().list(request, *args, **kwargs)
+
+
 class MaterialClassViewSet(viewsets.ModelViewSet):
-    queryset = MaterialClass.objects.all()
+    queryset = MaterialClass.objects.all().select_related("category")
     serializer_class = MaterialClassSerializer
     permission_classes = [DjangoModelPermissions]
+    filter_backends = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qp = self.request.query_params
+        cat = qp.get("category")
+        subtree_raw = (qp.get("subtree") or "").strip().lower()
+        subtree = subtree_raw in ("1", "true", "yes")
+        if cat is not None and cat != "":
+            try:
+                cat_id = int(cat)
+            except (TypeError, ValueError):
+                return qs
+            if subtree:
+                ids = material_class_category_subtree_ids(cat_id)
+                qs = qs.filter(category_id__in=ids)
+            else:
+                qs = qs.filter(category_id=cat_id)
+        return qs
+
+
+class AllowAnyReadStaffWrite(BasePermission):
+    """GET — публично для калькулятора; запись — только staff-админка."""
+
+    def has_permission(self, request, view) -> bool:
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+
+
+class CalculationFormulaViewSet(viewsets.ModelViewSet):
+    queryset = CalculationFormula.objects.all().select_related("category")
+    serializer_class = CalculationFormulaSerializer
+    permission_classes = [AllowAnyReadStaffWrite]
+    filter_backends = []
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        active = (self.request.query_params.get("active") or "").strip().lower()
+        if active in ("1", "true", "yes"):
+            qs = qs.filter(is_active=True)
+        qp = self.request.query_params
+        cat = qp.get("category")
+        subtree_raw = (qp.get("subtree") or "").strip().lower()
+        subtree = subtree_raw in ("1", "true", "yes")
+        if cat is not None and cat != "":
+            try:
+                cat_id = int(cat)
+            except (TypeError, ValueError):
+                return qs
+            if subtree:
+                ids = calculation_formula_category_subtree_ids(cat_id)
+                qs = qs.filter(category_id__in=ids)
+            else:
+                qs = qs.filter(category_id=cat_id)
+        return qs
 
 
 class UnitOfMeasureViewSet(viewsets.ModelViewSet):
@@ -178,10 +359,18 @@ class TextureItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        cat = self.request.query_params.get("category")
+        qp = self.request.query_params
+        cat = qp.get("category")
+        subtree_raw = (qp.get("subtree") or "").strip().lower()
+        subtree = subtree_raw in ("1", "true", "yes")
         if cat is not None and cat != "":
             try:
-                qs = qs.filter(category_id=int(cat))
+                cat_id = int(cat)
+                if subtree:
+                    ids = texture_category_subtree_ids(cat_id)
+                    qs = qs.filter(category_id__in=ids).order_by("category_id", "name")
+                else:
+                    qs = qs.filter(category_id=cat_id)
             except (TypeError, ValueError):
                 pass
         return qs

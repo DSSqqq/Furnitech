@@ -6,6 +6,8 @@ from rest_framework import serializers
 
 from .media_urls import absolute_media_url
 from .models import (
+    CalculationFormula,
+    CalculationFormulaCategory,
     CalculatorFillingType,
     CalculatorFillingTypeMaterial,
     CalculatorHandleHoleDiameter,
@@ -19,6 +21,7 @@ from .models import (
     Material,
     MaterialCategory,
     MaterialClass,
+    MaterialClassCategory,
     MaterialRelatedItem,
     RelatedQuantityScale,
     RoundingMode,
@@ -28,10 +31,81 @@ from .models import (
 )
 
 
+class MaterialClassCategorySerializer(serializers.ModelSerializer):
+    path = serializers.ReadOnlyField()
+
+    class Meta:
+        model = MaterialClassCategory
+        fields = ("id", "parent", "name", "code", "sort_order", "path")
+
+
 class MaterialClassSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaterialClass
-        fields = ("id", "name", "code", "external_id", "last_synced_at")
+        fields = ("id", "category", "name", "code", "external_id", "last_synced_at")
+
+
+class CalculationFormulaCategorySerializer(serializers.ModelSerializer):
+    path = serializers.ReadOnlyField()
+
+    class Meta:
+        model = CalculationFormulaCategory
+        fields = ("id", "parent", "name", "code", "sort_order", "path")
+
+
+class CalculationFormulaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CalculationFormula
+        fields = (
+            "id",
+            "category",
+            "name",
+            "expression",
+            "tokens",
+            "is_active",
+            "sort_order",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_tokens(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Ожидается массив токенов.")
+        valid_ops = {"+", "-", "*", "/", "(", ")"}
+        class_ids: list[int] = []
+        for token in value:
+            if not isinstance(token, dict):
+                raise serializers.ValidationError("Каждый токен должен быть объектом.")
+            typ = token.get("type")
+            if typ == "class":
+                class_id = token.get("class_id")
+                try:
+                    cid = int(class_id)
+                except (TypeError, ValueError) as e:
+                    raise serializers.ValidationError("У токена класса нужен class_id.") from e
+                if cid <= 0:
+                    raise serializers.ValidationError("class_id должен быть положительным.")
+                class_ids.append(cid)
+            elif typ == "op":
+                if token.get("value") not in valid_ops:
+                    raise serializers.ValidationError("Недопустимый математический знак.")
+            elif typ == "number":
+                raw = str(token.get("value", "")).strip().replace(",", ".")
+                try:
+                    Decimal(raw)
+                except Exception as e:  # noqa: BLE001
+                    raise serializers.ValidationError("Недопустимое число в формуле.") from e
+            else:
+                raise serializers.ValidationError("Недопустимый тип токена.")
+        if class_ids:
+            existing = set(MaterialClass.objects.filter(pk__in=class_ids).values_list("pk", flat=True))
+            missing = [cid for cid in class_ids if cid not in existing]
+            if missing:
+                raise serializers.ValidationError(f"Классы не найдены: {', '.join(map(str, missing))}.")
+        return value
 
 
 class UnitOfMeasureSerializer(serializers.ModelSerializer):
@@ -44,6 +118,7 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
     """Краткие поля сопутствующего материала (для строк и pickers)."""
 
     uom = UnitOfMeasureSerializer(read_only=True)
+    material_class_ids = serializers.SerializerMethodField()
     texture_library_item = serializers.IntegerField(source="texture_item_id", read_only=True)
     texture_library_item_name = serializers.SerializerMethodField()
 
@@ -56,6 +131,7 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
             "uom",
             "base_price",
             "base_currency",
+            "material_class_ids",
             "texture_mode",
             "texture_color",
             "texture_image",
@@ -67,6 +143,9 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
         if obj.texture_item_id and obj.texture_item:
             return obj.texture_item.name
         return None
+
+    def get_material_class_ids(self, obj: Material) -> list[int]:
+        return [c.pk for c in obj.material_classes.all()]
 
     def to_representation(self, instance) -> dict:
         data = super().to_representation(instance)

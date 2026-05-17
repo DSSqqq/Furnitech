@@ -1,10 +1,50 @@
 export type RoundingMode = 'none' | 'ceil_unit' | 'ceil_multiple'
 
+/** Папки справочника классов материалов (отдельно от категорий номенклатуры). */
+export type MaterialClassCategory = {
+  id: number
+  parent: number | null
+  name: string
+  code: string
+  sort_order: number
+  path: string
+  children?: MaterialClassCategory[]
+}
+
 export type MaterialClass = {
   id: number
+  category: number
   name: string
   code: string
   external_id: string | null
+}
+
+/** Папки списка формул расчёта (структура как у папок классов). */
+export type CalculationFormulaCategory = {
+  id: number
+  parent: number | null
+  name: string
+  code: string
+  sort_order: number
+  path: string
+  children?: CalculationFormulaCategory[]
+}
+
+export type CalculationFormulaToken =
+  | { type: 'class'; class_id: number; label?: string }
+  | { type: 'op'; value: '+' | '-' | '*' | '/' | '(' | ')' }
+  | { type: 'number'; value: string }
+
+export type CalculationFormula = {
+  id: number
+  category: number
+  name: string
+  expression: string
+  tokens: CalculationFormulaToken[]
+  is_active: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
 }
 
 export type UnitOfMeasure = {
@@ -49,6 +89,7 @@ export type MaterialRelatedItemDto = {
     uom: UnitOfMeasure
     base_price: string
     base_currency: string
+    material_class_ids?: number[]
   }
   quantity: string
   /** Режим расчёта; по умолчанию как раньше — follow_parent. */

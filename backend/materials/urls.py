@@ -10,6 +10,20 @@ router = DefaultRouter()
 
 router.register(r"material-classes", views.MaterialClassViewSet, basename="material-class")
 
+router.register(
+    r"material-class-categories",
+    views.MaterialClassCategoryViewSet,
+    basename="material-class-category",
+)
+
+router.register(
+    r"calculation-formula-categories",
+    views.CalculationFormulaCategoryViewSet,
+    basename="calculation-formula-category",
+)
+
+router.register(r"calculation-formulas", views.CalculationFormulaViewSet, basename="calculation-formula")
+
 router.register(r"uom", views.UnitOfMeasureViewSet, basename="uom")
 
 router.register(r"categories", views.MaterialCategoryViewSet, basename="category")

@@ -558,11 +558,15 @@ export function AdminTexturesPanel() {
 
   const reloadItems = useCallback(
     (categoryId: number | null) => {
+      setErr(null)
       if (categoryId == null) {
-        setItems([])
-        return Promise.resolve()
+        return fetchTextureItems()
+          .then((r) => {
+            setItems(r.results)
+          })
+          .catch((e) => setErr(String(e)))
       }
-      return fetchTextureItems(categoryId)
+      return fetchTextureItems({ category: categoryId, subtree: true })
         .then((r) => {
           setItems(r.results)
         })
@@ -665,6 +669,14 @@ export function AdminTexturesPanel() {
     () => (selected == null ? null : findCategoryNode(tree, selected)),
     [tree, selected]
   )
+
+  /** Папки, чьи текстуры попадают в список справа (`null` = вся база). */
+  const selectedTextureScopeIds = useMemo(() => {
+    if (selected == null) return null
+    const node = findCategoryNode(tree, selected)
+    if (!node) return new Set<number>()
+    return collectSubtreeCategoryIds(node)
+  }, [selected, tree])
 
   const forbiddenIdsForDrag = useMemo(() => {
     if (draggingFolderId == null) return new Set<number>()
@@ -896,17 +908,17 @@ export function AdminTexturesPanel() {
     if (!cat) return
     setFolderDeleteModal(null)
     setErr(null)
+    const removed = collectSubtreeCategoryIds(cat)
+    const nextSel = selected != null && removed.has(selected) ? null : selected
+    if (selected != null && removed.has(selected)) {
+      setSelected(null)
+      setEditing(null)
+    }
     deleteTextureCategory(cat.id)
-      .then(() => {
-        const removed = collectSubtreeCategoryIds(cat)
-        if (selected != null && removed.has(selected)) {
-          setSelected(null)
-          setEditing(null)
-        }
-        return reloadTree()
-      })
+      .then(() => reloadTree())
+      .then(() => reloadItems(nextSel))
       .catch((e) => setErr(String(e)))
-  }, [folderDeleteModal, reloadTree, selected])
+  }, [folderDeleteModal, reloadItems, reloadTree, selected])
 
   const cancelDeleteFolder = useCallback(() => {
     setFolderDeleteModal(null)
@@ -951,7 +963,7 @@ export function AdminTexturesPanel() {
         <aside className="admin-aside">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки текстур</h2>
-            <HintButton text="Клик по названию папки — выбрать её; «База текстур» в дереве слева — список всех текстур; стрелка слева от «База текстур» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База текстур» или в область открытой папки справа; текстуру — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку." />
+            <HintButton text="Клик по названию папки — выбрать её; список справа: при «База текстур» — все текстуры базы, при выборе папки — текстуры в ней и во вложенных папках. Стрелка слева от «База текстур» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База текстур» или в область открытой папки справа; текстуру — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку." />
           </div>
           <div
             className="admin-folder-toolbar"
@@ -1058,7 +1070,7 @@ export function AdminTexturesPanel() {
                   className="folder-explorer-tree-link"
                   draggable={false}
                   onClick={() => setSelected(null)}
-                  title="База текстур — показать все папки"
+                  title="База текстур — все текстуры базы"
                 >
                   <span className="folder-explorer-icon" aria-hidden>
                     🗂️
@@ -1127,7 +1139,7 @@ export function AdminTexturesPanel() {
                 aria-label={
                   selected == null
                     ? 'Список всех текстур'
-                    : 'Список текстур в выбранной папке'
+                    : 'Список текстур в выбранной папке и вложенных'
                 }
               >
                 <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
@@ -1244,9 +1256,18 @@ export function AdminTexturesPanel() {
                         const savedCategoryId = Number(t.category)
                         setItems((prev) => {
                           if (editing === 'new') {
-                            return savedCategoryId === selected ? [...prev, t] : prev
+                            if (
+                              selectedTextureScopeIds == null ||
+                              selectedTextureScopeIds.has(savedCategoryId)
+                            ) {
+                              return [...prev, t]
+                            }
+                            return prev
                           }
-                          if (savedCategoryId !== selected) {
+                          if (
+                            selectedTextureScopeIds != null &&
+                            !selectedTextureScopeIds.has(savedCategoryId)
+                          ) {
                             return prev.filter((x) => x.id !== t.id)
                           }
                           return prev.map((x) => (x.id === t.id ? t : x))

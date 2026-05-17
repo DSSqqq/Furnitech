@@ -27,6 +27,7 @@ def main() -> int:
         p = ROOT / "docs" / name
         print(f"--- docs/{name} ---\n")
         print(read_head(p, 50))
+    print("Формулы и классы материалов — подробно: docs/CALCULATION_FORMULAS.md\n")
     print("Дальше: читайте полный `docs/PROGRESS.md` и обновляйте его в конце сессии.\n")
     return 0
 
