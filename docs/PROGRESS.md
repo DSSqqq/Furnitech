@@ -1,6 +1,69 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-17 — модалка карточки материала приведена к плотности модалки формулы; удаление формулы — модальное подтверждение и стиль кнопки **«Удалить»** как у материала; у поля **«Артикул»** убрана подсказка **`HintButton`**. Подробности — блок **«Изменения 2026-05-17 (модалка материала, удаление формулы, Артикул)»**. Ранее в этот день: **«Расчёты»** (компактная модалка формулы и т.д. — см. ниже).
+**Последнее обновление:** 2026-05-18 — переработка UX модалки формулы (**`AdminCalculationsPanel`**, **`AdminApp.css`**, **`calculationFormula.ts`**): трёхколоночная раскладка, **`input`** наименования и поля формулы, keypad, посимвольный Backspace; документация в **`docs/CALCULATION_FORMULAS.md`**.
+
+### Изменения 2026-05-18 (модалка формулы — редактор)
+
+#### UI и вёрстка (`AdminCalculationsPanel.tsx`, `AdminApp.css`)
+
+- **Шапка:** поле **наименования** — **`input.mat-form-title-input`** (вместо статичного заголовка).
+- **Три колонки** на ширину поля формулы: **`folder-explorer-tree`** | **`folder-explorer-content`** | **`admin-calculations-keypad-grid`** (**`display: contents`** на обёртках пикера).
+- **Keypad:** калькуляторная раскладка `789/` … `0()+`, ряд **`.` · Назад · Очистить · `=`**; подложка keypad как у списка классов.
+- **Поле формулы:** **`input.admin-calculations-output--text`** (compact, как наименование); **`expression`** без пробелов между токенами.
+
+#### Логика редактирования (`AdminCalculationsPanel.tsx`, `calculationFormula.ts`)
+
+- Курсор в **позиции символа** строки (**`formulaStringCursorRef`**), не только индекс токена — исправлен «прыжок» Backspace по многозначным числам.
+- **Клавиатура в поле:** `0–9 . + - * / ( ) =`; **Backspace** — один символ слева от курсора; вставка из буфера заблокирована.
+- **Keypad «Назад»:** удаление **с конца** (**`formulaBackspaceEnd`**); **Backspace** в поле — от курсора (**`formulaBackspaceAtStringPos`**).
+- **Классы** — только из пикера; цифры/знаки — keypad или клавиатура (**`applyFormulaStringEdit`**).
+- Закрытие по клику на фон: **`onPointerDown` / `onPointerUp`** на backdrop (не **`onClick`**) — выделение текста в поле не закрывает модалку.
+- **`formulaDisplayExpression`:** **`join('')`** без пробелов; API **`valid_ops`** включает **`=`** (в **`evaluateCalculationFormula`** **`=`** игнорируется).
+
+#### Документация
+
+- **`docs/CALCULATION_FORMULAS.md`:** разделы «Конструктор», «Редактирование формулы», «UI модалки» переписаны под текущий интерфейс.
+- **`docs/ARCHITECTURE.md`:** строка **`AdminCalculationsPanel`** в таблице модулей.
+
+### Изменения 2026-05-18 (документация: формулы расчёта UI)
+
+- **`docs/CALCULATION_FORMULAS.md`**: раздел «Конструктор в админке» приведён к текущему UI (нет отдельного поля названия в модалке; **`MaterialClassPickerBody`** с **`hidePickChrome`**; дерево **`admin-materials-tree-root`**; **`shownScopeLabel`** / **`material-class-pick-scope-row`**; удалены устаревшие «теги классов» и кнопка «+ Класс»).
+- **`docs/ARCHITECTURE.md`**: таблица модулей — **`AdminCalculationsPanel`**, добавлен **`MaterialClassPickModal.tsx`**.
+
+### Изменения 2026-05-18 (модалки папок и поле «Класс»)
+
+#### Модалки создания папки (`FolderCreateModal.tsx`, `AdminMaterialClassesPanel.tsx`, `AdminCalculationsPanel.tsx`, `AdminApp.css`)
+
+- **Материалы и текстуры:** портал **`FolderCreateModal`** — подложка **`admin-modal-backdrop`** с **`role="presentation"`**; вместо **`div.admin-modal.admin-modal--explorer`** — **`section`** с классами **`admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog`**, модификатор **`folder-create-material-dialog`**. Внутри — **`mat-form`**, **`mat-form-head`** (**`admin-h2`** + **`MODAL_CLOSE_X_SVG`** в **`admin-modal-head-icon-close`**), ошибка, **`mat-form-tab-panel folder-create-explorer-panel`** (хлебные крошки, explorer, имя папки), футер **`admin-row mat-form-actions`**.
+- **Классы и формулы:** порталы **«Новая папка классов / формул»** — тот же **`section` + `mat-form` + шапка с крестиком**; контент в **`mat-form-tab-panel`** с **`mat-form-field-span-2`** для текста родителя и поля имени; **`role="presentation"`** на подложке.
+- **Стили:** блок **`.admin-material-card-dialog.folder-create-material-dialog`** и **`.folder-create-explorer-panel`** — вертикальный flex, скролл в дереве/контенте, футер не сжимается; переопределение **`min-height`** у **`.folder-explorer`**, чтобы высота модалки не ломалась.
+
+#### Карточка материала — класс (`AdminApp.tsx`, `AdminApp.css`)
+
+- Блок **«Класс материала»:** после легенды (**Код / Наименование класса**) строка превью и контейнер **`mat-class-ctrls`** (`+`, `−`) обёрнуты в **`mat-class-preview-ctrl-row`** (flex, **`align-items: center`**), чтобы кнопки были на одной линии со **`mat-class-pick-preview-row`, а не по центру всего столбца «легенда + строка». У **`mat-class-input-row`** убран горизонтальный split **`field-half` + контролы**.
+- Логика **`ResizeObserver`** и **`--mat-class-btn-size`** по высоте строки превью **сохранена** (**`matClassInputRef`**, **`matClassRowRef`**).
+
+### Изменения 2026-05-18 (админка: UX списков, модалки, навигация)
+
+#### Материалы (`AdminApp.tsx`, `AdminApp.css`, `mobile.css`)
+
+- Убрана кнопка **`mat-list-gear-btn`** и слот **`mat-list-legend-gear-slot`** в шапке списка. **Один щелчок** по строке (с задержкой **280 ms**) — панель **«Сопутствующие»**; **двойной щелчок** — карточка материала; **Alt+Enter** — карточка с клавиатуры. Реф **`materialListClickTimerRef`**, очистка таймера при размонтировании.
+- Сетка **`#admin-panel-materials .mat-list-item-inner`** и **`--legend`** — одна колонка. Страховка в CSS: **`#admin-panel-materials .mat-list-gear-btn { display: none !important }`** на случай старого бандла.
+
+#### Текстуры (`AdminTexturesPanel.tsx`, `AdminApp.css`, `mobile.css`)
+
+- Убрана **`mat-list-gear-btn`** у строк списка; открытие карточки — **щелчок** по строке.
+- Модалка карточки: прямой **`section`** с классами **`admin-panel … admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog`** (без **`div.admin-modal--explorer`**); шапка — крестик **`MODAL_CLOSE_X_SVG`**, **`mat-form-tab-panel`**, поля с **`mat-form-field-span-2`**; **`HintButton`** в форме текстуры убран.
+
+#### Классы материалов (`AdminMaterialClassesPanel.tsx`, `AdminApp.css`)
+
+- Строка списка: **Enter** / **пробел** / щелчок — модалка **редактирования** (**`updateMaterialClass`**, наименование и код). Оболочка — **`section`** как у карточки текстуры; **`MODAL_CLOSE_X_SVG`**; **`HintButton`** в модалках создания/редактирования убран.
+- В **редактировании**: **«Удалить»**, подтверждение **`admin-modal-backdrop--stack-top`**, **`deleteMaterialClass`**, флаги **`savingEditClass`** / **`deletingEditClass`**.
+- Убрана строка **«Папка: …»** в модалках; удалено правило **`.admin-mclass-modal-folder`**.
+
+#### Навигация админки (`AdminApp.tsx`, `AdminApp.css`)
+
+- Первый пункт полосы — выпадающее **«Справочники»** с SVG «три полоски» (**`ADMIN_REFS_HAMBURGER_SVG`**): **Материалы**, **Текстуры**, **Классы**, **Формулы**. Далее **Заказы**, **Пользователи**, **Калькулятор**. **`admin-section-tab-dropdown`**, **`admin-section-tab-dropdown-panel`**, закрытие по клику снаружи, **Escape**, смене **`section`**. У контейнера **`role="navigation"`**.
 
 ### Изменения 2026-05-17 (модалка материала, удаление формулы, поле «Артикул»)
 

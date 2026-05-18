@@ -26,14 +26,14 @@ function applyOp(op: string, b: number, a: number): number | null {
   return null
 }
 
+export function formulaTokenDisplayLabel(t: CalculationFormulaToken): string {
+  if (t.type === 'class') return t.label || `Класс #${t.class_id}`
+  if (t.type === 'number') return String(t.value)
+  return t.value
+}
+
 export function formulaDisplayExpression(tokens: CalculationFormulaToken[]): string {
-  return tokens
-    .map((t) => {
-      if (t.type === 'class') return t.label || `Класс #${t.class_id}`
-      if (t.type === 'number') return String(t.value)
-      return t.value
-    })
-    .join(' ')
+  return tokens.map(formulaTokenDisplayLabel).join('')
 }
 
 type ClassIdsWalk = {
@@ -158,6 +158,7 @@ export function evaluateCalculationFormula(
       continue
     }
     const op = token.value
+    if (op === '=') continue
     if (op === '(') {
       ops.push(op)
       continue

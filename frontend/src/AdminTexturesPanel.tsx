@@ -29,6 +29,12 @@ import {
 import { HintButton } from './HintButton'
 import { resolveTextureImageUrl } from './TexturePickerModal'
 import type { TextureCategory, TextureItem } from './types'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 import './AdminApp.css'
 
 type FolderRenameRequest = { targetId: number; nonce: number }
@@ -422,63 +428,75 @@ function TextureCardForm({
         <div className="mat-form-head">
           <div className="admin-heading-row mat-form-title-line">
             <h3 id="texture-card-dialog-title" className="admin-h2">
-              {item === 'new' ? 'Новая текстура' : 'Текстура'}
+              {item === 'new' ? 'Новая текстура' : name.trim() || 'Без названия'}
             </h3>
-            <HintButton text="Имя и файл задаются здесь. В карточке материала остаются только смещение, тайлинг и прочие параметры наложения." />
           </div>
-          <button type="button" className="admin-primary" onClick={onClose}>
-            Закрыть
+          <button
+            type="button"
+            className="admin-primary admin-modal-head-icon-close"
+            aria-label="Закрыть"
+            title="Закрыть"
+            disabled={saving}
+            onClick={onClose}
+          >
+            {MODAL_CLOSE_X_SVG}
           </button>
         </div>
         {localErr && <div className="admin-error">{localErr}</div>}
-        <label className="field">
-          <span>Наименование *</span>
-          <input
-            className="admin-input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <div className="field tex-file-row">
-          <span>Изображение {item === 'new' ? '*' : ''}</span>
-          <input
-            className="admin-input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null
-              setImageFile(f)
-              if (preview) URL.revokeObjectURL(preview)
-              setPreview(f ? URL.createObjectURL(f) : null)
-            }}
-          />
-        </div>
-        {(preview || existingUrl) && (
-          <div className="field">
-            <span>Предпросмотр</span>
-            <div
-              className="texture-picker-thumb"
-              style={{
-                height: 120,
-                backgroundImage: `url(${preview || existingUrl})`,
+        <div
+          className="mat-form-tab-panel"
+          role="region"
+          aria-label="Данные текстуры"
+        >
+          <label className="field mat-form-field-span-2">
+            <span>Наименование *</span>
+            <input
+              className="admin-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <div className="field tex-file-row mat-form-field-span-2">
+            <span>Изображение {item === 'new' ? '*' : ''}</span>
+            <input
+              className="admin-input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                setImageFile(f)
+                if (preview) URL.revokeObjectURL(preview)
+                setPreview(f ? URL.createObjectURL(f) : null)
               }}
             />
           </div>
-        )}
-        <div className="admin-row mat-form-actions">
-          <button type="button" className="admin-primary" disabled={saving} onClick={save}>
-            {saving ? 'Сохранение…' : 'Сохранить'}
-          </button>
-          {item !== 'new' && (
-            <button
-              type="button"
-              className="admin-secondary admin-danger"
-              disabled={saving}
-              onClick={() => setDeleteOpen(true)}
-            >
-              Удалить
-            </button>
+          {(preview || existingUrl) && (
+            <div className="field mat-form-field-span-2">
+              <span>Предпросмотр</span>
+              <div
+                className="texture-picker-thumb"
+                style={{
+                  height: 120,
+                  backgroundImage: `url(${preview || existingUrl})`,
+                }}
+              />
+            </div>
           )}
+          <div className="admin-row mat-form-actions">
+            {item !== 'new' && (
+              <button
+                type="button"
+                className="admin-secondary admin-danger"
+                disabled={saving}
+                onClick={() => setDeleteOpen(true)}
+              >
+                Удалить
+              </button>
+            )}
+            <button type="button" className="admin-primary" disabled={saving} onClick={save}>
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
+          </div>
         </div>
       </div>
       {deleteOpen &&
@@ -1150,7 +1168,6 @@ export function AdminTexturesPanel() {
                       </span>
                     ))}
                   </div>
-                  <span className="mat-list-legend-gear-slot" aria-hidden />
                 </div>
                 <ul className="mat-list">
                   {items.map((it) => {
@@ -1169,7 +1186,7 @@ export function AdminTexturesPanel() {
                                 : 'mat-list-row mat-list-row--texture'
                             }
                             aria-current={rowActive ? 'true' : undefined}
-                            aria-label={`Открыть карточку текстуры: ${it.name || 'текстура'}`}
+                            aria-label={`Текстура: ${it.name || 'текстура'}. Щелчок или Enter — карточка.`}
                             draggable
                             onDragStart={(e) => onTextureRowDragStart(e, it)}
                             onClick={() => setEditing(it)}
@@ -1196,29 +1213,6 @@ export function AdminTexturesPanel() {
                               {it.name}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            className="mat-list-gear-btn"
-                            title="Открыть карточку текстуры"
-                            aria-label={`Карточка: ${it.name || 'текстура'}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setEditing(it)
-                            }}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.65"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
-                            >
-                              <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.575 6.575 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.871a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.281Z" />
-                              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            </svg>
-                          </button>
                         </div>
                       </li>
                     )
@@ -1237,50 +1231,48 @@ export function AdminTexturesPanel() {
                   if (e.target === e.currentTarget) setEditing(null)
                 }}
               >
-                <div
-                  className="admin-modal admin-modal--explorer admin-modal--material-card"
+                <section
+                  className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="texture-card-dialog-title"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <section className="admin-panel admin-panel--in-material-modal">
-                    <TextureCardForm
-                      key={editing === 'new' ? 'new' : editing.id}
-                      categoryId={
-                        editing === 'new' ? (selected as number) : editing.category
-                      }
-                      item={editing}
-                      onClose={() => setEditing(null)}
-                      onSaved={(t) => {
-                        const savedCategoryId = Number(t.category)
-                        setItems((prev) => {
-                          if (editing === 'new') {
-                            if (
-                              selectedTextureScopeIds == null ||
-                              selectedTextureScopeIds.has(savedCategoryId)
-                            ) {
-                              return [...prev, t]
-                            }
-                            return prev
-                          }
+                  <TextureCardForm
+                    key={editing === 'new' ? 'new' : editing.id}
+                    categoryId={
+                      editing === 'new' ? (selected as number) : editing.category
+                    }
+                    item={editing}
+                    onClose={() => setEditing(null)}
+                    onSaved={(t) => {
+                      const savedCategoryId = Number(t.category)
+                      setItems((prev) => {
+                        if (editing === 'new') {
                           if (
-                            selectedTextureScopeIds != null &&
-                            !selectedTextureScopeIds.has(savedCategoryId)
+                            selectedTextureScopeIds == null ||
+                            selectedTextureScopeIds.has(savedCategoryId)
                           ) {
-                            return prev.filter((x) => x.id !== t.id)
+                            return [...prev, t]
                           }
-                          return prev.map((x) => (x.id === t.id ? t : x))
-                        })
-                        setEditing(t)
-                      }}
-                      onDeleted={(id) => {
-                        setItems((prev) => prev.filter((x) => x.id !== id))
-                        setEditing(null)
-                      }}
-                    />
-                  </section>
-                </div>
+                          return prev
+                        }
+                        if (
+                          selectedTextureScopeIds != null &&
+                          !selectedTextureScopeIds.has(savedCategoryId)
+                        ) {
+                          return prev.filter((x) => x.id !== t.id)
+                        }
+                        return prev.map((x) => (x.id === t.id ? t : x))
+                      })
+                      setEditing(t)
+                    }}
+                    onDeleted={(id) => {
+                      setItems((prev) => prev.filter((x) => x.id !== id))
+                      setEditing(null)
+                    }}
+                  />
+                </section>
               </div>,
               document.body
             )

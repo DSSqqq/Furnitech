@@ -21,6 +21,8 @@ const FIELD_LABELS: Record<string, string> = {
   article: 'Артикул',
   name: 'Наименование',
   non_field_errors: '',
+  /** Без префикса «code:» — сообщение и так однозначное */
+  code: '',
 }
 
 function formatFieldErrors(j: Record<string, unknown>): string {
@@ -336,7 +338,7 @@ export async function fetchMaterialClasses(
   return { results: collected }
 }
 
-export function createMaterialClass(data: { name: string; category: number; code?: string }) {
+export function createMaterialClass(data: { name: string; category: number; code: string }) {
   return apiFetch('/api/material-classes/', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -3,14 +3,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createMaterialClass,
   createMaterialClassCategory,
+  deleteMaterialClass,
   deleteMaterialClassCategory,
   fetchMaterialClassCategoryTree,
   fetchMaterialClasses,
+  updateMaterialClass,
   updateMaterialClassCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
-import { HintButton } from './HintButton'
 import type { MaterialClass, MaterialClassCategory } from './types'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 
 const CLASS_LIST_COLUMNS = ['Код', 'Наименование класса'] as const
 
@@ -214,6 +221,13 @@ export function AdminMaterialClassesPanel() {
   const [newClassModalCode, setNewClassModalCode] = useState('')
   const [newClassModalErr, setNewClassModalErr] = useState<string | null>(null)
   const [savingNewClass, setSavingNewClass] = useState(false)
+  const [editClassTarget, setEditClassTarget] = useState<MaterialClass | null>(null)
+  const [editClassName, setEditClassName] = useState('')
+  const [editClassCode, setEditClassCode] = useState('')
+  const [editClassErr, setEditClassErr] = useState<string | null>(null)
+  const [savingEditClass, setSavingEditClass] = useState(false)
+  const [deletingEditClass, setDeletingEditClass] = useState(false)
+  const [editClassDeleteOpen, setEditClassDeleteOpen] = useState(false)
   const [treeLoading, setTreeLoading] = useState(true)
   const [listLoading, setListLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -348,11 +362,79 @@ export function AdminMaterialClassesPanel() {
       setErr('Сначала выберите папку слева — у класса должна быть категория.')
       return
     }
+    setEditClassTarget(null)
+    setEditClassErr(null)
     setNewClassModalErr(null)
     setNewClassModalName('')
     setNewClassModalCode('')
     setNewClassModalOpen(true)
   }, [mccSelected])
+
+  const openEditClass = useCallback((c: MaterialClass) => {
+    setNewClassModalOpen(false)
+    setNewClassModalErr(null)
+    setEditClassErr(null)
+    setEditClassDeleteOpen(false)
+    setEditClassTarget(c)
+    setEditClassName(c.name)
+    setEditClassCode((c.code ?? '').trim())
+  }, [])
+
+  const closeEditClassModal = useCallback(() => {
+    if (savingEditClass || deletingEditClass) return
+    setEditClassTarget(null)
+    setEditClassErr(null)
+    setEditClassDeleteOpen(false)
+  }, [savingEditClass, deletingEditClass])
+
+  const saveEditedClass = useCallback(async () => {
+    if (!editClassTarget) return
+    const name = editClassName.trim()
+    if (!name) {
+      setEditClassErr('Укажите наименование.')
+      return
+    }
+    const codeRaw = editClassCode.trim()
+    if (!codeRaw) {
+      setEditClassErr('Укажите код класса.')
+      return
+    }
+    setSavingEditClass(true)
+    setEditClassErr(null)
+    try {
+      const updated = await updateMaterialClass(editClassTarget.id, {
+        name,
+        code: codeRaw,
+      })
+      setClasses((prev) =>
+        prev
+          .map((x) => (x.id === updated.id ? updated : x))
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      )
+      setEditClassTarget(null)
+    } catch (e) {
+      setEditClassErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSavingEditClass(false)
+    }
+  }, [editClassTarget, editClassName, editClassCode])
+
+  const confirmDeleteEditedClass = useCallback(async () => {
+    if (!editClassTarget) return
+    setDeletingEditClass(true)
+    setEditClassErr(null)
+    try {
+      await deleteMaterialClass(editClassTarget.id)
+      setClasses((prev) => prev.filter((x) => x.id !== editClassTarget.id))
+      setEditClassDeleteOpen(false)
+      setEditClassTarget(null)
+    } catch (e) {
+      setEditClassErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDeletingEditClass(false)
+    }
+  }, [editClassTarget])
 
   const closeNewClassModal = useCallback(() => {
     if (savingNewClass) return
@@ -368,13 +450,17 @@ export function AdminMaterialClassesPanel() {
     }
     if (mccSelected == null) return
     const codeRaw = newClassModalCode.trim()
+    if (!codeRaw) {
+      setNewClassModalErr('Укажите код класса.')
+      return
+    }
     setSavingNewClass(true)
     setNewClassModalErr(null)
     try {
       await createMaterialClass({
         name,
         category: mccSelected,
-        ...(codeRaw ? { code: codeRaw } : {}),
+        code: codeRaw,
       })
       setNewClassModalOpen(false)
       await reloadClassesOnly()
@@ -397,6 +483,22 @@ export function AdminMaterialClassesPanel() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [newClassModalOpen, savingNewClass])
+
+  useEffect(() => {
+    if (!editClassTarget) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || savingEditClass || deletingEditClass) return
+      e.preventDefault()
+      if (editClassDeleteOpen) {
+        setEditClassDeleteOpen(false)
+        return
+      }
+      setEditClassTarget(null)
+      setEditClassErr(null)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [editClassTarget, savingEditClass, deletingEditClass, editClassDeleteOpen])
 
   return (
     <>
@@ -552,7 +654,19 @@ export function AdminMaterialClassesPanel() {
                     const code = (c.code ?? '').trim()
                     return (
                       <li key={c.id} className="mat-list-item">
-                        <div className="mat-list-row" role="row">
+                        <div
+                          className="mat-list-row"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Редактировать класс: ${c.name}`}
+                          onClick={() => openEditClass(c)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              openEditClass(c)
+                            }
+                          }}
+                        >
                           <span className="mat-list-cell mat-list-cell-article">{code ? code : '—'}</span>
                           <span className="mat-list-cell mat-list-cell-name">{c.name}</span>
                         </div>
@@ -582,44 +696,45 @@ export function AdminMaterialClassesPanel() {
                 if (e.target === e.currentTarget && !savingNewClass) closeNewClassModal()
               }}
             >
-              <div
-                className="admin-modal admin-modal--explorer admin-modal--material-card"
+              <section
+                className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="mclass-card-dialog-title"
                 onClick={(e) => e.stopPropagation()}
               >
-                <section className="admin-panel admin-panel--in-material-modal">
-                  <div className="mat-form">
-                    <div className="mat-form-head">
-                      <div className="admin-heading-row mat-form-title-line">
-                        <h3 id="mclass-card-dialog-title" className="admin-h2">
-                          Новый класс
-                        </h3>
-                        <HintButton text="Класс будет создан в выбранной слева папке. Поле «Код» необязательно — для колонки списка." />
-                      </div>
-                      <button
-                        type="button"
-                        className="admin-primary"
-                        onClick={closeNewClassModal}
-                        disabled={savingNewClass}
-                      >
-                        Закрыть
-                      </button>
+                <div className="mat-form">
+                  <div className="mat-form-head">
+                    <div className="admin-heading-row mat-form-title-line">
+                      <h3 id="mclass-card-dialog-title" className="admin-h2">
+                        Новый класс
+                      </h3>
                     </div>
-                    {selectedMccCat ? (
-                      <p className="admin-muted admin-mclass-modal-folder">
-                        Папка: <strong>{selectedMccCat.name}</strong>
-                      </p>
-                    ) : null}
-                    {newClassModalErr ? <div className="admin-error">{newClassModalErr}</div> : null}
-                    <label className="field">
+                    <button
+                      type="button"
+                      className="admin-primary admin-modal-head-icon-close"
+                      aria-label="Закрыть"
+                      title="Закрыть"
+                      disabled={savingNewClass}
+                      onClick={closeNewClassModal}
+                    >
+                      {MODAL_CLOSE_X_SVG}
+                    </button>
+                  </div>
+                  {newClassModalErr ? <div className="admin-error">{newClassModalErr}</div> : null}
+                  <div
+                    className="mat-form-tab-panel"
+                    role="region"
+                    aria-label="Данные нового класса"
+                  >
+                    <label className="field mat-form-field-span-2">
                       <span>Наименование *</span>
                       <input
                         className="admin-input"
                         value={newClassModalName}
                         onChange={(e) => setNewClassModalName(e.target.value)}
                         autoFocus
+                        disabled={savingNewClass}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault()
@@ -628,13 +743,15 @@ export function AdminMaterialClassesPanel() {
                         }}
                       />
                     </label>
-                    <label className="field">
-                      <span>Код</span>
+                    <label className="field mat-form-field-span-2">
+                      <span>Код *</span>
                       <input
                         className="admin-input"
                         value={newClassModalCode}
                         onChange={(e) => setNewClassModalCode(e.target.value)}
-                        placeholder="Необязательно"
+                        required
+                        aria-required
+                        disabled={savingNewClass}
                       />
                     </label>
                     <div className="admin-row mat-form-actions">
@@ -648,9 +765,156 @@ export function AdminMaterialClassesPanel() {
                       </button>
                     </div>
                   </div>
+                </div>
+              </section>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {editClassTarget
+        ? createPortal(
+            <>
+              <div
+                className="admin-modal-backdrop"
+                role="presentation"
+                onClick={(e) => {
+                  if (
+                    e.target === e.currentTarget &&
+                    !savingEditClass &&
+                    !deletingEditClass &&
+                    !editClassDeleteOpen
+                  ) {
+                    closeEditClassModal()
+                  }
+                }}
+              >
+                <section
+                  className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="mclass-edit-dialog-title"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="mat-form">
+                    <div className="mat-form-head">
+                      <div className="admin-heading-row mat-form-title-line">
+                        <h3 id="mclass-edit-dialog-title" className="admin-h2">
+                          Редактирование класса
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        className="admin-primary admin-modal-head-icon-close"
+                        aria-label="Закрыть"
+                        title="Закрыть"
+                        disabled={savingEditClass || deletingEditClass}
+                        onClick={closeEditClassModal}
+                      >
+                        {MODAL_CLOSE_X_SVG}
+                      </button>
+                    </div>
+                    {editClassErr ? <div className="admin-error">{editClassErr}</div> : null}
+                    <div
+                      className="mat-form-tab-panel"
+                      role="region"
+                      aria-label="Данные класса"
+                    >
+                      <label className="field mat-form-field-span-2">
+                        <span>Наименование *</span>
+                        <input
+                          className="admin-input"
+                          value={editClassName}
+                          onChange={(e) => setEditClassName(e.target.value)}
+                          autoFocus
+                          disabled={savingEditClass || deletingEditClass}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void saveEditedClass()
+                            }
+                          }}
+                        />
+                      </label>
+                      <label className="field mat-form-field-span-2">
+                        <span>Код *</span>
+                        <input
+                          className="admin-input"
+                          value={editClassCode}
+                          onChange={(e) => setEditClassCode(e.target.value)}
+                          required
+                          aria-required
+                          disabled={savingEditClass || deletingEditClass}
+                        />
+                      </label>
+                      <div className="admin-row mat-form-actions">
+                        <button
+                          type="button"
+                          className="admin-secondary admin-danger"
+                          disabled={savingEditClass || deletingEditClass}
+                          onClick={() => setEditClassDeleteOpen(true)}
+                        >
+                          Удалить
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-primary"
+                          disabled={savingEditClass || deletingEditClass}
+                          onClick={() => void saveEditedClass()}
+                        >
+                          {savingEditClass ? 'Сохранение…' : 'Сохранить'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </section>
               </div>
-            </div>,
+              {editClassDeleteOpen ? (
+                <div
+                  className="admin-modal-backdrop admin-modal-backdrop--stack-top"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="mclass-del-title"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget && !deletingEditClass) setEditClassDeleteOpen(false)
+                  }}
+                >
+                  <div
+                    className="admin-modal admin-modal--elevated"
+                    role="document"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h4 id="mclass-del-title" className="admin-modal-title">
+                      Удалить класс?
+                    </h4>
+                    <p className="admin-modal-text">
+                      Класс «
+                      {editClassName.trim() || editClassTarget.name.trim() || '—'}» будет удалён. У материалов
+                      пропадёт эта метка класса; при необходимости обновите формулы расчёта, где использовался этот
+                      класс.
+                    </p>
+                    <div className="admin-modal-actions">
+                      <button
+                        type="button"
+                        className="admin-secondary"
+                        disabled={deletingEditClass}
+                        onClick={() => setEditClassDeleteOpen(false)}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-primary admin-modal-confirm"
+                        disabled={deletingEditClass}
+                        onClick={() => void confirmDeleteEditedClass()}
+                      >
+                        {deletingEditClass ? 'Удаление…' : 'Удалить'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </>,
             document.body
           )
         : null}
@@ -659,9 +923,7 @@ export function AdminMaterialClassesPanel() {
         ? createPortal(
             <div
               className="admin-modal-backdrop"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="mcc-folder-create-title"
+              role="presentation"
               onClick={(e) => {
                 if (e.target === e.currentTarget && !busy) {
                   setMccFolderCreateOpen(false)
@@ -669,46 +931,79 @@ export function AdminMaterialClassesPanel() {
                 }
               }}
             >
-              <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
-                <h4 id="mcc-folder-create-title" className="admin-modal-title">
-                  Новая папка классов
-                </h4>
-                <p className="admin-modal-text">
-                  Родитель: <strong>{mccSelected == null ? 'корень' : selectedMccCat?.name ?? '—'}</strong>
-                </p>
-                <label className="field">
-                  <span>Имя папки</span>
-                  <input
-                    className="admin-input"
-                    value={newMccFolderName}
-                    onChange={(e) => setNewMccFolderName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        void submitNewMccFolder()
-                      }
-                    }}
-                    autoFocus
-                  />
-                </label>
-                {mccCreateErr ? <p className="admin-error">{mccCreateErr}</p> : null}
-                <div className="admin-modal-actions">
-                  <button
-                    type="button"
-                    className="admin-secondary"
-                    disabled={busy}
-                    onClick={() => {
-                      setMccFolderCreateOpen(false)
-                      setMccCreateErr(null)
-                    }}
-                  >
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" disabled={busy} onClick={() => void submitNewMccFolder()}>
-                    {busy ? 'Создание…' : 'Создать'}
-                  </button>
+              <section
+                className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="mcc-folder-create-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mat-form">
+                  <div className="mat-form-head">
+                    <div className="admin-heading-row mat-form-title-line">
+                      <h3 id="mcc-folder-create-title" className="admin-h2">
+                        Новая папка классов
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-primary admin-modal-head-icon-close"
+                      aria-label="Закрыть"
+                      title="Закрыть"
+                      disabled={busy}
+                      onClick={() => {
+                        setMccFolderCreateOpen(false)
+                        setMccCreateErr(null)
+                      }}
+                    >
+                      {MODAL_CLOSE_X_SVG}
+                    </button>
+                  </div>
+                  {mccCreateErr ? <div className="admin-error">{mccCreateErr}</div> : null}
+                  <div className="mat-form-tab-panel" role="region" aria-label="Новая папка классов">
+                    <p className="admin-modal-text mat-form-field-span-2">
+                      Родитель:{' '}
+                      <strong>{mccSelected == null ? 'корень' : selectedMccCat?.name ?? '—'}</strong>
+                    </p>
+                    <label className="field mat-form-field-span-2">
+                      <span>Имя папки</span>
+                      <input
+                        className="admin-input"
+                        value={newMccFolderName}
+                        onChange={(e) => setNewMccFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            void submitNewMccFolder()
+                          }
+                        }}
+                        autoFocus
+                      />
+                    </label>
+                    <div className="admin-row mat-form-actions">
+                      <button
+                        type="button"
+                        className="admin-secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setMccFolderCreateOpen(false)
+                          setMccCreateErr(null)
+                        }}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-primary"
+                        disabled={busy}
+                        onClick={() => void submitNewMccFolder()}
+                      >
+                        {busy ? 'Создание…' : 'Создать'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>,
             document.body
           )

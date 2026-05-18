@@ -1,5 +1,14 @@
 import { createPortal } from 'react-dom'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   createCalculationFormula,
   createCalculationFormulaCategory,
@@ -7,20 +16,14 @@ import {
   deleteCalculationFormulaCategory,
   fetchCalculationFormulaCategoryTree,
   fetchCalculationFormulas,
-  fetchMaterialClasses,
   pickDefaultCalculationFormulaCategoryId,
   updateCalculationFormula,
   updateCalculationFormulaCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
-import type {
-  CalculationFormula,
-  CalculationFormulaCategory,
-  CalculationFormulaToken,
-  MaterialClass,
-} from './types'
-import { formulaDisplayExpression } from './calculator/calculationFormula'
-import { MaterialClassPickModal } from './MaterialClassPickModal'
+import type { CalculationFormula, CalculationFormulaCategory, CalculationFormulaToken } from './types'
+import { formulaDisplayExpression, formulaTokenDisplayLabel } from './calculator/calculationFormula'
+import { MaterialClassPickerBody } from './MaterialClassPickModal'
 
 type Draft = {
   id: number | null
@@ -39,8 +42,6 @@ const EMPTY_DRAFT: Draft = {
 /** Список формул в основной колонке (как таблица материалов). */
 const FORMULA_LIST_COLUMNS = ['Наименование', 'Формула'] as const
 
-const FORMULA_CLASS_LIST_COLUMNS = ['Код', 'Наименование класса'] as const
-
 function truncateMiddle(text: string, maxLen: number): string {
   const t = text.trim()
   if (t.length <= maxLen) return t
@@ -49,13 +50,6 @@ function truncateMiddle(text: string, maxLen: number): string {
   const tail = Math.floor((maxLen - 1) / 2)
   return `${t.slice(0, head)}…${t.slice(t.length - tail)}`
 }
-
-const GEAR_SVG = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.575 6.575 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.871a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.281Z" />
-    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-  </svg>
-)
 
 const MODAL_CLOSE_X_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -77,16 +71,303 @@ const FORMULA_CLEAR_SVG = (
   </svg>
 )
 
-const OPS: Array<{ value: '+' | '-' | '*' | '/' | '(' | ')'; label: string }> = [
-  { value: '+', label: '+' },
-  { value: '-', label: '-' },
-  { value: '*', label: '*' },
-  { value: '/', label: '/' },
-  { value: '(', label: '(' },
-  { value: ')', label: ')' },
+type FormulaOp = '+' | '-' | '*' | '/' | '(' | ')' | '='
+
+const FORMULA_KEYPAD_OPS = new Set<FormulaOp>(['+', '-', '*', '/', '(', ')', '='])
+
+function isFormulaDigitKey(key: string): boolean {
+  return /^\d$/.test(key) || key === '.'
+}
+
+function isFormulaOpKey(key: string): key is FormulaOp {
+  return FORMULA_KEYPAD_OPS.has(key as FormulaOp)
+}
+
+type CalcKeypadCell =
+  | { kind: 'digit'; value: string; label?: string; colSpan?: number }
+  | { kind: 'op'; value: FormulaOp; colSpan?: number }
+  | { kind: 'backspace' }
+  | { kind: 'clear' }
+
+/** 789/ 456* 123- 0() +  затем . · назад · очистить · = */
+const CALC_KEYPAD_ROWS: ReadonlyArray<readonly CalcKeypadCell[]> = [
+  [
+    { kind: 'digit', value: '7' },
+    { kind: 'digit', value: '8' },
+    { kind: 'digit', value: '9' },
+    { kind: 'op', value: '/' },
+  ],
+  [
+    { kind: 'digit', value: '4' },
+    { kind: 'digit', value: '5' },
+    { kind: 'digit', value: '6' },
+    { kind: 'op', value: '*' },
+  ],
+  [
+    { kind: 'digit', value: '1' },
+    { kind: 'digit', value: '2' },
+    { kind: 'digit', value: '3' },
+    { kind: 'op', value: '-' },
+  ],
+  [
+    { kind: 'digit', value: '0' },
+    { kind: 'op', value: '(' },
+    { kind: 'op', value: ')' },
+    { kind: 'op', value: '+' },
+  ],
+  [
+    { kind: 'digit', value: '.' },
+    { kind: 'backspace' },
+    { kind: 'clear' },
+    { kind: 'op', value: '=' },
+  ],
 ]
 
 type CfcRenameRequest = { targetId: number; nonce: number }
+
+type FormulaEditResult = { tokens: CalculationFormulaToken[]; cursor: number }
+
+function formulaBackspaceEnd(tokens: CalculationFormulaToken[]): FormulaEditResult {
+  if (tokens.length === 0) return { tokens, cursor: 0 }
+  const next = [...tokens]
+  const lastIdx = next.length - 1
+  const last = next[lastIdx]
+  if (last?.type === 'number' && last.value.length > 1) {
+    next[lastIdx] = { type: 'number', value: last.value.slice(0, -1) }
+    return { tokens: next, cursor: next.length }
+  }
+  next.splice(lastIdx, 1)
+  return { tokens: next, cursor: next.length }
+}
+
+function formulaInsertDigit(tokens: CalculationFormulaToken[], cursor: number, key: string): FormulaEditResult {
+  const next = [...tokens]
+
+  if (key === '.' || key === ',') {
+    const prevNum = next[cursor - 1]
+    if (prevNum?.type === 'number') {
+      const norm = prevNum.value.replace(',', '.')
+      if (norm.includes('.')) return { tokens, cursor }
+      next[cursor - 1] = { type: 'number', value: `${norm}.` }
+      return { tokens: next, cursor }
+    }
+    next.splice(cursor, 0, { type: 'number', value: '0.' })
+    return { tokens: next, cursor: cursor + 1 }
+  }
+
+  if (!/^\d$/.test(key)) return { tokens, cursor }
+
+  if (next[cursor - 1]?.type === 'number') {
+    const prev = next[cursor - 1]
+    if (prev.type !== 'number') return { tokens, cursor }
+    const norm = prev.value.replace(',', '.')
+    const hasDec = norm.includes('.')
+    const value =
+      !hasDec && /^0+$/.test(norm) ? (key === '0' ? '0' : key) : `${prev.value}${key}`
+    next[cursor - 1] = { type: 'number', value }
+    return { tokens: next, cursor }
+  }
+
+  if (next[cursor]?.type === 'number') {
+    const nxt = next[cursor]
+    if (nxt.type !== 'number') return { tokens, cursor }
+    const norm = nxt.value.replace(',', '.')
+    const hasDec = norm.includes('.')
+    const value =
+      !hasDec && /^0+$/.test(norm) ? (key === '0' ? '0' : key) : `${key}${nxt.value}`
+    next[cursor] = { type: 'number', value }
+    return { tokens: next, cursor }
+  }
+
+  next.splice(cursor, 0, { type: 'number', value: key })
+  return { tokens: next, cursor: cursor + 1 }
+}
+
+function formulaInsertOp(
+  tokens: CalculationFormulaToken[],
+  cursor: number,
+  op: FormulaOp,
+): FormulaEditResult {
+  const next = [...tokens]
+  next.splice(cursor, 0, { type: 'op', value: op })
+  return { tokens: next, cursor: cursor + 1 }
+}
+
+function formulaInsertToken(
+  tokens: CalculationFormulaToken[],
+  cursor: number,
+  token: CalculationFormulaToken,
+): FormulaEditResult {
+  const next = [...tokens]
+  next.splice(cursor, 0, token)
+  return { tokens: next, cursor: cursor + 1 }
+}
+
+function formulaStringPosToTokenCursor(tokens: CalculationFormulaToken[], strPos: number): number {
+  if (tokens.length === 0 || strPos <= 0) return 0
+  let pos = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const label = formulaTokenDisplayLabel(tokens[i])
+    if (strPos <= pos) return i
+    const segmentEnd = pos + label.length
+    if (strPos <= segmentEnd) {
+      const mid = pos + label.length / 2
+      return strPos <= mid ? i : i + 1
+    }
+    pos = segmentEnd
+  }
+  return tokens.length
+}
+
+type StringFormulaEditResult = {
+  tokens: CalculationFormulaToken[]
+  strPos: number
+}
+
+function formulaBackspaceAtStringPos(
+  tokens: CalculationFormulaToken[],
+  strPos: number,
+): StringFormulaEditResult {
+  if (strPos <= 0) return { tokens, strPos: 0 }
+  const delPos = strPos - 1
+  let pos = 0
+  const next = [...tokens]
+  for (let i = 0; i < next.length; i++) {
+    const label = formulaTokenDisplayLabel(next[i])
+    const start = pos
+    const end = pos + label.length
+    if (delPos >= start && delPos < end) {
+      const t = next[i]
+      if (t.type === 'number') {
+        const charIdx = delPos - start
+        const newValue = `${t.value.slice(0, charIdx)}${t.value.slice(charIdx + 1)}`
+        if (!newValue || newValue === '.') {
+          next.splice(i, 1)
+          return { tokens: next, strPos: start }
+        }
+        next[i] = { type: 'number', value: newValue }
+        return { tokens: next, strPos: delPos }
+      }
+      next.splice(i, 1)
+      return { tokens: next, strPos: start }
+    }
+    pos = end
+  }
+  return { tokens, strPos: delPos }
+}
+
+function formulaDeleteStringRange(
+  tokens: CalculationFormulaToken[],
+  start: number,
+  end: number,
+): StringFormulaEditResult {
+  if (start >= end) return { tokens, strPos: start }
+  let current = tokens
+  let pos = end
+  while (pos > start) {
+    const result = formulaBackspaceAtStringPos(current, pos)
+    current = result.tokens
+    pos = result.strPos
+  }
+  return { tokens: current, strPos: start }
+}
+
+function formulaPrepareInsertAtStringPos(
+  tokens: CalculationFormulaToken[],
+  strPos: number,
+): { tokens: CalculationFormulaToken[]; tokenCursor: number; strPos: number } {
+  let pos = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const label = formulaTokenDisplayLabel(tokens[i])
+    const start = pos
+    const end = pos + label.length
+    if (strPos <= start) return { tokens, tokenCursor: i, strPos: start }
+    if (strPos < end) {
+      const t = tokens[i]
+      if (t.type === 'number') {
+        const charIdx = strPos - start
+        if (charIdx <= 0) return { tokens, tokenCursor: i, strPos: start }
+        if (charIdx >= t.value.length) return { tokens, tokenCursor: i + 1, strPos: end }
+        const left = t.value.slice(0, charIdx)
+        const right = t.value.slice(charIdx)
+        const next = [...tokens]
+        const replacement: CalculationFormulaToken[] = []
+        if (left) replacement.push({ type: 'number', value: left })
+        if (right) replacement.push({ type: 'number', value: right })
+        next.splice(i, 1, ...replacement)
+        const tokenCursor = i + (left ? 1 : 0)
+        return { tokens: next, tokenCursor, strPos: start + (left ? left.length : 0) }
+      }
+      const tokenCursor = strPos - start <= label.length / 2 ? i : i + 1
+      return { tokens, tokenCursor, strPos: tokenCursor === i ? start : end }
+    }
+    pos = end
+  }
+  return { tokens, tokenCursor: tokens.length, strPos: pos }
+}
+
+function formulaInsertDigitAtStringPos(
+  tokens: CalculationFormulaToken[],
+  strPos: number,
+  key: string,
+): StringFormulaEditResult {
+  let pos = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const label = formulaTokenDisplayLabel(tokens[i])
+    const start = pos
+    const end = pos + label.length
+    if (strPos > start && strPos < end && tokens[i].type === 'number') {
+      const charIdx = strPos - start
+      const next = [...tokens]
+      const t = next[i]
+      if (t.type !== 'number') break
+      if (key === '.' || key === ',') {
+        const norm = t.value.replace(',', '.')
+        if (norm.includes('.')) return { tokens, strPos }
+        const newValue = `${t.value.slice(0, charIdx)}.${t.value.slice(charIdx)}`
+        next[i] = { type: 'number', value: newValue }
+        return { tokens: next, strPos: strPos + 1 }
+      }
+      if (/^\d$/.test(key)) {
+        const newValue = `${t.value.slice(0, charIdx)}${key}${t.value.slice(charIdx)}`
+        next[i] = { type: 'number', value: newValue }
+        return { tokens: next, strPos: strPos + 1 }
+      }
+      return { tokens, strPos }
+    }
+    if (strPos <= start) break
+    pos = end
+  }
+  const prepared = formulaPrepareInsertAtStringPos(tokens, strPos)
+  const result = formulaInsertDigit(prepared.tokens, prepared.tokenCursor, key)
+  const oldLen = formulaDisplayExpression(tokens).length
+  const newLen = formulaDisplayExpression(result.tokens).length
+  return { tokens: result.tokens, strPos: prepared.strPos + (newLen - oldLen) }
+}
+
+function formulaInsertOpAtStringPos(
+  tokens: CalculationFormulaToken[],
+  strPos: number,
+  op: FormulaOp,
+): StringFormulaEditResult {
+  const prepared = formulaPrepareInsertAtStringPos(tokens, strPos)
+  const result = formulaInsertOp(prepared.tokens, prepared.tokenCursor, op)
+  const oldLen = formulaDisplayExpression(tokens).length
+  const newLen = formulaDisplayExpression(result.tokens).length
+  return { tokens: result.tokens, strPos: prepared.strPos + (newLen - oldLen) }
+}
+
+function formulaInsertClassAtStringPos(
+  tokens: CalculationFormulaToken[],
+  strPos: number,
+  token: CalculationFormulaToken,
+): StringFormulaEditResult {
+  const prepared = formulaPrepareInsertAtStringPos(tokens, strPos)
+  const result = formulaInsertToken(prepared.tokens, prepared.tokenCursor, token)
+  const oldLen = formulaDisplayExpression(tokens).length
+  const newLen = formulaDisplayExpression(result.tokens).length
+  return { tokens: result.tokens, strPos: prepared.strPos + (newLen - oldLen) }
+}
 
 function collectCfcIdsWithChildren(tree: CalculationFormulaCategory[]): Set<number> {
   const out = new Set<number>()
@@ -284,16 +565,18 @@ export function AdminCalculationsPanel() {
   const [cfcCreateErr, setCfcCreateErr] = useState<string | null>(null)
   const clearCfcFolderRenameRequest = useCallback(() => setCfcFolderRenameRequest(null), [])
 
-  const [classChips, setClassChips] = useState<MaterialClass[]>([])
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
-  const [numberValue, setNumberValue] = useState('')
+  const formulaCursorRef = useRef(0)
+  const formulaInputRef = useRef<HTMLInputElement>(null)
+  const formulaBackdropDownRef = useRef(false)
+  const [formulaStringCursor, setFormulaStringCursor] = useState(0)
+  const formulaStringCursorRef = useRef(0)
   const [treeLoading, setTreeLoading] = useState(true)
   const [listLoading, setListLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
-  const [classPickOpen, setClassPickOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
   const [formulaDeleteOpen, setFormulaDeleteOpen] = useState(false)
 
@@ -304,20 +587,12 @@ export function AdminCalculationsPanel() {
     [cfcTree, cfcSelected],
   )
 
-  const classById = useMemo(() => {
-    const m = new Map<number, MaterialClass>()
-    for (const c of classChips) m.set(c.id, c)
-    return m
-  }, [classChips])
-
-  const formulaClassRows = useMemo(
+  /** Подсветка строк в списке классов — какие id уже есть среди токенов формулы */
+  const formulaSelectedClassIds = useMemo(
     () =>
       draft.tokens
-        .map((t, tokenIndex) => ({ t, tokenIndex }))
-        .filter(
-          (x): x is { t: { type: 'class'; class_id: number; label?: string }; tokenIndex: number } =>
-            x.t.type === 'class',
-        ),
+        .filter((t): t is { type: 'class'; class_id: number } => t.type === 'class')
+        .map((t) => Number(t.class_id)),
     [draft.tokens],
   )
 
@@ -350,11 +625,7 @@ export function AdminCalculationsPanel() {
   const reloadShared = useCallback(() => {
     setLoading(true)
     setErr(null)
-    return Promise.all([fetchMaterialClasses(), reloadTree()])
-      .then(([mcRes]) => {
-        setClassChips((mcRes.results ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ru')))
-      })
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+    return reloadTree().catch((e) => setErr(e instanceof Error ? e.message : String(e)))
   }, [reloadTree])
 
   useEffect(() => {
@@ -466,34 +737,159 @@ export function AdminCalculationsPanel() {
       .finally(() => setBusy(false))
   }, [newCfcFolderName, cfcSelected, reloadTree])
 
-  const appendToken = (token: CalculationFormulaToken) => {
-    setDraft((d) => ({ ...d, tokens: [...d.tokens, token] }))
+  const setFormulaCaret = useCallback((pos: number) => {
+    formulaCursorRef.current = pos
+  }, [])
+
+  const setFormulaStringCaret = useCallback((pos: number) => {
+    formulaStringCursorRef.current = pos
+    setFormulaStringCursor(pos)
+  }, [])
+
+  const getActiveStringCursor = useCallback((): number => {
+    const el = formulaInputRef.current
+    if (el && document.activeElement === el) {
+      const pos = el.selectionStart ?? formulaStringCursorRef.current
+      formulaStringCursorRef.current = pos
+      return pos
+    }
+    return formulaStringCursorRef.current
+  }, [])
+
+  const applyFormulaStringEdit = useCallback(
+    (edit: (tokens: CalculationFormulaToken[], strPos: number) => StringFormulaEditResult) => {
+      setErr(null)
+      setDraft((d) => {
+        const strPos = getActiveStringCursor()
+        const { tokens, strPos: newStrPos } = edit(d.tokens, strPos)
+        formulaStringCursorRef.current = newStrPos
+        setFormulaStringCursor(newStrPos)
+        formulaCursorRef.current = formulaStringPosToTokenCursor(tokens, newStrPos)
+        return { ...d, tokens }
+      })
+      setMsg(null)
+    },
+    [getActiveStringCursor],
+  )
+
+  const insertClassToken = useCallback(
+    (class_id: number, label: string) => {
+      applyFormulaStringEdit((tokens, strPos) =>
+        formulaInsertClassAtStringPos(tokens, strPos, { type: 'class', class_id, label }),
+      )
+    },
+    [applyFormulaStringEdit],
+  )
+
+  const appendDigitToFormula = useCallback(
+    (key: string) => {
+      applyFormulaStringEdit((tokens, strPos) => formulaInsertDigitAtStringPos(tokens, strPos, key))
+    },
+    [applyFormulaStringEdit],
+  )
+
+  const insertOpToken = useCallback(
+    (op: FormulaOp) => {
+      applyFormulaStringEdit((tokens, strPos) => formulaInsertOpAtStringPos(tokens, strPos, op))
+    },
+    [applyFormulaStringEdit],
+  )
+
+  const backspaceAtCursor = useCallback(() => {
+    applyFormulaStringEdit((tokens, strPos) => formulaBackspaceAtStringPos(tokens, strPos))
+  }, [applyFormulaStringEdit])
+
+  const backspaceEnd = () => {
+    setErr(null)
+    setDraft((d) => {
+      const { tokens, cursor } = formulaBackspaceEnd(d.tokens)
+      const endPos = formulaDisplayExpression(tokens).length
+      formulaStringCursorRef.current = endPos
+      setFormulaStringCursor(endPos)
+      formulaCursorRef.current = cursor
+      return { ...d, tokens }
+    })
     setMsg(null)
   }
 
-  const appendNumber = () => {
-    const raw = numberValue.trim().replace(',', '.')
-    if (!raw || Number.isNaN(Number(raw))) {
-      setErr('Введите число для вставки в формулу.')
+  const syncFormulaStringCursorFromInput = useCallback(() => {
+    const el = formulaInputRef.current
+    if (!el) return
+    const pos = el.selectionStart ?? 0
+    formulaStringCursorRef.current = pos
+    setFormulaStringCursor(pos)
+  }, [])
+
+  const onFormulaInputKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      const el = e.currentTarget
+      const start = el.selectionStart ?? 0
+      const end = el.selectionEnd ?? 0
+      formulaStringCursorRef.current = start
+      if (start !== end) {
+        applyFormulaStringEdit((tokens) => formulaDeleteStringRange(tokens, start, end))
+      } else {
+        backspaceAtCursor()
+      }
       return
     }
-    appendToken({ type: 'number', value: raw })
-    setNumberValue('')
-    setErr(null)
+    if (
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight' ||
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'Home' ||
+      e.key === 'End'
+    ) {
+      requestAnimationFrame(() => syncFormulaStringCursorFromInput())
+      return
+    }
+    if (e.key === 'Delete') {
+      e.preventDefault()
+      return
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.key === 'x' || e.key === 'X')) {
+      e.preventDefault()
+      return
+    }
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (isFormulaDigitKey(e.key)) {
+        e.preventDefault()
+        appendDigitToFormula(e.key)
+        return
+      }
+      if (isFormulaOpKey(e.key)) {
+        e.preventDefault()
+        insertOpToken(e.key)
+        return
+      }
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault()
+    }
   }
 
-  const backspace = () => {
-    setDraft((d) => ({ ...d, tokens: d.tokens.slice(0, -1) }))
-    setMsg(null)
+  const onFormulaInputBeforeInput = (e: FormEvent<HTMLInputElement>) => {
+    const inputType = (e.nativeEvent as InputEvent).inputType
+    if (inputType === 'deleteContentBackward') return
+    if (inputType.startsWith('insert') || inputType.startsWith('delete')) {
+      e.preventDefault()
+    }
   }
+
+  useEffect(() => {
+    if (!editorOpen) return
+    const el = formulaInputRef.current
+    if (!el || document.activeElement !== el) return
+    const pos = formulaStringCursorRef.current
+    el.setSelectionRange(pos, pos)
+  }, [editorOpen, draft.tokens, formulaStringCursor, expression])
 
   const clear = () => {
     setDraft((d) => ({ ...d, tokens: [] }))
-    setMsg(null)
-  }
-
-  const removeTokenAt = (tokenIndex: number) => {
-    setDraft((d) => ({ ...d, tokens: d.tokens.filter((_, i) => i !== tokenIndex) }))
+    setFormulaCaret(0)
+    setFormulaStringCaret(0)
     setMsg(null)
   }
 
@@ -510,7 +906,8 @@ export function AdminCalculationsPanel() {
       ...EMPTY_DRAFT,
       category: cfcSelected ?? def,
     })
-    setNumberValue('')
+    setFormulaCaret(0)
+    setFormulaStringCaret(0)
     setErr(null)
     setMsg(null)
   }
@@ -521,8 +918,11 @@ export function AdminCalculationsPanel() {
   }
 
   const openFormulaEditor = (f: CalculationFormula) => {
-    setDraft(draftFromFormula(f))
-    setNumberValue('')
+    const next = draftFromFormula(f)
+    setDraft(next)
+    const endPos = formulaDisplayExpression(next.tokens).length
+    setFormulaCaret(next.tokens.length)
+    setFormulaStringCaret(endPos)
     setErr(null)
     setMsg(null)
     setEditorOpen(true)
@@ -532,16 +932,23 @@ export function AdminCalculationsPanel() {
     setEditorOpen(false)
   }
 
-  const save = async () => {
-    const name = draft.name.trim()
-    if (!name) {
-      setErr('Укажите название формулы.')
-      return
+  const onFormulaBackdropPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    formulaBackdropDownRef.current = e.target === e.currentTarget
+  }
+
+  const onFormulaBackdropPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (formulaBackdropDownRef.current && e.target === e.currentTarget && !busy) {
+      closeFormulaEditor()
     }
+    formulaBackdropDownRef.current = false
+  }
+
+  const save = async () => {
     if (draft.tokens.length === 0) {
       setErr('Соберите формулу из классов, знаков и чисел.')
       return
     }
+    const name = draft.name.trim() || expression.trim() || 'Формула'
     const category = resolveCategoryForSave()
     if (category == null) {
       setErr('Не выбрана папка для формулы. Создайте папку слева или обновите страницу.')
@@ -733,7 +1140,6 @@ export function AdminCalculationsPanel() {
                       </span>
                     ))}
                   </div>
-                  <span className="mat-list-legend-gear-slot" aria-hidden />
                 </div>
                 <ul className="mat-list">
                   {!listLoading &&
@@ -745,23 +1151,21 @@ export function AdminCalculationsPanel() {
                           <div className="mat-list-item-inner">
                             <div
                               className={rowCardOpen ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
+                              role="button"
+                              tabIndex={0}
                               aria-current={rowCardOpen ? 'true' : undefined}
+                              aria-label={`Редактировать формулу: ${f.name.trim() || 'формула'}`}
+                              onClick={() => openFormulaEditor(f)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  openFormulaEditor(f)
+                                }
+                              }}
                             >
                               <span className="mat-list-cell mat-list-cell-name">{f.name.trim() || '—'}</span>
                               <span className="mat-list-cell mat-list-cell-article">{preview || '—'}</span>
                             </div>
-                            <button
-                              type="button"
-                              className="mat-list-gear-btn"
-                              title="Открыть настройки формулы"
-                              aria-label={`Настройки формулы: ${f.name || 'формула'}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openFormulaEditor(f)
-                              }}
-                            >
-                              {GEAR_SVG}
-                            </button>
                           </div>
                         </li>
                       )
@@ -778,9 +1182,8 @@ export function AdminCalculationsPanel() {
             <div
               className="admin-modal-backdrop"
               role="presentation"
-              onClick={(e) => {
-                if (e.target === e.currentTarget && !busy) closeFormulaEditor()
-              }}
+              onPointerDown={onFormulaBackdropPointerDown}
+              onPointerUp={onFormulaBackdropPointerUp}
             >
               <section
                 className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-calculations-formula-dialog"
@@ -792,9 +1195,17 @@ export function AdminCalculationsPanel() {
                   <div className="mat-form">
                     <div className="mat-form-head">
                       <div className="admin-heading-row mat-form-title-line">
-                        <h3 id="formula-card-dialog-title" className="admin-h2">
-                          {draft.id ? (draft.name.trim() || 'Формула') : 'Новая формула'}
-                        </h3>
+                        <input
+                          id="formula-card-dialog-title"
+                          className="admin-input mat-form-title-input"
+                          type="text"
+                          value={draft.name}
+                          placeholder={draft.id ? 'Наименование формулы' : 'Новая формула'}
+                          aria-label="Наименование формулы"
+                          disabled={busy}
+                          autoFocus={!draft.id}
+                          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                        />
                       </div>
                       <button
                         type="button"
@@ -811,103 +1222,114 @@ export function AdminCalculationsPanel() {
                     {msg ? <p className="admin-muted">{msg}</p> : null}
 
                     <div className="admin-calculations-formula-modal-body">
-                      <label className="field">
-                        <span>Название</span>
-                        <input
-                          className="admin-input"
-                          value={draft.name}
-                          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-                          placeholder="Например: Рамочный фасад"
-                        />
-                      </label>
-
-                      <section className="admin-calculations-section-classes">
-                        <div className="admin-heading-row">
-                          <h2 className="admin-h2">Классы в формуле</h2>
-                        </div>
-                        <button
-                          type="button"
-                          className="admin-primary"
-                          disabled={loading}
-                          onClick={() => setClassPickOpen(true)}
-                        >
-                          + Класс
-                        </button>
-                        <div
-                          className="mat-list-table admin-calculations-formula-classes-table"
-                          aria-label="Классы, добавленные в формулу"
-                        >
-                          <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
-                            <div className="mat-list-legend" role="presentation">
-                              {FORMULA_CLASS_LIST_COLUMNS.map((label) => (
-                                <span key={label} role="columnheader">
-                                  {label}
-                                </span>
-                              ))}
-                              <span className="mat-list-legend-formula-class-action" aria-hidden />
-                            </div>
+                      <div className="admin-calculations-formula-editor-row">
+                        <section className="admin-calculations-section-classes">
+                          <div className="admin-heading-row">
+                            <h2 className="admin-h2">Классы для формулы</h2>
                           </div>
-                          {formulaClassRows.length === 0 ? (
-                            <p className="admin-muted admin-calculations-formula-classes-empty">
-                              Добавьте классы кнопкой «+ Класс».
-                            </p>
-                          ) : (
-                            <ul className="mat-list">
-                              {formulaClassRows.map(({ t, tokenIndex }) => {
-                                const mc = classById.get(t.class_id)
-                                const code = (mc?.code ?? '').trim()
-                                const name = mc?.name ?? t.label ?? `Класс #${t.class_id}`
-                                return (
-                                  <li key={tokenIndex} className="mat-list-item">
-                                    <div className="mat-list-row admin-calculations-formula-class-row" role="row">
-                                      <span className="mat-list-cell mat-list-cell-article">{code ? code : '—'}</span>
-                                      <span className="mat-list-cell mat-list-cell-name">{name}</span>
-                                      <button
-                                        type="button"
-                                        className="admin-primary admin-calculations-formula-class-remove admin-calculations-icon-btn"
-                                        aria-label="Убрать класс из формулы"
-                                        title="Убрать"
-                                        onClick={() => removeTokenAt(tokenIndex)}
-                                      >
-                                        {MODAL_CLOSE_X_SVG}
-                                      </button>
-                                    </div>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      </section>
-
-                      <div className="admin-calculations-builder">
-                        <section>
-                          <h3 className="admin-calculations-subtitle">Знаки</h3>
-                          <div className="admin-calculations-chip-row">
-                            {OPS.map((op) => (
-                              <button
-                                key={op.value}
-                                type="button"
-                                className="admin-primary admin-calculations-icon-btn"
-                                onClick={() => appendToken({ type: 'op', value: op.value })}
-                              >
-                                {op.label}
-                              </button>
-                            ))}
-                            <input
-                              className="admin-input admin-calculations-number"
-                              value={numberValue}
-                              onChange={(e) => setNumberValue(e.target.value.replace(/[^\d.,]/g, ''))}
-                              placeholder="Число"
-                              inputMode="decimal"
+                          <div className="admin-calculations-picker-keypad-row">
+                            <MaterialClassPickerBody
+                              onPick={(c) =>
+                                insertClassToken(c.id, `Класс: ${c.name}`)
+                              }
+                              selectedClassIds={formulaSelectedClassIds}
+                              autoFocusSearch={false}
+                              hidePickChrome
                             />
-                            <button
-                              type="button"
-                              className="admin-primary admin-calculations-formula-insert-number"
-                              onClick={appendNumber}
-                            >
-                              Вставить число
-                            </button>
+                            <div className="admin-calculations-builder">
+                              <section className="admin-calculations-keypad-section">
+                                <div className="admin-calculations-keypad">
+                                  <div
+                                    className="admin-calculations-keypad-grid"
+                                    role="group"
+                                    aria-label="Цифры и знаки формулы"
+                                  >
+                                    {CALC_KEYPAD_ROWS.flatMap((row, ri) =>
+                                      row.map((cell, ci) => {
+                                        const key = `${ri}-${ci}-${cell.kind}`
+                                        const spanStyle =
+                                          'colSpan' in cell && cell.colSpan && cell.colSpan > 1
+                                            ? { gridColumn: `span ${cell.colSpan}` }
+                                            : undefined
+                                        if (cell.kind === 'digit') {
+                                          const label = cell.label ?? cell.value
+                                          const isDot = cell.value === '.'
+                                          return (
+                                            <button
+                                              key={key}
+                                              type="button"
+                                              style={spanStyle}
+                                              className={`admin-calculations-keypad-key${
+                                                isDot
+                                                  ? ' admin-calculations-keypad-key--op'
+                                                  : ' admin-calculations-keypad-key--digit'
+                                              }`}
+                                              aria-label={
+                                                isDot ? 'Десятичная точка' : `Цифра ${label}`
+                                              }
+                                              onClick={() => appendDigitToFormula(cell.value)}
+                                            >
+                                              {label}
+                                            </button>
+                                          )
+                                        }
+                                        if (cell.kind === 'backspace') {
+                                          return (
+                                            <button
+                                              key={key}
+                                              type="button"
+                                              style={spanStyle}
+                                              className="admin-calculations-keypad-key admin-calculations-keypad-key--op admin-calculations-keypad-action-btn"
+                                              aria-label="Удалить последний символ или класс"
+                                              title="Назад"
+                                              onClick={backspaceEnd}
+                                            >
+                                              {FORMULA_BACKSPACE_SVG}
+                                            </button>
+                                          )
+                                        }
+                                        if (cell.kind === 'clear') {
+                                          return (
+                                            <button
+                                              key={key}
+                                              type="button"
+                                              style={spanStyle}
+                                              className="admin-calculations-keypad-key admin-calculations-keypad-key--op admin-calculations-keypad-action-btn"
+                                              aria-label="Очистить поле формулы"
+                                              title="Очистить"
+                                              onClick={clear}
+                                            >
+                                              {FORMULA_CLEAR_SVG}
+                                            </button>
+                                          )
+                                        }
+                                        const isParen = cell.value === '(' || cell.value === ')'
+                                        return (
+                                          <button
+                                            key={key}
+                                            type="button"
+                                            style={spanStyle}
+                                            className={`admin-calculations-keypad-key${
+                                              isParen
+                                                ? ' admin-calculations-keypad-key--digit'
+                                                : ' admin-calculations-keypad-key--op'
+                                            }${
+                                              'colSpan' in cell && cell.colSpan && cell.colSpan > 1
+                                                ? ' admin-calculations-keypad-key--wide'
+                                                : ''
+                                            }`}
+                                            aria-label={`Знак ${cell.value}`}
+                                            onClick={() => insertOpToken(cell.value)}
+                                          >
+                                            {cell.value}
+                                          </button>
+                                        )
+                                      }),
+                                    )}
+                                  </div>
+                                </div>
+                              </section>
+                            </div>
                           </div>
                         </section>
                       </div>
@@ -915,30 +1337,22 @@ export function AdminCalculationsPanel() {
                       <section>
                         <div className="admin-calculations-output-head">
                           <h3 className="admin-calculations-subtitle">Поле формулы</h3>
-                          <div>
-                            <button
-                              type="button"
-                              className="admin-primary admin-calculations-icon-btn"
-                              aria-label="Шаг назад в поле формулы"
-                              title="Назад"
-                              onClick={backspace}
-                            >
-                              {FORMULA_BACKSPACE_SVG}
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-primary admin-calculations-icon-btn"
-                              aria-label="Очистить поле формулы"
-                              title="Очистить"
-                              onClick={clear}
-                            >
-                              {FORMULA_CLEAR_SVG}
-                            </button>
-                          </div>
                         </div>
-                        <div className="admin-calculations-output" aria-live="polite">
-                          {expression || 'Добавляйте классы через «+ Класс», затем знаки и числа.'}
-                        </div>
+                        <input
+                          ref={formulaInputRef}
+                          type="text"
+                          className="admin-input admin-calculations-output admin-calculations-output--text"
+                          value={expression}
+                          aria-label="Поле формулы"
+                          aria-live="polite"
+                          placeholder="Цифры и знаки: 0–9 . + - * / ( ) = — ввод с клавиатуры или keypad справа. Классы — из списка слева."
+                          disabled={busy}
+                          onKeyDown={onFormulaInputKeyDown}
+                          onBeforeInput={onFormulaInputBeforeInput}
+                          onClick={syncFormulaStringCursorFromInput}
+                          onSelect={syncFormulaStringCursorFromInput}
+                          onChange={() => {}}
+                        />
                       </section>
                     </div>
 
@@ -1002,23 +1416,11 @@ export function AdminCalculationsPanel() {
           )
         : null}
 
-      {classPickOpen ? (
-        <MaterialClassPickModal
-          onClose={() => setClassPickOpen(false)}
-          onPick={(c) => {
-            appendToken({ type: 'class', class_id: c.id, label: `Класс: ${c.name}` })
-            setClassPickOpen(false)
-          }}
-        />
-      ) : null}
-
       {cfcFolderCreateOpen
         ? createPortal(
             <div
               className="admin-modal-backdrop"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="cfc-folder-create-title"
+              role="presentation"
               onClick={(e) => {
                 if (e.target === e.currentTarget && !busy) {
                   setCfcFolderCreateOpen(false)
@@ -1026,46 +1428,79 @@ export function AdminCalculationsPanel() {
                 }
               }}
             >
-              <div className="admin-modal" role="document" onClick={(e) => e.stopPropagation()}>
-                <h4 id="cfc-folder-create-title" className="admin-modal-title">
-                  Новая папка формул
-                </h4>
-                <p className="admin-modal-text">
-                  Родитель: <strong>{cfcSelected == null ? 'корень' : selectedCfcCat?.name ?? '—'}</strong>
-                </p>
-                <label className="field">
-                  <span>Имя папки</span>
-                  <input
-                    className="admin-input"
-                    value={newCfcFolderName}
-                    onChange={(e) => setNewCfcFolderName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        void submitNewCfcFolder()
-                      }
-                    }}
-                    autoFocus
-                  />
-                </label>
-                {cfcCreateErr ? <p className="admin-error">{cfcCreateErr}</p> : null}
-                <div className="admin-modal-actions">
-                  <button
-                    type="button"
-                    className="admin-secondary"
-                    disabled={busy}
-                    onClick={() => {
-                      setCfcFolderCreateOpen(false)
-                      setCfcCreateErr(null)
-                    }}
-                  >
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" disabled={busy} onClick={() => void submitNewCfcFolder()}>
-                    {busy ? 'Создание…' : 'Создать'}
-                  </button>
+              <section
+                className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cfc-folder-create-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mat-form">
+                  <div className="mat-form-head">
+                    <div className="admin-heading-row mat-form-title-line">
+                      <h3 id="cfc-folder-create-title" className="admin-h2">
+                        Новая папка формул
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-primary admin-modal-head-icon-close"
+                      aria-label="Закрыть"
+                      title="Закрыть"
+                      disabled={busy}
+                      onClick={() => {
+                        setCfcFolderCreateOpen(false)
+                        setCfcCreateErr(null)
+                      }}
+                    >
+                      {MODAL_CLOSE_X_SVG}
+                    </button>
+                  </div>
+                  {cfcCreateErr ? <div className="admin-error">{cfcCreateErr}</div> : null}
+                  <div className="mat-form-tab-panel" role="region" aria-label="Новая папка формул">
+                    <p className="admin-modal-text mat-form-field-span-2">
+                      Родитель:{' '}
+                      <strong>{cfcSelected == null ? 'корень' : selectedCfcCat?.name ?? '—'}</strong>
+                    </p>
+                    <label className="field mat-form-field-span-2">
+                      <span>Имя папки</span>
+                      <input
+                        className="admin-input"
+                        value={newCfcFolderName}
+                        onChange={(e) => setNewCfcFolderName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            void submitNewCfcFolder()
+                          }
+                        }}
+                        autoFocus
+                      />
+                    </label>
+                    <div className="admin-row mat-form-actions">
+                      <button
+                        type="button"
+                        className="admin-secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setCfcFolderCreateOpen(false)
+                          setCfcCreateErr(null)
+                        }}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-primary"
+                        disabled={busy}
+                        onClick={() => void submitNewCfcFolder()}
+                      >
+                        {busy ? 'Создание…' : 'Создать'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </section>
             </div>,
             document.body,
           )

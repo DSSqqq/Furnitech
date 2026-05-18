@@ -70,7 +70,7 @@ class MaterialClass(models.Model):
         verbose_name="Папка",
     )
     name = models.CharField("Наименование", max_length=255)
-    code = models.SlugField("Код", max_length=64, blank=True)
+    code = models.SlugField("Код", max_length=64, unique=True)
     external_id = models.CharField("ID 1С", max_length=64, blank=True, null=True, db_index=True)
     last_synced_at = models.DateTimeField("Синхронизирован", null=True, blank=True)
 

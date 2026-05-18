@@ -13,23 +13,19 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   createCategory,
   createMaterial,
-  createMaterialClass,
   deleteCategory,
   deleteMaterial,
-  deleteMaterialClass,
   deleteAdminUser,
   downloadMaterialsExport,
   fetchAdminUsers,
   fetchMaterial,
   fetchCategoryTree,
-  fetchMaterialClassCategoryTree,
   fetchMaterialClasses,
   fetchMaterials,
   fetchMaterialsFiltered,
   fetchUom,
   importMaterialsTable,
   patchAdminUserStaff,
-  pickDefaultMaterialClassCategoryId,
   updateCategory,
   updateMaterial,
   type AdminUserRow,
@@ -57,12 +53,19 @@ import { sortUomForSelect } from './uomSelectOrder'
 import { materialExtrasInitRelated, MaterialExtrasPanel, type RelatedItemState } from './MaterialExtrasPanel'
 import { CalculatorPage } from './CalculatorPage'
 import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
+import { MaterialClassPickModal } from './MaterialClassPickModal'
 import type { Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure } from './types'
 import './AdminApp.css'
 
 const MODAL_CLOSE_X_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
     <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
+
+const ADMIN_REFS_HAMBURGER_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M4 6h16M4 12h16M4 18h16" />
   </svg>
 )
 
@@ -375,7 +378,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [materials, setMaterials] = useState<Material[]>([])
   const [uom, setUom] = useState<UnitOfMeasure[]>([])
   const [mclasses, setMclasses] = useState<MaterialClass[]>([])
-  const [defaultMaterialClassCategoryId, setDefaultMaterialClassCategoryId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
@@ -396,11 +398,15 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const materialsExportWrapRef = useRef<HTMLDivElement>(null)
   const materialsPanelRef = useRef<HTMLDivElement>(null)
   const materialAddBtnRef = useRef<HTMLButtonElement>(null)
+  /** Откладывает одиночный клик по строке материала, чтобы двойной щелчок открыл карточку без переключения «Сопутствующие». */
+  const materialListClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const folderDragIdRef = useRef<number | null>(null)
   const [materialsImportBusy, setMaterialsImportBusy] = useState(false)
   const [materialsImportMsg, setMaterialsImportMsg] = useState<string | null>(null)
   const [materialsExportMenuOpen, setMaterialsExportMenuOpen] = useState(false)
   const [draggingFolderId, setDraggingFolderId] = useState<number | null>(null)
+  const [refsDropdownOpen, setRefsDropdownOpen] = useState(false)
+  const refsDropdownRef = useRef<HTMLDivElement>(null)
 
   const reloadTree = useCallback(() => {
     return fetchCategoryTree()
@@ -439,6 +445,42 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     })
   }, [selected, tree])
 
+  useEffect(() => {
+    return () => {
+      const t = materialListClickTimerRef.current
+      if (t != null) {
+        clearTimeout(t)
+        materialListClickTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!refsDropdownOpen) return
+    const onDoc = (e: MouseEvent) => {
+      const el = refsDropdownRef.current
+      if (el && !el.contains(e.target as Node)) setRefsDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [refsDropdownOpen])
+
+  useEffect(() => {
+    if (!refsDropdownOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setRefsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [refsDropdownOpen])
+
+  useEffect(() => {
+    setRefsDropdownOpen(false)
+  }, [section])
+
   useLayoutEffect(() => {
     if (section !== 'materials') return
     const panel = materialsPanelRef.current
@@ -470,10 +512,9 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   }, [])
 
   const loadRefs = useCallback(() => {
-    return Promise.all([fetchUom(), fetchMaterialClasses(), fetchMaterialClassCategoryTree()]).then(([u, mc, mccTree]) => {
+    return Promise.all([fetchUom(), fetchMaterialClasses()]).then(([u, mc]) => {
       setUom(sortUomForSelect(u.results))
       setMclasses(mc.results)
-      setDefaultMaterialClassCategoryId(pickDefaultMaterialClassCategoryId(mccTree))
     })
   }, [])
 
@@ -1028,57 +1069,109 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             </button>
           </div>
         </div>
-        <nav className="admin-section-tabs" role="tablist" aria-label="Разделы админки">
-          <button
-            type="button"
-            role="tab"
-            className={
-              section === 'materials' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
-            }
-            aria-selected={section === 'materials'}
-            aria-controls="admin-panel-materials"
-            id="admin-tab-materials"
-            onClick={() => nav('/materials')}
-          >
-            Материалы
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={
-              section === 'textures' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
-            }
-            aria-selected={section === 'textures'}
-            aria-controls="admin-panel-textures"
-            id="admin-tab-textures"
-            onClick={() => nav('/textures')}
-          >
-            Текстуры
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={section === 'classes' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
-            aria-selected={section === 'classes'}
-            aria-controls="admin-panel-classes"
-            id="admin-tab-classes"
-            onClick={() => nav('/classes')}
-          >
-            Классы
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={
-              section === 'calculations' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'
-            }
-            aria-selected={section === 'calculations'}
-            aria-controls="admin-panel-calculations"
-            id="admin-tab-calculations"
-            onClick={() => nav('/calculations')}
-          >
-            Формулы
-          </button>
+        <nav className="admin-section-tabs" role="navigation" aria-label="Разделы админки">
+          <div className="admin-section-tab-dropdown" ref={refsDropdownRef}>
+            <button
+              type="button"
+              className={
+                section === 'materials' ||
+                section === 'textures' ||
+                section === 'classes' ||
+                section === 'calculations'
+                  ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-trigger'
+                  : 'admin-section-tab admin-section-tab--dropdown-trigger'
+              }
+              aria-expanded={refsDropdownOpen}
+              aria-haspopup="true"
+              aria-controls="admin-refs-dropdown-panel"
+              id="admin-tab-refs-trigger"
+              onClick={() => setRefsDropdownOpen((open) => !open)}
+            >
+              {ADMIN_REFS_HAMBURGER_SVG}
+              Справочники
+            </button>
+            {refsDropdownOpen ? (
+              <div
+                id="admin-refs-dropdown-panel"
+                className="admin-section-tab-dropdown-panel"
+                role="group"
+                aria-label="Справочники"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    section === 'materials'
+                      ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-item'
+                      : 'admin-section-tab admin-section-tab--dropdown-item'
+                  }
+                  aria-selected={section === 'materials'}
+                  aria-controls="admin-panel-materials"
+                  id="admin-tab-materials"
+                  onClick={() => {
+                    setRefsDropdownOpen(false)
+                    nav('/materials')
+                  }}
+                >
+                  Материалы
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    section === 'textures'
+                      ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-item'
+                      : 'admin-section-tab admin-section-tab--dropdown-item'
+                  }
+                  aria-selected={section === 'textures'}
+                  aria-controls="admin-panel-textures"
+                  id="admin-tab-textures"
+                  onClick={() => {
+                    setRefsDropdownOpen(false)
+                    nav('/textures')
+                  }}
+                >
+                  Текстуры
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    section === 'classes'
+                      ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-item'
+                      : 'admin-section-tab admin-section-tab--dropdown-item'
+                  }
+                  aria-selected={section === 'classes'}
+                  aria-controls="admin-panel-classes"
+                  id="admin-tab-classes"
+                  onClick={() => {
+                    setRefsDropdownOpen(false)
+                    nav('/classes')
+                  }}
+                >
+                  Классы
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    section === 'calculations'
+                      ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-item'
+                      : 'admin-section-tab admin-section-tab--dropdown-item'
+                  }
+                  aria-selected={section === 'calculations'}
+                  aria-controls="admin-panel-calculations"
+                  id="admin-tab-calculations"
+                  onClick={() => {
+                    setRefsDropdownOpen(false)
+                    nav('/calculations')
+                  }}
+                >
+                  Формулы
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             role="tab"
@@ -1339,7 +1432,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         </span>
                       ))}
                     </div>
-                    <span className="mat-list-legend-gear-slot" aria-hidden />
                   </div>
                   <ul className="mat-list">
                     {materials.map((m) => {
@@ -1354,13 +1446,37 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               tabIndex={0}
                               className={rowActive ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
                               aria-current={rowActive ? 'true' : undefined}
-                              aria-label={`Сопутствующие: ${m.name || 'материал'}`}
+                              aria-label={`${m.name || 'материал'}. Щелчок — сопутствующие. Двойной щелчок или Alt+Enter — карточка.`}
+                              title="Щелчок — сопутствующие. Двойной щелчок — карточка."
                               draggable
                               onDragStart={(e) => onMaterialRowDragStart(e, m)}
                               onClick={() => {
-                                setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                                if (materialListClickTimerRef.current != null) clearTimeout(materialListClickTimerRef.current)
+                                materialListClickTimerRef.current = setTimeout(() => {
+                                  materialListClickTimerRef.current = null
+                                  setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
+                                }, 280)
+                              }}
+                              onDoubleClick={(e) => {
+                                e.preventDefault()
+                                if (materialListClickTimerRef.current != null) {
+                                  clearTimeout(materialListClickTimerRef.current)
+                                  materialListClickTimerRef.current = null
+                                }
+                                setExtrasTarget(null)
+                                setEditing(m)
                               }}
                               onKeyDown={(e) => {
+                                if (e.key === 'Enter' && e.altKey) {
+                                  e.preventDefault()
+                                  if (materialListClickTimerRef.current != null) {
+                                    clearTimeout(materialListClickTimerRef.current)
+                                    materialListClickTimerRef.current = null
+                                  }
+                                  setExtrasTarget(null)
+                                  setEditing(m)
+                                  return
+                                }
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault()
                                   setExtrasTarget((cur) => (cur?.id === m.id ? null : m))
@@ -1374,22 +1490,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               </span>
                               <span className="mat-list-cell mat-list-cell-price">{formatListBasePrice(m)}</span>
                             </div>
-                            <button
-                              type="button"
-                              className="mat-list-gear-btn"
-                              title="Открыть карточку материала"
-                              aria-label={`Карточка: ${m.name || 'материал'}`}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setExtrasTarget(null)
-                                setEditing(m)
-                              }}
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.43.992a6.575 6.575 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.37.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.871a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.213-1.281Z" />
-                                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                              </svg>
-                            </button>
                           </div>
                         </li>
                       )
@@ -1452,17 +1552,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                     key={editing === 'new' ? 'new' : (editing as Material).id}
                     uomList={uom}
                     mclassesList={mclasses}
-                    defaultMaterialClassCategoryId={defaultMaterialClassCategoryId}
-                    onMaterialClassCreated={(c) => {
-                      setMclasses((prev) => {
-                        if (prev.some((x) => x.id === c.id)) return prev
-                        return [...prev, c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-                      })
-                    }}
-                    onMaterialClassesDeleted={(ids) => {
-                      const remove = new Set(ids.map((x) => Number(x)))
-                      setMclasses((prev) => prev.filter((c) => !remove.has(c.id)))
-                    }}
                     categoryId={editing === 'new' ? (selected as number) : (editing as Material).category}
                     material={editing === 'new' ? null : editing}
                     onClose={() => setEditing(null)}
@@ -1673,15 +1762,21 @@ export function AdminApp({ user, onLogout }: AdminProps) {
 
 function normalizeMaterialClassIds(raw: number[] | undefined | null): number[] {
   if (!raw?.length) return []
-  return [...new Set(raw.map((x) => Number(x)))]
+  const xs = [...new Set(raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0))]
+  return xs.slice(0, 1)
 }
+
+function dashMaterialClassCode(code: string | undefined | null): string {
+  const t = (code ?? '').trim()
+  return t ? t : '—'
+}
+
+/** Заголовки мини-таблицы класса в карточке материала (как в «Классы»). */
+const MATERIAL_CLASS_FIELD_COLUMNS = ['Код', 'Наименование класса'] as const
 
 function MaterialForm({
   uomList,
   mclassesList,
-  defaultMaterialClassCategoryId,
-  onMaterialClassCreated,
-  onMaterialClassesDeleted,
   categoryId,
   material,
   onClose,
@@ -1690,10 +1785,6 @@ function MaterialForm({
 }: {
   uomList: UnitOfMeasure[]
   mclassesList: MaterialClass[]
-  /** Папка для новых классов из карточки материала (справочник классов). */
-  defaultMaterialClassCategoryId: number | null
-  onMaterialClassCreated: (c: MaterialClass) => void
-  onMaterialClassesDeleted: (ids: number[]) => void
   categoryId: number
   material: Material | null
   onClose: () => void
@@ -1741,13 +1832,11 @@ function MaterialForm({
   })
   const [saving, setSaving] = useState(false)
   const [localErr, setLocalErr] = useState<string | null>(null)
-  const [newClassName, setNewClassName] = useState('')
-  const [addingClass, setAddingClass] = useState(false)
-  const [classSyncPending, setClassSyncPending] = useState(false)
+  const [classPickOpen, setClassPickOpen] = useState(false)
   const [relatedItems, setRelatedItems] = useState<RelatedItemState[]>(() =>
     materialExtrasInitRelated(material)
   )
-  const matClassInputRef = useRef<HTMLInputElement>(null)
+  const matClassInputRef = useRef<HTMLDivElement>(null)
   const matClassRowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -1783,7 +1872,7 @@ function MaterialForm({
       ro.disconnect()
       window.removeEventListener('resize', syncMatClassBtnSize)
     }
-  }, [syncMatClassBtnSize, newClassName, addingClass, classSyncPending])
+  }, [syncMatClassBtnSize, form.material_class_ids])
 
   const setField = (k: string, v: unknown) => {
     setForm((f) => ({ ...f, [k]: v }))
@@ -1831,100 +1920,32 @@ function MaterialForm({
     applyRoundingMultipleFromString(String(form.rounding_multiple ?? ''))
   }
 
-  const toggleClass = (id: number) => {
-    const pid = Number(id)
-    setForm((f) => {
-      const cur = f.material_class_ids
-      const next = cur.includes(pid) ? cur.filter((x) => x !== pid) : [...cur, pid]
-      return { ...f, material_class_ids: next }
-    })
+  const selectedMaterialClassId = form.material_class_ids[0] ?? null
+  const selectedMaterialClass =
+    selectedMaterialClassId != null
+      ? mclassesList.find((x) => Number(x.id) === Number(selectedMaterialClassId))
+      : null
+
+  const previewCode =
+    selectedMaterialClass != null
+      ? dashMaterialClassCode(selectedMaterialClass.code)
+      : selectedMaterialClassId != null
+        ? '—'
+        : '—'
+  const previewName =
+    selectedMaterialClass != null
+      ? selectedMaterialClass.name
+      : selectedMaterialClassId != null
+        ? `#${selectedMaterialClassId}`
+        : 'Нажмите +'
+  const previewRowEmpty = selectedMaterialClassId == null
+  const clearMaterialClassSelection = () => {
+    setForm((f) => ({ ...f, material_class_ids: [] }))
   }
 
-  const addClassFromInput = () => {
-    const name = newClassName.trim()
-    if (!name) return
-    const existing = mclassesList.find(
-      (x) => x.name.toLowerCase() === name.toLowerCase()
-    )
-    if (existing) {
-      const eid = Number(existing.id)
-      setForm((f) => {
-        if (f.material_class_ids.includes(eid)) return f
-        return { ...f, material_class_ids: [...f.material_class_ids, eid] }
-      })
-      setNewClassName('')
-      return
-    }
-    setAddingClass(true)
-    setLocalErr(null)
-    if (defaultMaterialClassCategoryId == null) {
-      setLocalErr('Не найдена папка классов по умолчанию. Обновите страницу или проверьте API папок классов.')
-      setAddingClass(false)
-      return
-    }
-    createMaterialClass({ name, category: defaultMaterialClassCategoryId })
-      .then((c) => {
-        onMaterialClassCreated(c)
-        const cid = Number(c.id)
-        setForm((f) => {
-          if (f.material_class_ids.includes(cid)) return f
-          return { ...f, material_class_ids: [...f.material_class_ids, cid] }
-        })
-        setNewClassName('')
-      })
-      .catch((e) => setLocalErr(String(e)))
-      .finally(() => setAddingClass(false))
-  }
+  const canUseRemoveClassBtn = form.material_class_ids.length > 0
 
-  /**
-   * «−»: удалить из справочника **все отмеченные** классы (DELETE /api/material-classes/…);
-   * связи M2M с материалами снимаются; при открытой сохранённой карточке — перезагрузка материала.
-   * Если нет отмеченных — очистить поле ввода.
-   */
-  const removeClassSelectionOrClearInput = () => {
-    if (form.material_class_ids.length > 0) {
-      if (
-        !window.confirm(
-          'Удалить отмеченные классы из справочника? Они пропадут и у других материалов, где были выбраны.'
-        )
-      ) {
-        return
-      }
-      const ids = [...form.material_class_ids]
-      setClassSyncPending(true)
-      setLocalErr(null)
-      Promise.all(ids.map((id) => deleteMaterialClass(id)))
-        .then(() => {
-          onMaterialClassesDeleted(ids)
-        })
-        .then(() => (material ? fetchMaterial(material.id) : undefined))
-        .then((m) => {
-          if (m) {
-            onSaved(m)
-            setForm((f) => ({
-              ...f,
-              material_class_ids: normalizeMaterialClassIds(m.material_class_ids),
-            }))
-          } else {
-            setForm((f) => ({ ...f, material_class_ids: [] }))
-          }
-        })
-        .catch((e) => setLocalErr(String(e)))
-        .finally(() => setClassSyncPending(false))
-      return
-    }
-    setNewClassName('')
-  }
-
-  const canUseRemoveClassBtn =
-    !classSyncPending &&
-    !addingClass &&
-    (form.material_class_ids.length > 0 || newClassName.trim().length > 0)
-
-  const removeBtnTitle =
-    form.material_class_ids.length > 0
-      ? 'Удалить отмеченные классы из справочника'
-      : 'Очистить поле ввода'
+  const removeBtnTitle = 'Снять класс с материала'
 
   const save = () => {
     if (!uomList.length) {
@@ -2032,7 +2053,7 @@ function MaterialForm({
           className="admin-primary admin-modal-head-icon-close"
           aria-label="Закрыть"
           title="Закрыть"
-          disabled={saving || classSyncPending}
+          disabled={saving}
           onClick={onClose}
         >
           {MODAL_CLOSE_X_SVG}
@@ -2092,64 +2113,64 @@ function MaterialForm({
           </label>
 
           <div className="mat-form-field-span-2 field">
-            <div className="field-label-row">
-              <span>Классы материала</span>
-              <HintButton text="«+» — новый класс в справочнике. «−» — удалить отмеченные галочками классы из справочника (и у других материалов). Без отметок — очищает поле ввода." />
-            </div>
-            <div className="field-row mat-class-input-row" ref={matClassRowRef}>
-              <div className="field-half mat-class-input-wrap">
-                <input
-                  ref={matClassInputRef}
-                  className="admin-input"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                  placeholder="Новый класс (например, премиум)"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addClassFromInput()
-                    }
-                  }}
-                  disabled={addingClass || classSyncPending}
-                  aria-label="Новый класс материала"
-                />
-              </div>
-              <div className="mat-class-ctrls" aria-label="Добавить или очистить класс">
-                <button
-                  type="button"
-                  className="mat-class-ctrl mat-class-ctrl--add"
-                  onClick={addClassFromInput}
-                  disabled={addingClass || classSyncPending || !newClassName.trim()}
-                  title="Добавить класс"
-                  aria-label="Добавить класс"
-                  aria-busy={addingClass}
+            <span>Класс материала</span>
+            <div className="mat-class-input-row" ref={matClassRowRef}>
+              <div className="mat-class-input-wrap">
+                <div
+                  className="mat-list-table mat-class-pick-preview"
+                  aria-label="Класс материала: код и наименование"
                 >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="mat-class-ctrl mat-class-ctrl--remove"
-                  onClick={removeClassSelectionOrClearInput}
-                  disabled={!canUseRemoveClassBtn}
-                  title={removeBtnTitle}
-                  aria-label={removeBtnTitle}
-                  aria-busy={classSyncPending}
-                >
-                  −
-                </button>
+                  <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+                    <div className="mat-list-legend" role="presentation">
+                      {MATERIAL_CLASS_FIELD_COLUMNS.map((label) => (
+                        <span key={label} role="columnheader">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mat-class-preview-ctrl-row">
+                    <div
+                      ref={matClassInputRef}
+                      className={
+                        previewRowEmpty
+                          ? 'mat-list-row mat-class-pick-preview-row mat-class-pick-preview-row--empty'
+                          : 'mat-list-row mat-class-pick-preview-row'
+                      }
+                      role="status"
+                      aria-label={
+                        previewRowEmpty
+                          ? 'Класс не выбран. Нажмите плюс для выбора из справочника.'
+                          : `Выбранный класс: ${previewCode} ${previewName}`
+                      }
+                    >
+                      <span className="mat-list-cell mat-list-cell-article">{previewCode}</span>
+                      <span className="mat-list-cell mat-list-cell-name">{previewName}</span>
+                    </div>
+                    <div className="mat-class-ctrls" aria-label="Выбор из справочника или снятие класса">
+                      <button
+                        type="button"
+                        className="mat-class-ctrl mat-class-ctrl--add"
+                        onClick={() => setClassPickOpen(true)}
+                        title="Выбрать класс из справочника"
+                        aria-label="Выбрать класс из справочника"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="mat-class-ctrl mat-class-ctrl--remove"
+                        onClick={clearMaterialClassSelection}
+                        disabled={!canUseRemoveClassBtn}
+                        title={removeBtnTitle}
+                        aria-label={removeBtnTitle}
+                      >
+                        −
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="chips">
-              {mclassesList.map((c) => (
-                <label key={c.id} className="chip">
-                  <input
-                    type="checkbox"
-                    checked={form.material_class_ids.includes(Number(c.id))}
-                    onChange={() => toggleClass(c.id)}
-                  />
-                  {c.name}
-                </label>
-              ))}
             </div>
           </div>
 
@@ -2339,7 +2360,7 @@ function MaterialForm({
               <button
                 type="button"
                 className="admin-secondary admin-danger"
-                disabled={saving || classSyncPending}
+                disabled={saving}
                 onClick={() => setMaterialDeleteOpen(true)}
               >
                 Удалить
@@ -2348,7 +2369,7 @@ function MaterialForm({
             <button
               type="button"
               className="admin-primary"
-              disabled={saving || classSyncPending}
+              disabled={saving}
               onClick={save}
             >
               {saving ? 'Сохранение…' : 'Сохранить'}
@@ -2499,7 +2520,7 @@ function MaterialForm({
                   <button
                     type="button"
                     className="admin-secondary admin-danger"
-                    disabled={saving || classSyncPending}
+                    disabled={saving}
                     onClick={() => setMaterialDeleteOpen(true)}
                   >
                     Удалить
@@ -2508,7 +2529,7 @@ function MaterialForm({
                 <button
                   type="button"
                   className="admin-primary"
-                  disabled={saving || classSyncPending}
+                  disabled={saving}
                   onClick={save}
                 >
                   {saving ? 'Сохранение…' : 'Сохранить'}
@@ -2572,6 +2593,22 @@ function MaterialForm({
         }}
       />
     )}
+    {classPickOpen ? (
+      <MaterialClassPickModal
+        title="Класс материала"
+        closeOnPick={false}
+        selectedClassIds={form.material_class_ids}
+        onClose={() => setClassPickOpen(false)}
+        onPick={(c) => {
+          const id = Number(c.id)
+          setForm((f) => {
+            const cur = f.material_class_ids[0]
+            if (cur === id) return { ...f, material_class_ids: [] }
+            return { ...f, material_class_ids: [id] }
+          })
+        }}
+      />
+    ) : null}
     </>
   )
 }

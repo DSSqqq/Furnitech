@@ -3,6 +3,7 @@ import json
 
 from django.db import IntegrityError
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 
 from .media_urls import absolute_media_url
 from .models import (
@@ -40,9 +41,36 @@ class MaterialClassCategorySerializer(serializers.ModelSerializer):
 
 
 class MaterialClassSerializer(serializers.ModelSerializer):
+    code = serializers.SlugField(
+        max_length=64,
+        validators=[
+            UniqueValidator(
+                queryset=MaterialClass.objects.all(),
+                message="Класс с таким кодом уже существует.",
+            )
+        ],
+    )
+
     class Meta:
         model = MaterialClass
         fields = ("id", "category", "name", "code", "external_id", "last_synced_at")
+
+    def validate(self, attrs):
+        partial = getattr(self, "partial", False)
+        if partial and "code" not in attrs:
+            return attrs
+        raw = attrs.get("code", "")
+        if not isinstance(raw, str) or not raw.strip():
+            raise serializers.ValidationError({"code": "Укажите код класса."})
+        code = raw.strip()
+        attrs["code"] = code
+        qs = MaterialClass.objects.filter(code__iexact=code)
+        inst = getattr(self, "instance", None)
+        if inst is not None and getattr(inst, "pk", None):
+            qs = qs.exclude(pk=inst.pk)
+        if qs.exists():
+            raise serializers.ValidationError({"code": "Класс с таким кодом уже существует."})
+        return attrs
 
 
 class CalculationFormulaCategorySerializer(serializers.ModelSerializer):
@@ -74,7 +102,7 @@ class CalculationFormulaSerializer(serializers.ModelSerializer):
             return []
         if not isinstance(value, list):
             raise serializers.ValidationError("Ожидается массив токенов.")
-        valid_ops = {"+", "-", "*", "/", "(", ")"}
+        valid_ops = {"+", "-", "*", "/", "(", ")", "="}
         class_ids: list[int] = []
         for token in value:
             if not isinstance(token, dict):

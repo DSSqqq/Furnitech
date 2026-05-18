@@ -32,7 +32,7 @@ export type CalculationFormulaCategory = {
 
 export type CalculationFormulaToken =
   | { type: 'class'; class_id: number; label?: string }
-  | { type: 'op'; value: '+' | '-' | '*' | '/' | '(' | ')' }
+  | { type: 'op'; value: '+' | '-' | '*' | '/' | '(' | ')' | '=' }
   | { type: 'number'; value: string }
 
 export type CalculationFormula = {
