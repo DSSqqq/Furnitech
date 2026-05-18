@@ -300,15 +300,17 @@ export function MaterialClassPickerBody({
 
   useEffect(() => {
     if (searchActive) return
+    if (selectedId == null) {
+      setClasses(allClasses)
+      setLoadingClasses(allClasses.length === 0)
+      return
+    }
     let cancelled = false
     setLoadingClasses(true)
-    const p =
-      selectedId == null
-        ? fetchMaterialClasses()
-        : fetchMaterialClasses({ category: selectedId, subtree: true })
-    p.then((r) => {
-      if (!cancelled) setClasses(r.results ?? [])
-    })
+    fetchMaterialClasses({ category: selectedId, subtree: true })
+      .then((r) => {
+        if (!cancelled) setClasses(r.results ?? [])
+      })
       .catch(() => {
         if (!cancelled) setClasses([])
       })
@@ -318,7 +320,7 @@ export function MaterialClassPickerBody({
     return () => {
       cancelled = true
     }
-  }, [selectedId, searchActive])
+  }, [selectedId, searchActive, allClasses])
 
   useEffect(() => {
     if (selectedId != null) setMccRootExpanded(true)
