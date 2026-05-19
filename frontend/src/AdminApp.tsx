@@ -35,6 +35,7 @@ import { AdminOrdersPanel } from './AdminOrdersPanel'
 import { AdminCalculationsPanel } from './AdminCalculationsPanel'
 import { AdminMaterialClassesPanel } from './AdminMaterialClassesPanel'
 import { AdminTexturesPanel } from './AdminTexturesPanel'
+import { AdminUomPanel } from './AdminUomPanel'
 import { FolderCreateModal } from './FolderCreateModal'
 import { DND_FOLDER, DND_MATERIAL, isFolderDrag, isMaterialDrag } from './folderMoveDnD'
 import type { Me } from './auth'
@@ -54,7 +55,7 @@ import { materialExtrasInitRelated, MaterialExtrasPanel, type RelatedItemState }
 import { CalculatorPage } from './CalculatorPage'
 import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
 import { MaterialClassPickModal } from './MaterialClassPickModal'
-import type { Material, MaterialCategory, MaterialClass, RoundingMode, UnitOfMeasure } from './types'
+import type { Material, MaterialCategory, MaterialClass, PricingCalcMode, RoundingMode, UnitOfMeasure } from './types'
 import './AdminApp.css'
 
 const MODAL_CLOSE_X_SVG = (
@@ -360,7 +361,7 @@ function formatListBasePrice(m: Material) {
 export function AdminApp({ user, onLogout }: AdminProps) {
   const nav = useNavigate()
   const loc = useLocation()
-  const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'classes' | 'calculations' | 'users' = (() => {
+  const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'classes' | 'calculations' | 'users' | 'uom' = (() => {
     const p = (loc.pathname || '/materials').toLowerCase()
     if (p.startsWith('/calculator')) return 'calculator'
     if (p.startsWith('/classes')) return 'classes'
@@ -368,6 +369,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     if (p.startsWith('/orders')) return 'orders'
     if (p.startsWith('/users')) return 'users'
     if (p.startsWith('/textures')) return 'textures'
+    if (p.startsWith('/uom')) return 'uom'
     return 'materials'
   })()
   const [tree, setTree] = useState<MaterialCategory[]>([])
@@ -1077,6 +1079,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 section === 'materials' ||
                 section === 'textures' ||
                 section === 'classes' ||
+                section === 'uom' ||
                 section === 'calculations'
                   ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-trigger'
                   : 'admin-section-tab admin-section-tab--dropdown-trigger'
@@ -1150,6 +1153,24 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   }}
                 >
                   Классы
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={
+                    section === 'uom'
+                      ? 'admin-section-tab admin-section-tab--active admin-section-tab--dropdown-item'
+                      : 'admin-section-tab admin-section-tab--dropdown-item'
+                  }
+                  aria-selected={section === 'uom'}
+                  aria-controls="admin-panel-uom"
+                  id="admin-tab-uom"
+                  onClick={() => {
+                    setRefsDropdownOpen(false)
+                    nav('/uom')
+                  }}
+                >
+                  Ед. изм.
                 </button>
                 <button
                   type="button"
@@ -1588,6 +1609,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         </div>
       ) : section === 'classes' ? (
         <AdminMaterialClassesPanel />
+      ) : section === 'uom' ? (
+        <AdminUomPanel />
       ) : section === 'calculations' ? (
         <AdminCalculationsPanel />
       ) : section === 'orders' ? (
@@ -1774,6 +1797,12 @@ function dashMaterialClassCode(code: string | undefined | null): string {
 /** Заголовки мини-таблицы класса в карточке материала (как в «Классы»). */
 const MATERIAL_CLASS_FIELD_COLUMNS = ['Код', 'Наименование класса'] as const
 
+const PRICING_CALC_FLAGS: { mode: Exclude<PricingCalcMode, ''>; label: string }[] = [
+  { mode: 'linear', label: 'Погонаж' },
+  { mode: 'sheet', label: 'Лист' },
+  { mode: 'piece', label: 'Штуки' },
+]
+
 function MaterialForm({
   uomList,
   mclassesList,
@@ -1793,6 +1822,8 @@ function MaterialForm({
 }) {
   const materialUomSelectId = useId().replace(/:/g, '')
   const [activeTab, setActiveTab] = useState<'general' | 'texture'>('general')
+  const [uomOptions, setUomOptions] = useState<UnitOfMeasure[]>(() => sortUomForSelect(uomList))
+  const [uomLoading, setUomLoading] = useState(uomList.length === 0)
   const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
   const [texturePickerOpen, setTexturePickerOpen] = useState(false)
   const [textureLibraryItemId, setTextureLibraryItemId] = useState<number | null>(
@@ -1816,6 +1847,7 @@ function MaterialForm({
     max_length: formatDecimalStringForInput(String(material?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
     min_width: formatDecimalStringForInput(String((material as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
     max_width: formatDecimalStringForInput(String(material?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
+    pricing_calc_mode: (material?.pricing_calc_mode ?? '') as PricingCalcMode,
 
     texture_mode: (material?.texture_mode ?? 'texture') as string,
     texture_color: material?.texture_color ?? '#ffffff',
@@ -1838,6 +1870,31 @@ function MaterialForm({
   )
   const matClassInputRef = useRef<HTMLDivElement>(null)
   const matClassRowRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setUomLoading(true)
+    fetchUom()
+      .then((r) => {
+        if (cancelled) return
+        const sorted = sortUomForSelect(r.results ?? [])
+        setUomOptions(sorted)
+        setForm((prev) => {
+          const ids = new Set(sorted.map((u) => u.id))
+          if (prev.uom_id && ids.has(prev.uom_id)) return prev
+          return { ...prev, uom_id: sorted[0]?.id ?? 0 }
+        })
+      })
+      .catch((e) => {
+        if (!cancelled) setLocalErr(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setUomLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!materialDeleteOpen) return
@@ -1947,9 +2004,16 @@ function MaterialForm({
 
   const removeBtnTitle = 'Снять класс с материала'
 
+  const togglePricingCalcMode = (mode: Exclude<PricingCalcMode, ''>) => {
+    setForm((f) => ({
+      ...f,
+      pricing_calc_mode: f.pricing_calc_mode === mode ? '' : mode,
+    }))
+  }
+
   const save = () => {
-    if (!uomList.length) {
-      setLocalErr('Сначала создайте единицы измерения в django-admin (/admin/django/).')
+    if (!uomOptions.length) {
+      setLocalErr('Сначала добавьте единицы измерения в справочнике «Ед. изм.».')
       return
     }
     setSaving(true)
@@ -1984,6 +2048,7 @@ function MaterialForm({
       max_length: commitDecimalForApi(form.max_length),
       min_width: commitDecimalForApi((form as any).min_width),
       max_width: commitDecimalForApi(form.max_width),
+      pricing_calc_mode: form.pricing_calc_mode || '',
       texture_mode: form.texture_mode,
       texture_color: form.texture_color,
       tex_offset_x: commitDecimalForApi(form.tex_offset_x),
@@ -2046,7 +2111,6 @@ function MaterialForm({
           <h3 id="material-card-dialog-title" className="admin-h2">
             {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
           </h3>
-          <HintButton text="Общие параметры и габариты — на первой вкладке; текстура и превью — «Параметры текстуры». Сопутствующие материалы — по клику на строку в списке (панель внизу)." />
         </div>
         <button
           type="button"
@@ -2182,9 +2246,11 @@ function MaterialForm({
               <FtSelect
                 id={materialUomSelectId}
                 compact
+                disabled={uomLoading || uomOptions.length === 0}
+                placeholder={uomLoading ? 'Загрузка…' : '—'}
                 value={String(form.uom_id)}
                 onChange={(v) => setField('uom_id', Number(v))}
-                options={uomList.map((u) => ({
+                options={uomOptions.map((u) => ({
                   value: String(u.id),
                   label: `${u.short_name || u.name} (${u.name})`,
                 }))}
@@ -2208,12 +2274,7 @@ function MaterialForm({
 
           <div className="mat-form-field-span-2 mat-form-price-round-row">
             <label className="field mat-form-price-col">
-              <div className="field-label-row">
-                <span>Цена за ед., тенге *</span>
-                <HintButton
-                  text={`${BASE_CURRENCY} (тенге) — фиксирована; смена базовой валюты не предусмотрена.`}
-                />
-              </div>
+              <span>Цена за ед., тенге *</span>
               <input
                 className="admin-input"
                 type="text"
@@ -2345,15 +2406,33 @@ function MaterialForm({
             />
           </label>
 
-          <label className="field mat-form-field-span-2">
-            <span>Примечание</span>
-            <textarea
-              className="admin-input"
-              rows={3}
-              value={form.note}
-              onChange={(e) => setField('note', e.target.value)}
-            />
-          </label>
+          <div className="mat-form-field-span-2 mat-form-note-calc-row">
+            <label className="field mat-form-note-col">
+              <span>Примечание</span>
+              <textarea
+                className="admin-input mat-form-note-input"
+                autoComplete="off"
+                rows={1}
+                value={form.note}
+                onChange={(e) => setField('note', e.target.value)}
+              />
+            </label>
+            <div className="field mat-form-calc-flags-col">
+              <span>Расчёт</span>
+              <div className="mat-form-calc-flags-column" role="group" aria-label="Режим расчёта количества">
+                {PRICING_CALC_FLAGS.map(({ mode, label }) => (
+                  <label key={mode} className="mat-form-rounding-check-wrap">
+                    <input
+                      type="checkbox"
+                      checked={form.pricing_calc_mode === mode}
+                      onChange={() => togglePricingCalcMode(mode)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
           <div className="admin-row mat-form-actions">
             {material && (

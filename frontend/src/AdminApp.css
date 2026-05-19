@@ -141,29 +141,31 @@
 .admin-section-tab--dropdown-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: calc(0.45rem * var(--admin-refs-scale));
+  font-size: calc(0.88rem * var(--admin-refs-scale));
+  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.75rem * var(--admin-refs-scale));
 }
 
 .admin-section-tab--dropdown-trigger svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: calc(1.05rem * var(--admin-refs-scale));
+  height: calc(1.05rem * var(--admin-refs-scale));
   flex-shrink: 0;
 }
 
 .admin-section-tab-dropdown-panel {
   position: absolute;
-  top: calc(100% + 0.35rem);
+  top: calc(100% + 0.35rem * var(--admin-refs-scale));
   left: 0;
-  min-width: 11.5rem;
-  padding: 0.35rem;
-  border-radius: 12px;
+  min-width: calc(11.5rem * var(--admin-refs-scale));
+  padding: calc(0.35rem * var(--admin-refs-scale));
+  border-radius: calc(12px * var(--admin-refs-scale));
   border: 1px solid var(--ft-border);
   background: rgba(14, 14, 16, 0.98);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
   z-index: 300;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: calc(0.15rem * var(--admin-refs-scale));
   box-sizing: border-box;
 }
 
@@ -171,8 +173,10 @@
   width: 100%;
   justify-content: flex-start;
   text-align: left;
-  border-radius: 10px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-sizing: border-box;
+  font-size: calc(0.88rem * var(--admin-refs-scale));
+  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.75rem * var(--admin-refs-scale));
 }
 
 .admin-orders-placeholder {
@@ -600,7 +604,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 1rem;
-  row-gap: 0.4rem;
+  row-gap: 0.28rem;
   align-items: start;
 }
 
@@ -617,12 +621,12 @@
 }
 
 .admin-modal--material-card .mat-form-head {
-  gap: 0.45rem;
-  margin-bottom: 0.35rem;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
 }
 
 .admin-modal--material-card .mat-form-tabs {
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.3rem;
 }
 
 .admin-modal--material-card .mat-form-split-2 {
@@ -641,7 +645,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: auto auto;
   column-gap: 1rem;
-  row-gap: 0.25rem;
+  row-gap: 0.12rem;
 }
 
 .admin-modal--material-card .mat-form-uom-label-cell {
@@ -753,6 +757,43 @@
   border-color: var(--ft-border);
 }
 
+.admin-modal--material-card .mat-form-note-calc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.admin-modal--material-card .mat-form-note-calc-row > .field {
+  margin-bottom: 0;
+  min-width: 0;
+  gap: 0.08rem;
+  min-height: 0;
+}
+
+.admin-modal--material-card .mat-form-note-col.field {
+  align-self: stretch;
+}
+
+.admin-modal--material-card .mat-form-note-input.admin-input {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
+  height: auto;
+  resize: none;
+}
+
+.admin-modal--material-card .mat-form-calc-flags-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.admin-modal--material-card .mat-form-calc-flags-column .mat-form-rounding-check-wrap {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 520px) {
   .admin-modal--material-card .mat-form-uom-texture-row {
     grid-template-columns: 1fr;
@@ -786,6 +827,10 @@
 
   .admin-modal--material-card .mat-form-rounding-inline {
     flex-wrap: wrap;
+  }
+
+  .admin-modal--material-card .mat-form-note-calc-row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1307,15 +1352,12 @@
 
 /* Список материалов в модалке «Сопутствующий» — те же колонки и плотность, что у #admin-panel-materials .mat-list-row */
 .material-related-pick-mat-list {
-  --mat-scroll-fs: 0.625rem;
-  --mat-scroll-lh: 1.05;
-  --mat-scroll-ls: 0.02em;
   min-width: 0;
 }
 
 .material-related-pick-mat-list .mat-list-item-inner--legend {
   grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 0.03rem;
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
 }
 
 .material-related-pick-mat-list .mat-list-item-inner--legend .mat-list-legend {
@@ -1324,7 +1366,7 @@
 
 .material-related-pick-mat-list .mat-list-legend,
 .material-related-pick-mat-list .mat-list-row {
-  gap: 0.15rem 0.45rem;
+  gap: calc(0.15rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
   align-items: center;
 }
 
@@ -1377,9 +1419,6 @@
 
 /* Модалка «Класс для формулы» — сетка как вкладка «Классы» (Код + наименование) */
 .material-class-pick-mat-list {
-  --mat-scroll-fs: 0.625rem;
-  --mat-scroll-lh: 1.05;
-  --mat-scroll-ls: 0.02em;
   min-width: 0;
 }
 
@@ -1406,8 +1445,8 @@
 .material-class-pick-mat-list .mat-list-legend,
 .material-class-pick-mat-list .mat-list-row {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 0.95fr) minmax(6rem, 2fr);
-  gap: 0.15rem 0.45rem;
+  grid-template-columns: minmax(calc(4.5rem * var(--admin-refs-scale)), 0.95fr) minmax(calc(6rem * var(--admin-refs-scale)), 2fr);
+  gap: calc(0.15rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
   align-items: center;
 }
 
@@ -2179,40 +2218,101 @@ button.admin-primary.admin-modal-confirm:hover {
   align-items: stretch;
 }
 
-/* Материалы и классы: без правой колонки — список шире; общий кегль колонок */
+/* Справочники: общий кегль и плотность колонок (+30%) */
 #admin-panel-materials.admin-body,
-#admin-panel-classes.admin-body {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  --mat-scroll-fs: 0.625rem;
-  --mat-scroll-lh: 1.05;
-  --mat-scroll-ls: 0.02em;
-  /* Мин. ширина «+ Материал» / «+ Класс» */
-  --admin-mat-add-btn-min-w: 5.35rem;
-}
-
+#admin-panel-textures.admin-body,
+#admin-panel-classes.admin-body,
+#admin-panel-uom.admin-body,
 #admin-panel-calculations.admin-body {
-  --mat-scroll-fs: 0.625rem;
+  --mat-scroll-fs: var(--admin-refs-fs);
   --mat-scroll-lh: 1.05;
   --mat-scroll-ls: 0.02em;
+  --admin-mat-add-btn-min-w: var(--admin-refs-btn-min-w);
 }
 
-/* Модалка редактирования формулы: те же кегль/плотность, что у вкладки «Расчёты» */
-.admin-calculations-modal-surface {
-  --mat-scroll-fs: 0.625rem;
+#admin-panel-materials.admin-body,
+#admin-panel-textures.admin-body,
+#admin-panel-classes.admin-body {
+  grid-template-columns: minmax(var(--admin-refs-aside-min), var(--admin-refs-aside-max)) minmax(0, 1fr);
+}
+
+#admin-panel-uom.admin-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Модалки справочников (portal → body): дублируем vars и скругление полей/кнопок */
+.admin-calculations-modal-surface,
+.material-related-pick-mat-list,
+.material-class-pick-mat-list {
+  --admin-refs-scale: 1.3;
+  --admin-refs-fs: calc(0.625rem * var(--admin-refs-scale));
+  --admin-refs-btn-min-w: calc(5.35rem * var(--admin-refs-scale));
+  --admin-refs-control-radius: calc(3px * var(--admin-refs-scale));
+  --mat-scroll-fs: var(--admin-refs-fs);
   --mat-scroll-lh: 1.05;
   --mat-scroll-ls: 0.02em;
+  --admin-mat-add-btn-min-w: var(--admin-refs-btn-min-w);
+}
+
+/* Модалки справочников: скругление полей и кнопок — как у .mat-list-row в списках */
+.admin-calculations-modal-surface .admin-input,
+.admin-calculations-modal-surface textarea.admin-input,
+.admin-calculations-modal-surface select.admin-input,
+.admin-calculations-modal-surface .ft-select--compact .ft-select-trigger,
+.admin-calculations-modal-surface .mat-form-title-line .mat-form-title-input,
+.admin-calculations-modal-surface .admin-calculations-output,
+.admin-calculations-modal-surface .admin-calculations-number.admin-input,
+.admin-calculations-modal-surface .mat-form-actions .admin-primary,
+.admin-calculations-modal-surface .mat-form-actions .admin-secondary,
+.admin-calculations-modal-surface .tex-layout .admin-secondary,
+.admin-calculations-modal-surface .admin-primary.admin-calculations-icon-btn,
+.admin-calculations-modal-surface .admin-calculations-formula-insert-number.admin-primary,
+.admin-calculations-modal-surface .admin-calculations-formula-class-remove.admin-calculations-icon-btn,
+.admin-calculations-modal-surface .admin-calculations-keypad-key,
+.admin-calculations-modal-surface .admin-calculations-section-classes > button.admin-primary,
+.admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary,
+.admin-calculations-modal-surface .mat-form-rounding-mult-input,
+.admin-calculations-modal-surface .admin-calculations-formula-class-remove,
+.admin-calculations-modal-surface .mat-list-row,
+.admin-calculations-modal-surface .mat-class-pick-preview-row {
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+}
+
+.admin-calculations-modal-surface .ft-select--compact .ft-select-menu {
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
 }
 
 /* Карточка материала (модалка): подписи, поля, вкладки и вспомогательные кнопки — как у модалки формулы */
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel {
-  column-gap: 1rem;
-  row-gap: 0.55rem;
+  column-gap: calc(1rem * var(--admin-refs-scale));
+  row-gap: calc(0.28rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel > label.field,
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel > .field {
-  gap: 0.12rem;
+  gap: calc(0.08rem * var(--admin-refs-scale));
   margin-bottom: 0;
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-class-input-row {
+  margin-top: 0;
+  margin-bottom: calc(0.18rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-field-span-2.field {
+  gap: 0;
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-field-span-2.field > span {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  color: var(--ft-muted);
+  margin-bottom: calc(0.04rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-actions {
+  margin-top: calc(0.28rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel label.field > span:first-child,
@@ -2227,34 +2327,75 @@ button.admin-primary.admin-modal-confirm:hover {
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel .admin-input,
 .admin-calculations-modal-surface.admin-material-card-dialog .tex-layout .field .admin-input {
-  padding: 0.12rem 0.38rem;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
   min-height: 0;
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel textarea.admin-input {
-  min-height: 4.25rem;
-  padding: 0.28rem 0.38rem;
+  min-height: calc(4.25rem * var(--admin-refs-scale));
+  padding: calc(0.28rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-note-input.admin-input {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
+  height: auto;
+  resize: none;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab-panel textarea.mat-form-note-input.admin-input {
+  min-height: 0;
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-note-calc-row {
+  column-gap: calc(1rem * var(--admin-refs-scale));
+  row-gap: calc(0.28rem * var(--admin-refs-scale));
+  align-items: stretch;
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-note-calc-row > .field {
+  gap: calc(0.08rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-calc-flags-col > span,
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-note-col > span {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  color: var(--ft-muted);
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-calc-flags-column {
+  gap: calc(0.12rem * var(--admin-refs-scale));
+}
+
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-form-calc-flags-column .mat-form-rounding-check-wrap span {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-form-tab {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  padding: 0.32rem 0.55rem 0.38rem;
+  padding: calc(0.32rem * var(--admin-refs-scale)) calc(0.55rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .ft-select--compact .ft-select-trigger {
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  padding: 0.12rem 1.65rem 0.12rem 0.38rem;
-  background-position: right 0.38rem center;
-  background-size: 0.82rem 0.82rem;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(1.65rem * var(--admin-refs-scale)) calc(0.12rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
+  background-position: right calc(0.38rem * var(--admin-refs-scale)) center;
+  background-size: calc(0.82rem * var(--admin-refs-scale)) calc(0.82rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .ft-select--compact .ft-select-menu {
@@ -2267,7 +2408,6 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-class-ctrl {
-  border-radius: 4px;
   box-shadow: none;
   font-size: var(--mat-scroll-fs);
   font-weight: 700;
@@ -2292,12 +2432,12 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .tex-layout .admin-secondary {
-  padding: 0.1rem 0.45rem;
+  padding: calc(0.1rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 
@@ -2313,16 +2453,18 @@ button.admin-primary.admin-modal-confirm:hover {
   letter-spacing: var(--mat-scroll-ls);
 }
 
-/* Папки (материалы / классы): левая колонка — тот же кегль, что у списка */
+/* Папки (материалы / классы / текстуры / формулы): левая колонка — тот же кегль, что у списка */
 #admin-panel-materials .admin-aside .admin-heading-row,
+#admin-panel-textures .admin-aside .admin-heading-row,
 #admin-panel-classes .admin-aside .admin-heading-row,
 #admin-panel-calculations .admin-aside .admin-heading-row {
-  margin: 0 0 0.35rem;
-  gap: 0.25rem;
+  margin: 0 0 calc(0.35rem * var(--admin-refs-scale));
+  gap: calc(0.25rem * var(--admin-refs-scale));
   align-items: center;
 }
 
 #admin-panel-materials .admin-aside .admin-heading-row .admin-h2,
+#admin-panel-textures .admin-aside .admin-heading-row .admin-h2,
 #admin-panel-classes .admin-aside .admin-heading-row .admin-h2,
 #admin-panel-calculations .admin-aside .admin-heading-row .admin-h2 {
   margin: 0;
@@ -2332,34 +2474,38 @@ button.admin-primary.admin-modal-confirm:hover {
   font-weight: 600;
 }
 
-#admin-panel-materials .admin-aside .hint-btn {
-  width: 1rem;
-  height: 1rem;
-  min-width: 1rem;
-  min-height: 1rem;
-  font-size: 0.52rem;
+#admin-panel-materials .admin-aside .hint-btn,
+#admin-panel-textures .admin-aside .hint-btn {
+  width: calc(1rem * var(--admin-refs-scale));
+  height: calc(1rem * var(--admin-refs-scale));
+  min-width: calc(1rem * var(--admin-refs-scale));
+  min-height: calc(1rem * var(--admin-refs-scale));
+  font-size: calc(0.52rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-folder-toolbar,
+#admin-panel-textures .admin-folder-toolbar,
 #admin-panel-classes .admin-folder-toolbar,
 #admin-panel-calculations .admin-folder-toolbar {
-  gap: 0.22rem;
-  margin-bottom: 0.35rem;
+  gap: calc(0.22rem * var(--admin-refs-scale));
+  margin-bottom: calc(0.35rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-folder-toolbar-btn,
+#admin-panel-textures .admin-folder-toolbar-btn,
 #admin-panel-classes .admin-folder-toolbar-btn,
 #admin-panel-calculations .admin-folder-toolbar-btn {
-  width: 1.45rem;
-  height: 1.45rem;
-  border-radius: 4px;
+  width: calc(1.45rem * var(--admin-refs-scale));
+  height: calc(1.45rem * var(--admin-refs-scale));
+  border-radius: calc(4px * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-folder-toolbar-btn svg,
+#admin-panel-textures .admin-folder-toolbar-btn svg,
 #admin-panel-classes .admin-folder-toolbar-btn svg,
 #admin-panel-calculations .admin-folder-toolbar-btn svg {
-  width: 0.72rem;
-  height: 0.72rem;
+  width: calc(0.72rem * var(--admin-refs-scale));
+  height: calc(0.72rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-folder-toolbar-export-menu {
@@ -2372,7 +2518,7 @@ button.admin-primary.admin-modal-confirm:hover {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  padding: 0.22rem 0.45rem;
+  padding: calc(0.22rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-muted.admin-import-hint {
@@ -2381,12 +2527,14 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 #admin-panel-materials .admin-materials-tree-root,
+#admin-panel-textures .admin-materials-tree-root,
 #admin-panel-classes .admin-materials-tree-root,
 #admin-panel-calculations .admin-materials-tree-root {
-  margin-top: 0.12rem;
+  margin-top: calc(0.12rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line,
+#admin-panel-textures .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line,
 #admin-panel-classes .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line,
 #admin-panel-calculations .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line {
   width: 100%;
@@ -2398,135 +2546,53 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 #admin-panel-materials .folder-explorer-tree-line,
+#admin-panel-textures .folder-explorer-tree-line,
 #admin-panel-classes .folder-explorer-tree-line,
 #admin-panel-calculations .folder-explorer-tree-line {
-  padding: 0.05rem 0.28rem 0.05rem 0;
-  border-radius: 3px;
-  gap: 0.1rem;
+  padding: calc(0.05rem * var(--admin-refs-scale)) calc(0.28rem * var(--admin-refs-scale)) calc(0.05rem * var(--admin-refs-scale)) 0;
+  border-radius: calc(3px * var(--admin-refs-scale));
+  gap: calc(0.1rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .folder-explorer-tree-link,
+#admin-panel-textures .folder-explorer-tree-link,
 #admin-panel-classes .folder-explorer-tree-link,
 #admin-panel-calculations .folder-explorer-tree-link {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  gap: 0.18rem;
-  padding: 0 0.04rem;
+  gap: calc(0.18rem * var(--admin-refs-scale));
+  padding: 0 calc(0.04rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .folder-explorer-tree-expander,
+#admin-panel-textures .folder-explorer-tree-expander,
 #admin-panel-classes .folder-explorer-tree-expander,
 #admin-panel-calculations .folder-explorer-tree-expander {
-  width: 0.92rem;
-  height: 0.92rem;
+  width: calc(0.92rem * var(--admin-refs-scale));
+  height: calc(0.92rem * var(--admin-refs-scale));
   font-size: var(--mat-scroll-fs);
   line-height: 1;
 }
 
 #admin-panel-materials .folder-explorer-icon,
+#admin-panel-textures .folder-explorer-icon,
 #admin-panel-classes .folder-explorer-icon,
 #admin-panel-calculations .folder-explorer-icon {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--admin-refs-scale));
   line-height: 1;
 }
 
 #admin-panel-materials .tree-gear-btn {
-  width: 1.35rem;
-  height: 1.35rem;
-  min-width: 1.35rem;
-  min-height: 1.35rem;
-  border-radius: 3px;
+  width: calc(1.35rem * var(--admin-refs-scale));
+  height: calc(1.35rem * var(--admin-refs-scale));
+  min-width: calc(1.35rem * var(--admin-refs-scale));
+  min-height: calc(1.35rem * var(--admin-refs-scale));
+  border-radius: calc(3px * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .tree-gear-ico {
-  font-size: 0.72rem;
-}
-
-/* Текстуры: вёрстка как у материалов — тот же кегль и плотность колонок и тулбара */
-#admin-panel-textures.admin-body {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  --mat-scroll-fs: 0.625rem;
-  --mat-scroll-lh: 1.05;
-  --mat-scroll-ls: 0.02em;
-  --admin-mat-add-btn-min-w: 5.35rem;
-}
-
-#admin-panel-textures .admin-aside .admin-heading-row {
-  margin: 0 0 0.35rem;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-#admin-panel-textures .admin-aside .admin-heading-row .admin-h2 {
-  margin: 0;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-}
-
-#admin-panel-textures .admin-aside .hint-btn {
-  width: 1rem;
-  height: 1rem;
-  min-width: 1rem;
-  min-height: 1rem;
-  font-size: 0.52rem;
-}
-
-#admin-panel-textures .admin-folder-toolbar {
-  gap: 0.22rem;
-  margin-bottom: 0.35rem;
-}
-
-#admin-panel-textures .admin-folder-toolbar-btn {
-  width: 1.45rem;
-  height: 1.45rem;
-  border-radius: 4px;
-}
-
-#admin-panel-textures .admin-folder-toolbar-btn svg {
-  width: 0.72rem;
-  height: 0.72rem;
-}
-
-#admin-panel-textures .admin-materials-tree-root {
-  margin-top: 0.12rem;
-}
-
-#admin-panel-textures .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line {
-  width: 100%;
-  box-sizing: border-box;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  padding-left: 0;
-}
-
-#admin-panel-textures .folder-explorer-tree-line {
-  padding: 0.05rem 0.28rem 0.05rem 0;
-  border-radius: 3px;
-  gap: 0.1rem;
-}
-
-#admin-panel-textures .folder-explorer-tree-link {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  gap: 0.18rem;
-  padding: 0 0.04rem;
-}
-
-#admin-panel-textures .folder-explorer-tree-expander {
-  width: 0.92rem;
-  height: 0.92rem;
-  font-size: var(--mat-scroll-fs);
-  line-height: 1;
-}
-
-#admin-panel-textures .folder-explorer-icon {
-  font-size: 0.72rem;
-  line-height: 1;
+  font-size: calc(0.72rem * var(--admin-refs-scale));
 }
 
 /* Первоначальная загрузка дерева текстур: размытие панели + спиннер по центру */
@@ -3306,26 +3372,35 @@ select.admin-input optgroup {
 
 /* Материалы: единый шаг заголовка, кнопки «+ Материал», легенды и строк списка */
 #admin-panel-materials .admin-main-scroll,
+#admin-panel-textures .admin-main-scroll,
 #admin-panel-classes .admin-main-scroll,
+#admin-panel-uom .admin-main-scroll,
 #admin-panel-calculations .admin-main-scroll,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes {
-  gap: 0.25rem;
+#admin-panel-calculations .admin-calculations-section-classes,
+.admin-calculations-modal-surface .admin-calculations-section-classes {
+  gap: calc(0.25rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .admin-main-scroll > .admin-heading-row,
+#admin-panel-textures .admin-main-scroll > .admin-heading-row,
 #admin-panel-classes .admin-main-scroll > .admin-heading-row,
+#admin-panel-uom .admin-main-scroll > .admin-heading-row,
 #admin-panel-calculations .admin-main-scroll > .admin-heading-row,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes > .admin-heading-row {
-  margin: 0 0 0.12rem;
+#admin-panel-calculations .admin-calculations-section-classes > .admin-heading-row,
+.admin-calculations-modal-surface .admin-calculations-section-classes > .admin-heading-row {
+  margin: 0 0 calc(0.12rem * var(--admin-refs-scale));
   gap: 0;
   align-items: center;
   min-height: 0;
 }
 
 #admin-panel-materials .admin-main-scroll > .admin-heading-row .admin-h2,
+#admin-panel-textures .admin-main-scroll > .admin-heading-row .admin-h2,
 #admin-panel-classes .admin-main-scroll > .admin-heading-row .admin-h2,
+#admin-panel-uom .admin-main-scroll > .admin-heading-row .admin-h2,
 #admin-panel-calculations .admin-main-scroll > .admin-heading-row .admin-h2,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes > .admin-heading-row .admin-h2 {
+#admin-panel-calculations .admin-calculations-section-classes > .admin-heading-row .admin-h2,
+.admin-calculations-modal-surface .admin-calculations-section-classes > .admin-heading-row .admin-h2 {
   margin: 0;
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
@@ -3336,19 +3411,19 @@ select.admin-input optgroup {
 #admin-panel-materials .admin-main-scroll > button.admin-primary,
 #admin-panel-textures .admin-main-scroll > button.admin-primary,
 #admin-panel-classes .admin-main-scroll > button.admin-primary,
+#admin-panel-uom .admin-main-scroll > button.admin-primary,
 #admin-panel-calculations .admin-main-scroll > button.admin-primary,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes > button.admin-primary,
 #admin-panel-materials .admin-extras-dock button.mat-extras-plus.admin-primary {
   width: auto;
   height: auto;
   min-width: 0;
   min-height: 0;
-  padding: 0.1rem 0.5rem;
+  padding: calc(0.1rem * var(--admin-refs-scale)) calc(0.5rem * var(--admin-refs-scale));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: calc(4px * var(--admin-refs-scale));
   box-shadow: none;
 }
 
@@ -3369,39 +3444,49 @@ select.admin-input optgroup {
   justify-content: center;
 }
 
-#admin-panel-materials .admin-main-scroll > .admin-material-card-context {
-  margin: -0.15rem 0 0.1rem;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-}
-
+#admin-panel-materials .admin-main-scroll > .admin-material-card-context,
+#admin-panel-textures .admin-main-scroll > .admin-material-card-context,
+#admin-panel-classes .admin-main-scroll > .admin-material-card-context,
+#admin-panel-uom .admin-main-scroll > .admin-material-card-context,
 #admin-panel-calculations .admin-main-scroll > .admin-material-card-context {
-  margin: -0.15rem 0 0.1rem;
+  margin: calc(-0.15rem * var(--admin-refs-scale)) 0 calc(0.1rem * var(--admin-refs-scale));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
 }
 
 #admin-panel-materials .admin-main-scroll .mat-list-table,
+#admin-panel-textures .admin-main-scroll .mat-list-table,
 #admin-panel-classes .admin-main-scroll .mat-list-table,
+#admin-panel-uom .admin-main-scroll .mat-list-table,
 #admin-panel-calculations .admin-main-scroll .mat-list-table,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-table {
-  margin-top: -0.12rem;
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-table,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-table {
+  margin-top: calc(-0.12rem * var(--admin-refs-scale));
 }
 
 /* Материалы и классы: плотные строки списка */
 #admin-panel-materials .mat-list-legend,
 #admin-panel-materials .mat-list-row,
+#admin-panel-textures .mat-list-legend,
+#admin-panel-textures .mat-list-row,
 #admin-panel-classes .mat-list-legend,
 #admin-panel-classes .mat-list-row,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-legend,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-row {
-  gap: 0.15rem 0.45rem;
+#admin-panel-uom .mat-list-legend,
+#admin-panel-uom .mat-list-row,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-legend,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-row,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-legend,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-row {
+  gap: calc(0.15rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
   align-items: center;
 }
 
 #admin-panel-materials .mat-list-legend,
+#admin-panel-textures .mat-list-legend,
 #admin-panel-classes .mat-list-legend,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-legend {
+#admin-panel-uom .mat-list-legend,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-legend,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-legend {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
@@ -3409,8 +3494,8 @@ select.admin-input optgroup {
   box-sizing: border-box;
   border: 1px solid transparent;
   border-bottom-color: var(--ft-border);
-  padding: 0.08rem 0.3rem 0.05rem;
-  margin-bottom: 0.03rem;
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale)) calc(0.05rem * var(--admin-refs-scale));
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .mat-list-legend span {
@@ -3418,48 +3503,67 @@ select.admin-input optgroup {
 }
 
 #admin-panel-materials .mat-list-item,
+#admin-panel-textures .mat-list-item,
 #admin-panel-classes .mat-list-item,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item {
-  margin-top: 0.04rem;
+#admin-panel-uom .mat-list-item,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-item,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item {
+  margin-top: calc(0.04rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .mat-list-item:first-child,
+#admin-panel-textures .mat-list-item:first-child,
 #admin-panel-classes .mat-list-item:first-child,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item:first-child {
-  margin-top: 0.06rem;
+#admin-panel-uom .mat-list-item:first-child,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-item:first-child,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item:first-child {
+  margin-top: calc(0.06rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .mat-list-item-inner--legend,
+#admin-panel-textures .mat-list-item-inner--legend,
 #admin-panel-classes .mat-list-item-inner--legend,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item-inner--legend {
-  margin-bottom: 0.03rem;
+#admin-panel-uom .mat-list-item-inner--legend,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-item-inner--legend,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item-inner--legend {
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
   margin-top: 0;
 }
 
 #admin-panel-materials .mat-list-item-inner--legend .mat-list-legend,
+#admin-panel-textures .mat-list-item-inner--legend .mat-list-legend,
 #admin-panel-classes .mat-list-item-inner--legend .mat-list-legend,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item-inner--legend .mat-list-legend {
+#admin-panel-uom .mat-list-item-inner--legend .mat-list-legend,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-item-inner--legend .mat-list-legend,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-item-inner--legend .mat-list-legend {
   margin-bottom: 0;
 }
 
 #admin-panel-materials .mat-list-row,
+#admin-panel-textures .mat-list-row,
 #admin-panel-classes .mat-list-row,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-row {
-  padding: 0.08rem 0.3rem;
-  border-radius: 3px;
+#admin-panel-uom .mat-list-row,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-row {
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   line-height: var(--mat-scroll-lh);
   font-size: var(--mat-scroll-fs);
   letter-spacing: var(--mat-scroll-ls);
 }
 
+.admin-calculations-modal-surface .mat-list-row,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-row {
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+}
+
 #admin-panel-materials .mat-list-row--active::before {
-  border-radius: 3px 0 0 3px;
-  width: 3px;
+  border-radius: calc(3px * var(--admin-refs-scale)) 0 0 calc(3px * var(--admin-refs-scale));
+  width: calc(3px * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .mat-list-item-inner {
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.2rem 0.3rem;
+  gap: calc(0.2rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
 }
 
 #admin-panel-materials .mat-list-item-inner--legend {
@@ -3471,11 +3575,29 @@ select.admin-input optgroup {
   display: none !important;
 }
 
+#admin-panel-textures .mat-list-item-inner {
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(0.2rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+}
+
+#admin-panel-textures .mat-list-item-inner--legend {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#admin-panel-uom .mat-list-item-inner {
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(0.2rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+}
+
+#admin-panel-uom .mat-list-item-inner--legend {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Формулы: основной список — две колонки (наименование / выражение); открытие по клику на строку */
 #admin-panel-calculations .admin-main-scroll .mat-list-legend,
 #admin-panel-calculations .admin-main-scroll .mat-list-row {
-  grid-template-columns: minmax(4.5rem, 0.95fr) minmax(6rem, 2fr);
-  gap: 0.15rem 0.45rem;
+  grid-template-columns: minmax(calc(4.5rem * var(--admin-refs-scale)), 0.95fr) minmax(calc(6rem * var(--admin-refs-scale)), 2fr);
+  gap: calc(0.15rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
   align-items: center;
 }
 
@@ -3487,8 +3609,8 @@ select.admin-input optgroup {
   box-sizing: border-box;
   border: 1px solid transparent;
   border-bottom-color: var(--ft-border);
-  padding: 0.08rem 0.3rem 0.05rem;
-  margin-bottom: 0.03rem;
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale)) calc(0.05rem * var(--admin-refs-scale));
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
 }
 
 #admin-panel-calculations .admin-main-scroll .mat-list-legend span {
@@ -3496,15 +3618,15 @@ select.admin-input optgroup {
 }
 
 #admin-panel-calculations .admin-main-scroll .mat-list-item {
-  margin-top: 0.04rem;
+  margin-top: calc(0.04rem * var(--admin-refs-scale));
 }
 
 #admin-panel-calculations .admin-main-scroll .mat-list-item:first-child {
-  margin-top: 0.06rem;
+  margin-top: calc(0.06rem * var(--admin-refs-scale));
 }
 
 #admin-panel-calculations .admin-main-scroll .mat-list-item-inner--legend {
-  margin-bottom: 0.03rem;
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
   margin-top: 0;
   grid-template-columns: minmax(0, 1fr);
 }
@@ -3514,8 +3636,8 @@ select.admin-input optgroup {
 }
 
 #admin-panel-calculations .admin-main-scroll .mat-list-row {
-  padding: 0.08rem 0.3rem;
-  border-radius: 3px;
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: calc(3px * var(--admin-refs-scale));
   line-height: var(--mat-scroll-lh);
   font-size: var(--mat-scroll-fs);
   letter-spacing: var(--mat-scroll-ls);
@@ -3536,7 +3658,7 @@ select.admin-input optgroup {
 
 #admin-panel-calculations .admin-main-scroll .mat-list-item-inner {
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.2rem 0.3rem;
+  gap: calc(0.2rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
 }
 
 /* На случай старого бандла без перезагрузки */
@@ -3549,126 +3671,43 @@ select.admin-input optgroup {
 #admin-panel-materials .mat-list-cell-article,
 #admin-panel-materials .mat-list-cell-uom,
 #admin-panel-materials .mat-list-cell-price,
+#admin-panel-textures .mat-list-cell,
+#admin-panel-textures .mat-list-cell-name,
 #admin-panel-classes .mat-list-cell,
 #admin-panel-classes .mat-list-cell-name,
 #admin-panel-classes .mat-list-cell-article,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-name,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-article {
+#admin-panel-uom .mat-list-cell,
+#admin-panel-uom .mat-list-cell-name,
+#admin-panel-uom .mat-list-cell-article,
+#admin-panel-uom .mat-list-cell-uom,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-cell,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-cell-name,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-cell-article,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-name,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-article {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
 }
 
 #admin-panel-materials .mat-list-cell-name,
+#admin-panel-textures .mat-list-cell-name,
 #admin-panel-classes .mat-list-cell-name,
-#admin-panel-calculations .admin-calculations-section-classes, .admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-name {
+#admin-panel-uom .mat-list-cell-name,
+#admin-panel-calculations .admin-calculations-section-classes .mat-list-cell-name,
+.admin-calculations-modal-surface .admin-calculations-section-classes .mat-list-cell-name {
   font-weight: 500;
 }
 
-/* Текстуры: плотный список с тем же кеглем, что в материалах; миниатюра уменьшена под высоту строки. */
-#admin-panel-textures .admin-main-scroll {
-  gap: 0.25rem;
-}
-
-#admin-panel-textures .admin-main-scroll > .admin-heading-row {
-  margin: 0 0 0.12rem;
-  gap: 0;
-  align-items: center;
-  min-height: 0;
-}
-
-#admin-panel-textures .admin-main-scroll > .admin-heading-row .admin-h2 {
-  margin: 0;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-}
-
-#admin-panel-textures .admin-main-scroll > .admin-material-card-context {
-  margin: -0.15rem 0 0.1rem;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-}
-
-#admin-panel-textures .admin-main-scroll .mat-list-table {
-  margin-top: -0.12rem;
-}
-
+/* Текстуры: колонки с превью; миниатюра под высоту строки (+30%) */
 #admin-panel-textures .mat-list-legend,
 #admin-panel-textures .mat-list-row--texture {
-  /* Шире минимальной ширины миниатюры: заголовок «Превью» не помещался в 32px */
-  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) !important;
-  gap: 0.15rem 0.45rem;
-  align-items: center;
+  grid-template-columns: minmax(calc(4.5rem * var(--admin-refs-scale)), auto) minmax(0, 1fr) !important;
 }
 
-#admin-panel-textures .mat-list-legend {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-  box-sizing: border-box;
-  border: 1px solid transparent;
-  border-bottom-color: var(--ft-border);
-  padding: 0.08rem 0.3rem 0.05rem;
-  margin-bottom: 0.03rem;
-}
-
-#admin-panel-textures .mat-list-item {
-  margin-top: 0.04rem;
-}
-
-#admin-panel-textures .mat-list-item:first-child {
-  margin-top: 0.06rem;
-}
-
-#admin-panel-textures .mat-list-item-inner--legend {
-  margin-bottom: 0.03rem;
-  margin-top: 0;
-}
-
-#admin-panel-textures .mat-list-item-inner--legend .mat-list-legend {
-  margin-bottom: 0;
-}
-
-#admin-panel-textures .mat-list-row {
-  padding: 0.08rem 0.3rem;
-  border-radius: 3px;
-  line-height: var(--mat-scroll-lh);
-  font-size: var(--mat-scroll-fs);
-  letter-spacing: var(--mat-scroll-ls);
-}
-
-#admin-panel-textures .mat-list-row--active::before {
-  border-radius: 3px 0 0 3px;
-  width: 3px;
-}
-
-#admin-panel-textures .mat-list-item-inner {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.2rem 0.3rem;
-}
-
-#admin-panel-textures .mat-list-item-inner--legend {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* Скрыть устаревшую кнопку карточки (открытие — щелчок по строке). */
 #admin-panel-textures .mat-list-gear-btn {
   display: none !important;
-}
-
-#admin-panel-textures .mat-list-cell,
-#admin-panel-textures .mat-list-cell-name {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-}
-
-#admin-panel-textures .mat-list-cell-name {
-  font-weight: 500;
 }
 
 /* Превью и наименование — по левому краю колонки, как текст заголовков */
@@ -3684,13 +3723,13 @@ select.admin-input optgroup {
 }
 
 #admin-panel-textures .mat-list-tex-thumb {
-  width: 28px;
-  height: 28px;
-  border-radius: 5px;
+  width: calc(28px * var(--admin-refs-scale));
+  height: calc(28px * var(--admin-refs-scale));
+  border-radius: calc(5px * var(--admin-refs-scale));
 }
 
 #admin-panel-textures .mat-list-tex-thumb--empty {
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--admin-refs-scale));
 }
 
 .mat-link {
@@ -3877,6 +3916,12 @@ select.admin-input optgroup {
   align-items: flex-end;
 }
 
+.admin-calculations-modal-surface .mat-class-input-row {
+  --mat-class-btn-size: calc(2.4rem * var(--admin-refs-scale));
+  margin-top: calc(0.35rem * var(--admin-refs-scale));
+  margin-bottom: calc(0.5rem * var(--admin-refs-scale));
+}
+
 .mat-class-input-row {
   --mat-class-btn-size: 2.4rem;
   margin-top: 0.35rem;
@@ -3906,13 +3951,14 @@ select.admin-input optgroup {
   flex: 1;
 }
 
-.admin-calculations-modal-surface.admin-material-card-dialog .mat-class-pick-preview .mat-list-table {
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-class-pick-preview.mat-list-table,
+.admin-calculations-modal-surface.admin-material-card-dialog .mat-list-table.mat-class-pick-preview {
   margin-top: 0;
 }
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-class-pick-preview .mat-list-item-inner--legend {
   grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 0.03rem;
+  margin-bottom: 0;
   margin-top: 0;
 }
 
@@ -3938,8 +3984,8 @@ select.admin-input optgroup {
   color: var(--ft-text);
   border: 1px solid transparent;
   border-bottom-color: var(--ft-border);
-  padding: 0.08rem 0.3rem 0.05rem;
-  margin-bottom: 0.03rem;
+  padding: calc(0.04rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale)) calc(0.02rem * var(--admin-refs-scale));
+  margin-bottom: 0;
   border-radius: 0;
 }
 
@@ -3949,7 +3995,7 @@ select.admin-input optgroup {
 
 .admin-calculations-modal-surface.admin-material-card-dialog .mat-class-pick-preview .mat-class-pick-preview-row {
   padding: 0.08rem 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   line-height: var(--mat-scroll-lh);
   font-size: var(--mat-scroll-fs);
   letter-spacing: var(--mat-scroll-ls);
@@ -3998,7 +4044,7 @@ select.admin-input optgroup {
   min-width: var(--mat-class-btn-size);
   min-height: var(--mat-class-btn-size);
   border: 1px solid var(--ft-border-2);
-  border-radius: 999px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   background: rgba(255, 255, 255, 0.03);
   color: var(--ft-text);
   font-size: calc(var(--mat-class-btn-size) * 0.42);
@@ -4206,7 +4252,7 @@ select.admin-input optgroup {
 }
 
 .admin-calculations {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(var(--admin-refs-aside-min), var(--admin-refs-aside-max)) minmax(0, 1fr);
 }
 
 .admin-calculations-list,
@@ -4243,34 +4289,34 @@ select.admin-input optgroup {
 .admin-calculations-formula-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: calc(0.55rem * var(--admin-refs-scale));
   min-width: 0;
 }
 
 .admin-calculations-modal-surface .admin-calculations-builder {
-  gap: 8px;
+  gap: calc(8px * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-subtitle {
-  margin: 0 0 4px;
+  margin: 0 0 calc(4px * var(--admin-refs-scale));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
 }
 
 .admin-calculations-modal-surface .admin-calculations-chip-row {
-  gap: 0.22rem;
+  gap: calc(0.22rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-primary.admin-calculations-icon-btn {
-  width: 1.45rem;
-  height: 1.45rem;
-  min-width: 1.45rem;
-  min-height: 1.45rem;
+  width: calc(1.45rem * var(--admin-refs-scale));
+  height: calc(1.45rem * var(--admin-refs-scale));
+  min-width: calc(1.45rem * var(--admin-refs-scale));
+  min-height: calc(1.45rem * var(--admin-refs-scale));
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
   font-size: var(--mat-scroll-fs);
   line-height: 1;
@@ -4278,14 +4324,14 @@ select.admin-input optgroup {
 }
 
 .admin-calculations-modal-surface .admin-primary.admin-calculations-icon-btn svg {
-  width: 0.82rem;
-  height: 0.82rem;
+  width: calc(0.82rem * var(--admin-refs-scale));
+  height: calc(0.82rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-formula-insert-number.admin-primary {
-  height: 1.45rem;
-  min-height: 1.45rem;
-  padding: 0 0.42rem;
+  height: calc(1.45rem * var(--admin-refs-scale));
+  min-height: calc(1.45rem * var(--admin-refs-scale));
+  padding: 0 calc(0.42rem * var(--admin-refs-scale));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4293,18 +4339,18 @@ select.admin-input optgroup {
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 
 .admin-calculations-modal-surface .admin-calculations-number.admin-input {
-  width: 5.75rem;
+  width: calc(5.75rem * var(--admin-refs-scale));
   min-width: 0;
-  height: 1.45rem;
-  min-height: 1.45rem;
-  padding: 0 0.42rem;
+  height: calc(1.45rem * var(--admin-refs-scale));
+  min-height: calc(1.45rem * var(--admin-refs-scale));
+  padding: 0 calc(0.42rem * var(--admin-refs-scale));
   box-sizing: border-box;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
@@ -4312,10 +4358,10 @@ select.admin-input optgroup {
 }
 
 .admin-calculations-modal-surface .admin-calculations-output {
-  margin-top: 0.35rem;
-  min-height: 2.75rem;
-  padding: 0.45rem 0.55rem;
-  border-radius: 10px;
+  margin-top: calc(0.35rem * var(--admin-refs-scale));
+  min-height: calc(2.75rem * var(--admin-refs-scale));
+  padding: calc(0.45rem * var(--admin-refs-scale)) calc(0.55rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   font-size: var(--mat-scroll-fs);
   line-height: 1.45;
 }
@@ -4327,22 +4373,22 @@ select.admin-input optgroup {
 .admin-calculations-modal-surface .admin-calculations-keypad {
   display: flex;
   flex-direction: column;
-  gap: 0.42rem;
+  gap: calc(0.42rem * var(--admin-refs-scale));
   align-items: stretch;
-  max-width: 14.5rem;
+  max-width: calc(14.5rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-keypad-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.32rem;
+  gap: calc(0.32rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-keypad-key {
   aspect-ratio: 1;
   min-height: 0;
   padding: 0;
-  border-radius: 8px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
@@ -4374,12 +4420,12 @@ select.admin-input optgroup {
   background: rgba(255, 255, 255, 0.04);
   font-size: var(--mat-scroll-fs);
   aspect-ratio: auto;
-  min-height: 2.1rem;
+  min-height: calc(2.1rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-keypad-key--action svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: calc(0.95rem * var(--admin-refs-scale));
+  height: calc(0.95rem * var(--admin-refs-scale));
 }
 
 .admin-calculations-modal-surface .admin-calculations-keypad-key--action:hover {
@@ -4413,8 +4459,8 @@ select.admin-input optgroup {
 .admin-calculations-formula-dialog.admin-calculations-modal-surface .admin-calculations-output {
   margin-top: 0;
   min-height: 0;
-  padding: 0.12rem 0.38rem;
-  border-radius: 4px;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.38rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--ft-border-2);
   font-size: var(--mat-scroll-fs);
@@ -4507,7 +4553,7 @@ select.admin-input optgroup {
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--ft-border-2);
   box-shadow: none;
@@ -4533,7 +4579,7 @@ select.admin-input optgroup {
 .admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary {
   width: 1.5rem;
   height: 1.5rem;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 
@@ -4560,7 +4606,7 @@ select.admin-input optgroup {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
 }
 
 .admin-calculations-modal-surface .admin-calculations-output-head {
@@ -4586,7 +4632,7 @@ select.admin-input optgroup {
   align-items: center;
   justify-content: center;
   white-space: normal;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
 }
 
 .admin-calculations-modal-surface .admin-calculations-formula-class-remove.admin-calculations-icon-btn svg {
@@ -4611,7 +4657,7 @@ select.admin-input optgroup {
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 
@@ -4663,10 +4709,20 @@ select.admin-input optgroup {
 /* Классы: сетка 2 колонки; остальное — общие правила с материалами выше */
 #admin-panel-classes .mat-list-legend,
 #admin-panel-classes .mat-list-row {
-  grid-template-columns: minmax(4.5rem, 0.95fr) minmax(6rem, 2fr);
+  grid-template-columns: minmax(calc(4.5rem * var(--admin-refs-scale)), 0.95fr) minmax(calc(6rem * var(--admin-refs-scale)), 2fr);
 }
 
 #admin-panel-classes .mat-list-legend span {
+  text-align: left;
+}
+
+/* Ед. изм.: без дерева папок; три колонки — код, сокращение, наименование */
+#admin-panel-uom .mat-list-legend,
+#admin-panel-uom .mat-list-row {
+  grid-template-columns: minmax(calc(4rem * var(--admin-refs-scale)), 0.75fr) minmax(calc(3.5rem * var(--admin-refs-scale)), 0.65fr) minmax(calc(6rem * var(--admin-refs-scale)), 2fr);
+}
+
+#admin-panel-uom .mat-list-legend span {
   text-align: left;
 }
 
@@ -4701,7 +4757,8 @@ select.admin-input optgroup {
   letter-spacing: var(--mat-scroll-ls);
 }
 
-#admin-panel-calculations .admin-calculations-formula-class-remove, .admin-calculations-modal-surface .admin-calculations-formula-class-remove {
+#admin-panel-calculations .admin-calculations-formula-class-remove,
+.admin-calculations-modal-surface .admin-calculations-formula-class-remove {
   padding: 0.1rem 0.45rem;
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
@@ -4709,7 +4766,7 @@ select.admin-input optgroup {
   font-weight: 600;
   justify-self: end;
   white-space: nowrap;
-  border-radius: 4px;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 

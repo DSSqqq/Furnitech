@@ -297,8 +297,50 @@ export function fetchMaterialsFiltered(params: MaterialsListFilterParams) {
   return apiFetch(`/api/materials/${q ? `?${q}` : ''}`).then((r) => json<{ results: Material[] }>(r))
 }
 
-export function fetchUom() {
-  return apiFetch('/api/uom/').then((r) => json<{ results: UnitOfMeasure[] }>(r))
+/** Все единицы измерения из справочника (все страницы API). */
+export async function fetchUom(): Promise<{ results: UnitOfMeasure[] }> {
+  let path: string | null = '/api/uom/'
+  const collected: UnitOfMeasure[] = []
+  while (path) {
+    const r = await apiFetch(path)
+    const data = await json<{ results: UnitOfMeasure[]; next: string | null }>(r)
+    for (const row of data.results ?? []) collected.push(row)
+    const nxt = data.next
+    if (!nxt) {
+      path = null
+    } else {
+      try {
+        const u = new URL(nxt)
+        path = u.pathname + u.search
+      } catch {
+        path = null
+      }
+    }
+  }
+  return { results: collected }
+}
+
+export function createUom(data: { name: string; short_name?: string; code: string }) {
+  return apiFetch('/api/uom/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then((r) => json<UnitOfMeasure>(r))
+}
+
+export function updateUom(
+  id: number,
+  data: Partial<{ name: string; short_name: string; code: string }>
+) {
+  return apiFetch(`/api/uom/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }).then((r) => json<UnitOfMeasure>(r))
+}
+
+export function deleteUom(id: number) {
+  return apiFetch(`/api/uom/${id}/`, { method: 'DELETE' }).then(async (r) => {
+    if (!r.ok) await parseJsonError(r)
+  })
 }
 
 export function fetchMaterialClassCategoryTree() {

@@ -12,6 +12,12 @@ class RoundingMode(models.TextChoices):
     CEIL_MULTIPLE = "ceil_multiple", "Округлять вверх до кратного числа"
 
 
+class PricingCalcMode(models.TextChoices):
+    LINEAR = "linear", "Погонаж"
+    SHEET = "sheet", "Лист"
+    PIECE = "piece", "Штуки"
+
+
 class RelatedQuantityScale(models.TextChoices):
     """Как масштабировать строку сопутствующего в калькуляторе."""
 
@@ -351,6 +357,14 @@ class Material(models.Model):
         decimal_places=3,
         default=Decimal("0"),
         validators=[MinValueValidator(Decimal("0"))],
+    )
+    pricing_calc_mode = models.CharField(
+        "Режим расчёта количества",
+        max_length=16,
+        choices=PricingCalcMode.choices,
+        blank=True,
+        default="",
+        help_text="Погонаж — периметр; лист — площадь; штуки — количество.",
     )
 
     # Вкладка «Параметры текстуры» (задел для калькулятора/эскиза).

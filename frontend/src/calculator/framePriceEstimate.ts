@@ -1,5 +1,7 @@
 import { normalizeDecimalOnBlur } from '../floatInput'
-import type { Material, MaterialRelatedItemDto, RelatedQuantityScale, UnitOfMeasure } from '../types'
+import type { Material, MaterialRelatedItemDto, PricingCalcMode, RelatedQuantityScale, UnitOfMeasure } from '../types'
+
+export type PricingUomCode = 'm2' | 'm' | 'pc'
 
 export function parseMoney(s: string | undefined | null): number {
   if (s == null || s === '') return 0
@@ -69,13 +71,27 @@ export function resolvePricingUomCode(u: UnitOfMeasure | undefined | null): stri
   return 'm2'
 }
 
-function uomCode(u: UnitOfMeasure | undefined | null): string {
-  return resolvePricingUomCode(u)
+/** Режим из карточки материала → код объёма для формулы (m2 | m | pc). */
+export function pricingCalcModeToUomCode(mode: PricingCalcMode | undefined | null): PricingUomCode | null {
+  if (mode === 'linear') return 'm'
+  if (mode === 'sheet') return 'm2'
+  if (mode === 'piece') return 'pc'
+  return null
 }
 
-function effectivePricingUomCode(material: Pick<Material, 'uom'> | null | undefined): string {
+/**
+ * Код ед. изм. для расчёта материала: при заданном `pricing_calc_mode` — по флажку
+ * (погонаж / лист / штуки), иначе — `resolvePricingUomCode(uom)`.
+ */
+export function resolveMaterialPricingUomCode(
+  material: Pick<Material, 'uom' | 'pricing_calc_mode'> | null | undefined
+): PricingUomCode {
   if (!material) return 'm2'
-  return uomCode(material.uom)
+  const fromMode = pricingCalcModeToUomCode(material.pricing_calc_mode)
+  if (fromMode) return fromMode
+  const legacy = resolvePricingUomCode(material.uom)
+  if (legacy === 'm2' || legacy === 'm' || legacy === 'pc') return legacy
+  return 'm2'
 }
 
 /**
@@ -91,13 +107,13 @@ export function unitsPerFacade(heightMm: number, widthMm: number, code: string):
 }
 
 export function pricedUnitsForMaterial(
-  material: Pick<Material, 'uom'> | null | undefined,
+  material: Pick<Material, 'uom' | 'pricing_calc_mode'> | null | undefined,
   heightMm: number,
   widthMm: number,
   facadeCount: number
 ): number {
   if (!material || facadeCount <= 0) return 0
-  const code = effectivePricingUomCode(material)
+  const code = resolveMaterialPricingUomCode(material)
   return unitsPerFacade(heightMm, widthMm, code) * facadeCount
 }
 

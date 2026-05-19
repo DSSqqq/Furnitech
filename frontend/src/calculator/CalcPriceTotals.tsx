@@ -5,7 +5,7 @@ import type { CalculationFormula, Material } from '../types'
 import {
   collectCurrencies,
   computeFramePriceBreakdown,
-  resolvePricingUomCode,
+  resolveMaterialPricingUomCode,
   unitsPerFacade,
 } from './framePriceEstimate'
 import { formatNumberForUi } from '../floatInput'
@@ -46,9 +46,10 @@ function uomDebug(m: Material | null): string {
 }
 
 function uomPricingLabel(m: Material | null): string {
-  const code = resolvePricingUomCode(m?.uom)
+  const code = resolveMaterialPricingUomCode(m)
   if (code === 'm2') return 'кв.м'
   if (code === 'm') {
+    if (m?.pricing_calc_mode === 'linear') return 'м.п.'
     const raw = (m?.uom?.code ?? '').trim().toLowerCase()
     return raw === 'mp' ? 'м.п.' : 'м'
   }

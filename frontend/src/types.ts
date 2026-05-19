@@ -90,12 +90,15 @@ export type MaterialRelatedItemDto = {
     base_price: string
     base_currency: string
     material_class_ids?: number[]
+    pricing_calc_mode?: PricingCalcMode
   }
   quantity: string
   /** Режим расчёта; по умолчанию как раньше — follow_parent. */
   quantity_scale?: RelatedQuantityScale
   line_total: string
 }
+
+export type PricingCalcMode = '' | 'linear' | 'sheet' | 'piece'
 
 export type Material = {
   id: number
@@ -114,6 +117,8 @@ export type Material = {
   max_length?: string
   min_width?: string
   max_width?: string
+  /** Режим расчёта: погонаж / лист / штуки (взаимоисключающий). */
+  pricing_calc_mode?: PricingCalcMode
   /** Текстура/цвет (параметры отображения в будущих эскизах). */
   texture_mode?: 'color' | 'texture' | string
   texture_color?: string

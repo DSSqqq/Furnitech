@@ -31,6 +31,7 @@ function safePostLoginTarget(rawFrom: string | undefined, isStaff: boolean): str
         pathname.startsWith('/textures') ||
         pathname.startsWith('/calculator') ||
         pathname.startsWith('/classes') ||
+        pathname.startsWith('/uom') ||
         pathname.startsWith('/calculations') ||
         pathname.startsWith('/orders') ||
         pathname.startsWith('/users')
@@ -230,6 +231,14 @@ function App() {
       />
       <Route
         path="/classes/*"
+        element={
+          <AdminRoute auth={auth}>
+            {(user) => <AdminApp user={user} onLogout={logout} />}
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/uom/*"
         element={
           <AdminRoute auth={auth}>
             {(user) => <AdminApp user={user} onLogout={logout} />}

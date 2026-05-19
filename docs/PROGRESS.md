@@ -1,6 +1,66 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-19 — вкладки справочников **«Текстуры»** и **«Классы»** переведены на постраничную загрузку: при открытии берётся первая страница, остальные записи — по кнопке **«Загрузить ещё»**.
+**Последнее обновление:** 2026-05-19 — **`pricing_calc_mode`** подключён к калькулятору; карточка материала (textarea «Примечание», флажки расчёта).
+
+### Изменения 2026-05-19 (калькулятор — режим расчёта материала)
+
+#### Логика (`frontend/src/calculator/framePriceEstimate.ts`)
+
+- **`pricingCalcModeToUomCode`**, **`resolveMaterialPricingUomCode`**: при заданном **`pricing_calc_mode`** объём считается по флажку карточки материала, иначе — прежняя эвристика **`resolvePricingUomCode(uom)`**.
+- **`linear` (Погонаж):** периметр `2×(H+W)/1000` м.п. на фасад × \(N\) фасадов.
+- **`sheet` (Лист):** площадь `H×W/1_000_000` м² на фасад × \(N\).
+- **`piece` (Штуки):** 1 шт. на фасад × \(N\).
+- Затронуты **`pricedUnitsForMaterial`**, **`materialLineCost`**, **`computeFramePriceBreakdown`**, **`relatedItemCalculatorCost`** (режим **`use_related_uom`** у сопутствующих), **`calculationFormula.ts`** (активная формула по классам).
+
+#### UI итога (`CalcPriceTotals.tsx`)
+
+- Подпись «в расчёте как …» использует **`resolveMaterialPricingUomCode`**, а не только код ед. изм.
+
+#### Backend / типы
+
+- **`MaterialSummarySerializer`:** поле **`pricing_calc_mode`** — для сопутствующих материалов в **`related_items`** (режим **`use_related_uom`**).
+- **`frontend/src/types.ts`:** **`pricing_calc_mode`** в типе вложенного **`related_material`**.
+
+#### Документация
+
+- **`docs/ARCHITECTURE.md`**, **`docs/CALCULATION_FORMULAS.md`** — описание **`resolveMaterialPricingUomCode`** и приоритета над **`uom.code`**.
+
+### Изменения 2026-05-19 (карточка материала — «Примечание» и «Расчёт»)
+
+- **`mat-form-note-calc-row`:** поле **«Примечание»** — **`textarea`** с **`flex: 1`**, высота по колонке флажков **Погонаж / Лист / Штуки** (верх textarea = верх первого флажка, низ = низ последнего); **`AdminApp.css`** — правила для **`.mat-form-note-col`**, переопределение **`min-height`** у textarea в **`admin-material-card-dialog`**.
+
+### Изменения 2026-05-19 (админка «Справочники» — UI и карточка материала)
+
+#### Масштаб и CSS-переменные (`frontend/src/index.css`, `AdminApp.css`, `mobile.css`)
+
+- На **`:root`** и в блоках **`#admin-panel-*`**: **`--admin-refs-scale: 1.3`**, производные **`--admin-refs-fs`**, **`--admin-refs-btn-min-w`**, **`--admin-refs-control-radius`** (≈ **3px × scale** — как у **`mat-list-row`**, не «таблетки»).
+- **Боковая колонка папок** (`admin-aside`): ширина через **`--admin-refs-aside-factor`** (текущее значение **0.716625** ≈ −28% от исходных 220–280px с учётом scale); применяется к **Материалы**, **Текстуры**, **Классы**, **Формулы**.
+- Плотность списков, кнопок **«+ …»**, вкладки выпадающего **«Справочники»** — через **`calc(… * var(--admin-refs-scale))`**.
+- **Модалки справочников** (портал на **`document.body`**, класс **`admin-calculations-modal-surface`**): те же **`--mat-scroll-*`** и **`--admin-refs-control-radius`** дублируются локально, чтобы поля/кнопки не оставались квадратными вне **`.admin`**.
+
+#### Списки справочников (`AdminApp.css`)
+
+- **Текстуры** и **Ед. изм.:** строки **`mat-list-row`** на всю ширину, как кнопка **«+ …»** — у **`#admin-panel-textures`** / **`#admin-panel-uom`** сетка **`mat-list-item-inner`** одноколоночная (убран резерв под скрытую **`mat-list-gear-btn`**).
+- **Материалы** — то же правило для **`mat-list-item-inner`** (ранее).
+
+#### Карточка материала — `MaterialForm` (`AdminApp.tsx`, `AdminApp.css`)
+
+- **Компактнее по вертикали:** уменьшены **`row-gap`** вкладки «Общие параметры», отступы блока «Класс материала»; исправлен сброс **`margin-top`** у **`.mat-list-table.mat-class-pick-preview`** (селектор `.mat-class-pick-preview .mat-list-table` не срабатывал — классы на одном элементе).
+- Убраны **`HintButton`** в шапке карточки и у поля «Цена за ед., тенге».
+- **Ед. измерения:** **`FtSelect`** из справочника **`/api/uom/`**; при открытии карточки **`fetchUom()`** обходит **все страницы** DRF (см. **`api.ts`**).
+- **Режим расчёта:** три взаимоисключающих флажка **Погонаж / Лист / Штуки** — поле **`pricing_calc_mode`** (`linear` \| `sheet` \| `piece` \| пусто). Строка **`mat-form-note-calc-row`**: слева **«Примечание»** (`textarea`), справа колонка **«Расчёт»** (см. отдельный блок ниже — подключение к калькулятору).
+
+#### Backend
+
+- **Миграция `materials.0045_material_pricing_calc_mode`:** поле **`Material.pricing_calc_mode`**, choices **`PricingCalcMode`** в **`models.py`**; в **`MaterialSerializer`** — read/write.
+- **`frontend/src/types.ts`:** тип **`PricingCalcMode`**.
+
+### Изменения 2026-05-19 (справочник единиц измерения)
+
+- **`frontend/src/AdminUomPanel.tsx`:** новая вкладка **«Ед. изм.»** в выпадающем **«Справочники»** (`/uom`). Список на всю ширину **без `admin-aside`** — колонки **Код**, **Сокращение**, **Наименование**; компактная кнопка **«+ Ед. изм.»** (как **«+ Формула»**); щелчок по строке — модалка создания/редактирования (**`admin-material-card-dialog`**); удаление с подтверждением (на backend — **`PROTECT`**, если единица привязана к материалам).
+- **`frontend/src/api.ts`:** **`createUom`**, **`updateUom`**, **`deleteUom`**; чтение — **`fetchUom`** + **`sortUomForSelect`** для порядка строк.
+- **`frontend/src/AdminApp.tsx`**, **`App.tsx`:** маршрут **`/uom/*`**, пункт меню между **«Классы»** и **«Формулы»**.
+- **`frontend/src/AdminApp.css`:** **`#admin-panel-uom`** — одноколоночный layout, плотный **`mat-list-table`**, кнопка **«+ Ед. изм.»** в общем блоке компактных **`admin-primary`** (как материалы/классы/формулы).
 
 ### Изменения 2026-05-19 (справочники — производительность)
 
