@@ -43,6 +43,13 @@ function formatFieldErrors(j: Record<string, unknown>): string {
   return parts.join(' ')
 }
 
+export type PaginatedResult<T> = {
+  count?: number
+  next: string | null
+  previous?: string | null
+  results: T[]
+}
+
 async function parseJsonError(r: Response): Promise<never> {
   let msg = r.statusText || `HTTP ${r.status}`
   const raw = await r.text().catch(() => '')
@@ -206,6 +213,20 @@ export async function fetchTextureItems(
   return { results: collected }
 }
 
+/** Одна страница списка текстур для быстрых админских списков. */
+export function fetchTextureItemsPage(
+  params?: { category?: number; subtree?: boolean },
+  page = 1
+): Promise<PaginatedResult<TextureItem>> {
+  const sp = new URLSearchParams()
+  if (params?.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  if (params?.subtree) sp.set('subtree', '1')
+  sp.set('page', String(Math.max(1, page)))
+  return apiFetch(`/api/texture-items/?${sp.toString()}`).then((r) => json<PaginatedResult<TextureItem>>(r))
+}
+
 export function createTextureItem(data: Record<string, unknown> | FormData) {
   return apiFetch('/api/texture-items/', {
     method: 'POST',
@@ -336,6 +357,22 @@ export async function fetchMaterialClasses(
     }
   }
   return { results: collected }
+}
+
+/** Одна страница списка классов для быстрых админских списков. */
+export function fetchMaterialClassesPage(
+  params?: { category?: number | null; subtree?: boolean },
+  page = 1
+): Promise<PaginatedResult<MaterialClass>> {
+  const sp = new URLSearchParams()
+  if (params?.category != null && params.category !== undefined) {
+    sp.set('category', String(params.category))
+  }
+  if (params?.subtree) sp.set('subtree', '1')
+  sp.set('page', String(Math.max(1, page)))
+  return apiFetch(`/api/material-classes/?${sp.toString()}`).then((r) =>
+    json<PaginatedResult<MaterialClass>>(r)
+  )
 }
 
 export function createMaterialClass(data: { name: string; category: number; code: string }) {

@@ -6,7 +6,7 @@ import {
   deleteMaterialClass,
   deleteMaterialClassCategory,
   fetchMaterialClassCategoryTree,
-  fetchMaterialClasses,
+  fetchMaterialClassesPage,
   updateMaterialClass,
   updateMaterialClassCategory,
 } from './api'
@@ -20,6 +20,10 @@ const MODAL_CLOSE_X_SVG = (
 )
 
 const CLASS_LIST_COLUMNS = ['Код', 'Наименование класса'] as const
+
+function sortClassesForList(rows: MaterialClass[]): MaterialClass[] {
+  return rows.slice().sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+}
 
 type MccRenameRequest = { targetId: number; nonce: number }
 
@@ -230,6 +234,8 @@ export function AdminMaterialClassesPanel() {
   const [editClassDeleteOpen, setEditClassDeleteOpen] = useState(false)
   const [treeLoading, setTreeLoading] = useState(true)
   const [listLoading, setListLoading] = useState(true)
+  const [listHasMore, setListHasMore] = useState(false)
+  const [listPage, setListPage] = useState(1)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -247,15 +253,15 @@ export function AdminMaterialClassesPanel() {
       .finally(() => setTreeLoading(false))
   }, [])
 
-  const reloadClassesOnly = useCallback(() => {
+  const reloadClassesOnly = useCallback((page = 1, append = false) => {
     setListLoading(true)
-    const p =
-      mccSelected == null
-        ? fetchMaterialClasses()
-        : fetchMaterialClasses({ category: mccSelected, subtree: true })
-    return p
+    const params = mccSelected == null ? undefined : { category: mccSelected, subtree: true }
+    return fetchMaterialClassesPage(params, page)
       .then((r) => {
-        setClasses((r.results ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ru')))
+        const rows = r.results ?? []
+        setClasses((prev) => sortClassesForList(append ? [...prev, ...rows] : rows))
+        setListPage(page)
+        setListHasMore(Boolean(r.next))
       })
       .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setListLoading(false))
@@ -288,8 +294,13 @@ export function AdminMaterialClassesPanel() {
   }, [mccSelected, mccTree])
 
   useEffect(() => {
-    void reloadClassesOnly()
+    void reloadClassesOnly(1, false)
   }, [reloadClassesOnly])
+
+  const loadMoreClasses = useCallback(() => {
+    if (listLoading || !listHasMore) return
+    void reloadClassesOnly(listPage + 1, true)
+  }, [listHasMore, listLoading, listPage, reloadClassesOnly])
 
   const toggleMccExpanded = useCallback((id: number) => {
     setMccExpandedIds((prev) => {
@@ -683,6 +694,16 @@ export function AdminMaterialClassesPanel() {
               </p>
             ) : null}
             {listLoading ? <p className="admin-muted">Загрузка списка…</p> : null}
+            {listHasMore ? (
+              <button
+                type="button"
+                className="admin-secondary"
+                disabled={listLoading}
+                onClick={loadMoreClasses}
+              >
+                {listLoading ? 'Загрузка…' : 'Загрузить ещё'}
+              </button>
+            ) : null}
           </div>
         </main>
       </div>

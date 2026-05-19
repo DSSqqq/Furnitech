@@ -15,7 +15,7 @@ import {
   deleteTextureCategory,
   deleteTextureItem,
   fetchTextureCategoryTree,
-  fetchTextureItems,
+  fetchTextureItemsPage,
   updateTextureCategory,
   updateTextureItem,
 } from './api'
@@ -552,6 +552,9 @@ export function AdminTexturesPanel() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [items, setItems] = useState<TextureItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsHasMore, setItemsHasMore] = useState(false)
+  const [itemsPage, setItemsPage] = useState(1)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<TextureItem | 'new' | null>(null)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
@@ -575,20 +578,19 @@ export function AdminTexturesPanel() {
   }, [])
 
   const reloadItems = useCallback(
-    (categoryId: number | null) => {
+    (categoryId: number | null, page = 1, append = false) => {
       setErr(null)
-      if (categoryId == null) {
-        return fetchTextureItems()
-          .then((r) => {
-            setItems(r.results)
-          })
-          .catch((e) => setErr(String(e)))
-      }
-      return fetchTextureItems({ category: categoryId, subtree: true })
+      setItemsLoading(true)
+      const params = categoryId == null ? undefined : { category: categoryId, subtree: true }
+      return fetchTextureItemsPage(params, page)
         .then((r) => {
-          setItems(r.results)
+          const rows = r.results ?? []
+          setItems((prev) => (append ? [...prev, ...rows] : rows))
+          setItemsPage(page)
+          setItemsHasMore(Boolean(r.next))
         })
         .catch((e) => setErr(String(e)))
+        .finally(() => setItemsLoading(false))
     },
     []
   )
@@ -618,8 +620,13 @@ export function AdminTexturesPanel() {
   }, [reloadTree])
 
   useEffect(() => {
-    void reloadItems(selected)
+    void reloadItems(selected, 1, false)
   }, [selected, reloadItems])
+
+  const loadMoreItems = useCallback(() => {
+    if (itemsLoading || !itemsHasMore) return
+    void reloadItems(selected, itemsPage + 1, true)
+  }, [itemsHasMore, itemsLoading, itemsPage, reloadItems, selected])
 
   const toggleExpanded = useCallback((id: number) => {
     setExpandedIds((prev) => {
@@ -1219,6 +1226,24 @@ export function AdminTexturesPanel() {
                   })}
                 </ul>
               </div>
+              {itemsLoading ? <p className="admin-muted">Загрузка списка…</p> : null}
+              {!itemsLoading && items.length === 0 ? (
+                <p className="admin-muted admin-calculations-classes-empty">
+                  {selected == null
+                    ? 'Нет текстур в справочнике.'
+                    : 'В этой папке (и вложенных) пока нет текстур — нажмите «+ Текстура».'}
+                </p>
+              ) : null}
+              {itemsHasMore ? (
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  disabled={itemsLoading}
+                  onClick={loadMoreItems}
+                >
+                  {itemsLoading ? 'Загрузка…' : 'Загрузить ещё'}
+                </button>
+              ) : null}
             </div>
           </main>
         </div>
