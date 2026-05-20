@@ -14,6 +14,7 @@ import { MaterialSearchModal } from '../MaterialSearchModal'
 import type { CalculatorProfileType, Material, MaterialCategory, MaterialClass } from '../types'
 import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   FRAME_DEFAULT_HEIGHT_MM,
   FRAME_DEFAULT_WIDTH_MM,
@@ -28,6 +29,7 @@ import {
   type MaterialTextureFields,
 } from './materialTextureLabel'
 import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
+import { TileGearMenu } from './TileGearMenu'
 import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -108,7 +110,6 @@ export function Step2FrameFacade() {
   const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
 
   const [gearMenuTypeId, setGearMenuTypeId] = useState<number | null>(null)
-  const gearMenuWrapRef = useRef<HTMLDivElement | null>(null)
   const [profileTypeDeleteModal, setProfileTypeDeleteModal] = useState<CalculatorProfileType | null>(null)
 
   const [folderTreeCache, setFolderTreeCache] = useState<MaterialCategory[]>([])
@@ -509,27 +510,6 @@ export function Step2FrameFacade() {
   }, [])
 
   useEffect(() => {
-    if (gearMenuTypeId == null) {
-      gearMenuWrapRef.current = null
-      return
-    }
-    const onDoc = (e: MouseEvent) => {
-      if (gearMenuWrapRef.current && !gearMenuWrapRef.current.contains(e.target as Node)) {
-        setGearMenuTypeId(null)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setGearMenuTypeId(null)
-    }
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [gearMenuTypeId])
-
-  useEffect(() => {
     if (!profileTypeDeleteModal) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -701,13 +681,7 @@ export function Step2FrameFacade() {
             <div className="frame3-title" role="heading" aria-level={3}>
               Выберите тип профиля и цвет
             </div>
-          </div>
-
-          {err && <div className="admin-error">{err}</div>}
-          {loading && <p className="admin-muted">Загрузка…</p>}
-
-          {!readOnly && (
-            <div className="frame2-card-head">
+            {!readOnly ? (
               <div className="frame2-actions">
                 <button
                   type="button"
@@ -723,8 +697,11 @@ export function Step2FrameFacade() {
                   + Добавить тип профиля
                 </button>
               </div>
-            </div>
-          )}
+            ) : null}
+          </div>
+
+          {err && <div className="admin-error">{err}</div>}
+          {loading && <p className="admin-muted">Загрузка…</p>}
 
           <div className="calc-side-panel-scroll">
           {!readOnly && createOpen && (
@@ -1109,69 +1086,31 @@ export function Step2FrameFacade() {
                     <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
                   </button>
                   {!readOnly && (
-                    <div
-                      className="tile-gear-wrap"
-                      ref={(node) => {
-                        if (gearMenuTypeId === t.id) gearMenuWrapRef.current = node
+                    <TileGearMenu
+                      open={gearMenuTypeId === t.id}
+                      onToggle={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setGearMenuTypeId((id) => (id === t.id ? null : t.id))
                       }}
-                    >
-                      <div className="tree-line-actions tile-gear-menu-anchor">
-                        <button
-                          type="button"
-                          className="tree-gear-btn"
-                          title="Действия с типом профиля"
-                          aria-label={`Действия с типом «${title}»: редактировать или удалить`}
-                          aria-haspopup="menu"
-                          aria-expanded={gearMenuTypeId === t.id}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setGearMenuTypeId((id) => (id === t.id ? null : t.id))
-                          }}
-                        >
-                          <span className="tree-gear-ico" aria-hidden>
-                            ⚙
-                          </span>
-                        </button>
-                        {gearMenuTypeId === t.id && (
-                          <ul className="tree-gear-menu" role="menu">
-                            <li role="none">
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="tree-gear-menu-item"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setGearMenuTypeId(null)
-                                  openEditType(t)
-                                }}
-                              >
-                                Редактировать
-                              </button>
-                            </li>
-                            <li role="none">
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="tree-gear-menu-item tree-gear-menu-item--danger"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setGearMenuTypeId(null)
-                                  setProfileTypeDeleteModal(t)
-                                }}
-                              >
-                                Удалить
-                              </button>
-                            </li>
-                          </ul>
-                        )}
-                      </div>
-                    </div>
+                      onClose={() => setGearMenuTypeId(null)}
+                      onEdit={() => {
+                        setGearMenuTypeId(null)
+                        openEditType(t)
+                      }}
+                      onDelete={() => {
+                        setGearMenuTypeId(null)
+                        setProfileTypeDeleteModal(t)
+                      }}
+                      ariaLabel={`Действия с типом «${title}»: редактировать или удалить`}
+                      gearTitle="Действия с типом профиля"
+                    />
                   )}
                 </div>
               )
             })}
           </div>
+          <CalcStepPriceTotals />
           </div>
 
           <div className="frame2-card-nav">

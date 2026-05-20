@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import type { HingeLayoutPersisted } from './frameCalcSession'
 import {
   defaultHingeAbsPositionsMm,
@@ -468,6 +469,7 @@ export function Step6FrameHingeLayout() {
             {layoutError}
           </div>
         ) : null}
+        <CalcStepPriceTotals />
         </div>
 
         <div className="frame2-card-nav" style={{ marginTop: '1.25rem', paddingTop: '1rem' }}>

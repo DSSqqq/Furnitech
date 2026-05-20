@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { CalculatorProfileType, Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   FRAME_DEFAULT_HEIGHT_MM,
   FRAME_DEFAULT_WIDTH_MM,
@@ -222,6 +223,7 @@ export function Step3FrameSizes() {
             Максимальные размеры: {limits.maxH || '—'}×{limits.maxW || '—'} мм.
           </div>
         </div>
+        <CalcStepPriceTotals />
         </div>
 
         <div className="frame2-card-nav">

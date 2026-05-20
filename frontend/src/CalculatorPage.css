@@ -137,6 +137,34 @@
   margin-bottom: 0.75rem;
 }
 
+.calc-head-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.calc-head-bar .calc-steps-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.calc-head-bar .calc-totals-aside {
+  flex: 0 1 auto;
+  min-width: min(220px, 100%);
+  max-width: min(320px, 100%);
+}
+
+.calc-totals-inline {
+  margin-top: 0.75rem;
+  min-width: 0;
+}
+
+.calc-totals-inline .calc-totals-card {
+  position: static;
+}
+
 .calc-steps-tabs {
   margin-top: 0.6rem;
   display: inline-flex;
@@ -202,13 +230,16 @@ a.calc-step-tab.calc-step-tab--active:visited {
   }
 }
 
-.calc-card {
+/* Панель без внешней обёртки .calc-card (шаг 1, МДФ/ПВХ и т.п.) */
+.calc-grid > .calc-side-panel:not(.frame2-card) {
   background: linear-gradient(180deg, rgba(15, 16, 19, 0.62), rgba(15, 16, 19, 0.98));
   border-radius: var(--ft-radius-md);
   padding: 1rem 1.25rem;
   box-shadow: var(--ft-shadow-1);
-  min-width: 0;
   border: 1px solid var(--ft-border);
+  box-sizing: border-box;
+  width: min(var(--calc-steps-tabs-width, 100%), 100%);
+  max-width: min(var(--calc-steps-tabs-width, 100%), 100%);
 }
 
 .calc-card-title-row {
@@ -238,6 +269,14 @@ a.calc-step-tab.calc-step-tab--active:visited {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+.calc-side-panel-scroll > .calc-totals-inline {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding-top: 0.5rem;
 }
 
 @media (max-width: 1024px) {
@@ -246,15 +285,17 @@ a.calc-step-tab.calc-step-tab--active:visited {
   }
 }
 
-/* Шаг 1: ширина карточки как первая колонка сетки шагов 2–3 (рамочный) */
-#calc-step-panel-1 .calc-card {
-  max-width: min(640px, 100%);
+/* Ширина основной панели шага — по правому краю вкладки «Итог» (--calc-steps-tabs-width) */
+.calc-grid > .calc-side-panel,
+.calc-routes-step .frame2-card,
+.calc-routes-step .frame3-left {
+  box-sizing: border-box;
+  width: min(var(--calc-steps-tabs-width, 100%), 100%);
+  max-width: min(var(--calc-steps-tabs-width, 100%), 100%);
 }
 
-@media (min-width: 1280px) {
-  #calc-step-panel-1 .calc-card {
-    max-width: min(700px, 100%);
-  }
+#calc-step-panel-1 .frame2-card-nav--step1 {
+  justify-content: flex-end;
 }
 
 .calc-h3 {
@@ -295,7 +336,12 @@ a.calc-step-tab.calc-step-tab--active:visited {
 }
 
 .calc-facade-radio {
-  margin-top: 0.2rem;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--ft-accent-2, #cbb079);
+  cursor: pointer;
 }
 
 .calc-facade-title {

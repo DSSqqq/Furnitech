@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { fetchCalculationFormulas, fetchMaterial } from '../api'
 import { BASE_CURRENCY } from '../currencies'
 import type { CalculationFormula, Material } from '../types'
@@ -57,7 +57,7 @@ function uomPricingLabel(m: Material | null): string {
   return m?.uom?.short_name || m?.uom?.name || 'шт'
 }
 
-function CalcPriceTotalsActive() {
+function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceTotalsPlacement }) {
   const cfgKey = useSyncExternalStore(
     subscribeFrameCalcSession,
     readCalculatorPriceConfigKey,
@@ -184,7 +184,7 @@ function CalcPriceTotalsActive() {
   }, [parsed.heightMm, parsed.widthMm])
 
   return (
-    <aside className="calc-totals-aside" aria-label="Итого по калькулятору">
+    <CalcPriceTotalsShell placement={placement}>
       <div className="calc-totals-card">
         <h3 className="calc-totals-title">Расчёт</h3>
         {fetchErr && <p className="calc-totals-err">{fetchErr}</p>}
@@ -264,6 +264,25 @@ function CalcPriceTotalsActive() {
           </>
         )}
       </div>
+    </CalcPriceTotalsShell>
+  )
+}
+
+type CalcPriceTotalsPlacement = 'aside' | 'inline'
+
+function CalcPriceTotalsShell({
+  placement,
+  children,
+}: {
+  placement: CalcPriceTotalsPlacement
+  children: ReactNode
+}) {
+  if (placement === 'inline') {
+    return <div className="calc-totals-inline">{children}</div>
+  }
+  return (
+    <aside className="calc-totals-aside" aria-label="Итого по калькулятору">
+      {children}
     </aside>
   )
 }
@@ -273,21 +292,48 @@ type Props = {
   hideTotals: boolean
   /** Полностью скрыть колонку (например, шаг «Итог» со своей таблицей цен). */
   blankAside?: boolean
+  placement?: CalcPriceTotalsPlacement
 }
 
-export function CalcPriceTotals({ hideTotals, blankAside }: Props) {
+export function CalcPriceTotals({ hideTotals, blankAside, placement = 'aside' }: Props) {
   if (blankAside) return null
   if (hideTotals) {
     return (
-      <aside className="calc-totals-aside" aria-label="Итого по калькулятору">
+      <CalcPriceTotalsShell placement={placement}>
         <div className="calc-totals-card">
           <h3 className="calc-totals-title">Расчёт</h3>
           <p className="calc-totals-muted">
             Ориентировочная сумма появится на шаге 3 после выбора габаритов фасада (высота, ширина, количество).
           </p>
         </div>
-      </aside>
+      </CalcPriceTotalsShell>
     )
   }
-  return <CalcPriceTotalsActive />
+  return <CalcPriceTotalsActive placement={placement} />
+}
+
+type CalcPriceTotalsSlotValue = {
+  hideTotals: boolean
+  blankAside: boolean
+}
+
+const CalcPriceTotalsSlotContext = createContext<CalcPriceTotalsSlotValue | null>(null)
+
+export function CalcPriceTotalsSlotProvider({
+  hideTotals,
+  blankAside,
+  children,
+}: CalcPriceTotalsSlotValue & { children: ReactNode }) {
+  return (
+    <CalcPriceTotalsSlotContext.Provider value={{ hideTotals, blankAside }}>
+      {children}
+    </CalcPriceTotalsSlotContext.Provider>
+  )
+}
+
+/** Встроенный блок «Расчёт» внутри `.calc-side-panel-scroll` шага. */
+export function CalcStepPriceTotals() {
+  const slot = useContext(CalcPriceTotalsSlotContext)
+  if (!slot || slot.blankAside) return null
+  return <CalcPriceTotals hideTotals={slot.hideTotals} placement="inline" />
 }

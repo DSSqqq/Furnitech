@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
 import type { Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   isFrameStep2Ready,
   isFrameStep4Ready,
@@ -203,6 +204,7 @@ export function Step5FrameSummary() {
       <section className="frame2-card calc-side-panel">
         <div className="calc-side-panel-scroll">
           <FrameHingeMortisePanel />
+          <CalcStepPriceTotals />
         </div>
         <div className="frame2-card-nav">
           <button type="button" className="admin-secondary" onClick={() => nav(step('frame/filling'))}>

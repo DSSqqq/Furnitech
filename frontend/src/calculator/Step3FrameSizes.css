@@ -1,7 +1,7 @@
 .frame3 {
   display: grid;
   /* Те же колонки, что у шага 2: эскиз справа совпадает по ширине и позиции. */
-  grid-template-columns: minmax(520px, 640px) 1fr minmax(420px, 520px);
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 640px)) 1fr minmax(420px, 520px);
   gap: 1.5rem;
   align-items: start;
 }
@@ -19,7 +19,7 @@
 
 @media (min-width: 1280px) {
   .frame3 {
-    grid-template-columns: minmax(560px, 700px) 1fr minmax(460px, 560px);
+    grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 700px)) 1fr minmax(460px, 560px);
   }
 }
 

@@ -18,6 +18,7 @@ import type { CalculatorHandleHoleDiameter, Material } from '../types'
 import { FtSelect } from '../FtSelect'
 import { HandleHoleDiameterAdminSelect } from './HandleHoleDiameterAdminSelect'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   defaultHingeAbsPositionsMm,
   handleHoleCentersMm,
@@ -745,6 +746,7 @@ export function Step7FrameHandleHoles() {
             {layoutError}
           </div>
         ) : null}
+        <CalcStepPriceTotals />
         </div>
 
         <div className="frame2-card-nav" style={{ marginTop: '1.25rem', paddingTop: '1rem' }}>

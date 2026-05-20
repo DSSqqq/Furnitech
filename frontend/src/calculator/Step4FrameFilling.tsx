@@ -15,6 +15,7 @@ import { MaterialSearchModal } from '../MaterialSearchModal'
 import type { CalculatorFillingType, Material, MaterialCategory, MaterialClass } from '../types'
 import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
 import {
@@ -24,6 +25,7 @@ import {
   type MaterialTextureFields,
 } from './materialTextureLabel'
 import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
+import { TileGearMenu } from './TileGearMenu'
 import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -150,7 +152,6 @@ export function Step4FrameFilling() {
   const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
 
   const [gearMenuFillingTypeId, setGearMenuFillingTypeId] = useState<number | null>(null)
-  const fillingGearMenuWrapRef = useRef<HTMLDivElement | null>(null)
   const [fillingTypeDeleteModal, setFillingTypeDeleteModal] = useState<CalculatorFillingType | null>(null)
 
   const closeMaterialSearch = useCallback(() => {
@@ -533,27 +534,6 @@ export function Step4FrameFilling() {
   const cancelDeleteFillingType = useCallback(() => {
     setFillingTypeDeleteModal(null)
   }, [])
-
-  useEffect(() => {
-    if (gearMenuFillingTypeId == null) {
-      fillingGearMenuWrapRef.current = null
-      return
-    }
-    const onDoc = (e: MouseEvent) => {
-      if (fillingGearMenuWrapRef.current && !fillingGearMenuWrapRef.current.contains(e.target as Node)) {
-        setGearMenuFillingTypeId(null)
-      }
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setGearMenuFillingTypeId(null)
-    }
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [gearMenuFillingTypeId])
 
   useEffect(() => {
     if (!fillingTypeDeleteModal) return
@@ -994,69 +974,31 @@ export function Step4FrameFilling() {
                     <div className="tile-sub">Материалов: {(t.materials ?? []).length}</div>
                   </button>
                   {!readOnly && (
-                    <div
-                      className="tile-gear-wrap"
-                      ref={(node) => {
-                        if (gearMenuFillingTypeId === t.id) fillingGearMenuWrapRef.current = node
+                    <TileGearMenu
+                      open={gearMenuFillingTypeId === t.id}
+                      onToggle={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setGearMenuFillingTypeId((id) => (id === t.id ? null : t.id))
                       }}
-                    >
-                      <div className="tree-line-actions tile-gear-menu-anchor">
-                        <button
-                          type="button"
-                          className="tree-gear-btn"
-                          title="Действия с типом наполнения"
-                          aria-label={`Действия с типом «${title}»: редактировать или удалить`}
-                          aria-haspopup="menu"
-                          aria-expanded={gearMenuFillingTypeId === t.id}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            setGearMenuFillingTypeId((id) => (id === t.id ? null : t.id))
-                          }}
-                        >
-                          <span className="tree-gear-ico" aria-hidden>
-                            ⚙
-                          </span>
-                        </button>
-                        {gearMenuFillingTypeId === t.id && (
-                          <ul className="tree-gear-menu" role="menu">
-                            <li role="none">
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="tree-gear-menu-item"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setGearMenuFillingTypeId(null)
-                                  openEditFilling(t)
-                                }}
-                              >
-                                Редактировать
-                              </button>
-                            </li>
-                            <li role="none">
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="tree-gear-menu-item tree-gear-menu-item--danger"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setGearMenuFillingTypeId(null)
-                                  setFillingTypeDeleteModal(t)
-                                }}
-                              >
-                                Удалить
-                              </button>
-                            </li>
-                          </ul>
-                        )}
-                      </div>
-                    </div>
+                      onClose={() => setGearMenuFillingTypeId(null)}
+                      onEdit={() => {
+                        setGearMenuFillingTypeId(null)
+                        openEditFilling(t)
+                      }}
+                      onDelete={() => {
+                        setGearMenuFillingTypeId(null)
+                        setFillingTypeDeleteModal(t)
+                      }}
+                      ariaLabel={`Действия с типом «${title}»: редактировать или удалить`}
+                      gearTitle="Действия с типом наполнения"
+                    />
                   )}
                 </div>
               )
             })}
           </div>
+          <CalcStepPriceTotals />
           </div>
 
           <div className="frame2-card-nav">

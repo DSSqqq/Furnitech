@@ -1,7 +1,7 @@
 .frame2 {
   display: grid;
   /* Как на скрине: слева контент, по центру воздух, справа эскиз. */
-  grid-template-columns: minmax(520px, 640px) 1fr minmax(420px, 520px);
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 640px)) 1fr minmax(420px, 520px);
   gap: 1.5rem;
   align-items: start;
 }
@@ -31,7 +31,7 @@
 
 @media (min-width: 1280px) {
   .frame2 {
-    grid-template-columns: minmax(560px, 700px) 1fr minmax(460px, 560px);
+    grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 700px)) 1fr minmax(460px, 560px);
   }
 }
 
@@ -218,6 +218,22 @@
 
 .frame2-card-nav button {
   min-width: 12rem;
+}
+
+.frame2-card > .admin-heading-row.calc-card-title-row {
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.frame2-card > .admin-heading-row.calc-card-title-row .frame3-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.frame2-card > .admin-heading-row.calc-card-title-row .frame2-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .frame2-card-head {
@@ -568,6 +584,10 @@
 
 .tile-gear-menu-anchor.tree-line-actions {
   opacity: 0;
+}
+
+.tile-cell:has([aria-expanded='true']) {
+  z-index: 20;
 }
 
 .tile-cell:hover .tile-gear-wrap .tree-line-actions,

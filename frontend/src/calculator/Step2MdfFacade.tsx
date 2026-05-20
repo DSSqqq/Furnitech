@@ -1,4 +1,5 @@
 import { HintButton } from '../HintButton'
+import { CalcStepPriceTotals } from './CalcPriceTotals'
 
 export function Step2MdfFacade() {
   return (
@@ -9,6 +10,7 @@ export function Step2MdfFacade() {
       </div>
       <div className="calc-side-panel-scroll">
         <div className="calc-note">Дальнейшие шаги для «МДФ фасад» пока не реализованы.</div>
+        <CalcStepPriceTotals />
       </div>
     </div>
   )

@@ -1,6 +1,78 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-20 — **`excess_coefficient`** (коэффициент избытка) в карточке материала и расчёте калькулятора.
+**Последнее обновление:** 2026-05-20 — админка «Калькулятор»: единая панель шагов, блок «Расчёт» внутри шага, portal для меню плиток (см. блок ниже). Ранее в этот день: **`excess_coefficient`** в карточке материала.
+
+### Изменения 2026-05-20 (админка «Калькулятор» — вёрстка и UX)
+
+#### Общая структура макета
+
+- **`CalculatorPage.tsx`:** убрана внешняя обёртка **`section.calc-card`** на всех шагах — контент шага живёт напрямую в **`#calc-step-panel-N`** внутри **`.calc-routes-step`**.
+- **Одна колонка вместо «контент + боковая панель итога»:** на обёртке **`calc-body-with-totals calc-body-with-totals--wide`** — **`grid-template-columns: 1fr`** (**`CalculatorPage.css`**); правая колонка **`.calc-totals-aside`** больше не используется в разметке страницы.
+- **Ширина панели шага = ширина полосы вкладок:** **`syncCalcStepsTabsWidth(calcEl, tabsEl)`** в **`CalculatorPage.tsx`** измеряет **`.calc-steps-tabs`** (от левого края до правого края последней вкладки «Итог») и пишет CSS-переменную **`--calc-steps-tabs-width`** на **`.calc`**. **`ResizeObserver`**, **`resize`**, **`document.fonts.ready`** — пересчёт при смене шага и ресайзе.
+- Переменная применяется к **`frame2-card`**, **`frame3-left`**, **`calc-side-panel`**, сеткам **`frame2` / `frame3` / step8** (**`CalculatorPage.css`**, **`Step2FrameFacade.css`**, **`Step3FrameSizes.css`**, **`Step8FrameResult.css`**).
+
+#### Блок «Расчёт» внутри шага
+
+- **`CalcPriceTotals.tsx`:** экспорт **`CalcStepPriceTotals`** — встроенный блок с **`placement="inline"`** (обёртка **`.calc-totals-inline`**).
+- **`CalcPriceTotalsSlotProvider`** + контекст: **`hideTotals`** (шаги 1–2 — только подсказка без сумм), **`blankAside`** (шаг 8 — свой итог).
+- **`CalcStepPriceTotals`** подключён в **`calc-side-panel-scroll`** на шагах **1–7** (в т.ч. заглушки МДФ/ПВХ — **`Step2MdfFacade`**, **`Step2PvcFacade`**).
+- В админке (**`#admin-panel-calculator`**): **`margin-top: auto`** у **`.calc-side-panel-scroll > .calc-totals-inline`** — блок «Расчёт» прижат к низу прокручиваемой области (**`AdminApp.css`**).
+
+#### Паттерн **`.calc-side-panel`**
+
+- **`CalculatorPage.css`:** колонка flex с фиксированной высотой **`--calc-side-h`**, **`overflow: hidden`**; прокрутка только в **`.calc-side-panel-scroll`**; шапка (**`admin-heading-row`**) и **`frame2-card-nav`** остаются видимыми.
+- Шаги **2–8** (рамочный): **`frame2-card calc-side-panel`** или **`frame3-left calc-side-panel`**; шаг **1** — **`frame2-card calc-side-panel`** с той же высотой.
+
+#### Шаг 1 — выбор фасада
+
+- Разметка в **`CalculatorPage.tsx`:** **`frame3-title`** «Выберите тип фасада», сетка **`calc-facade-grid`** с radio, **`CalcStepPriceTotals`**, навигация **`frame2-card-nav frame2-card-nav--step1`**.
+- Локальное состояние **`step1Facade`** — выбор **не** переводит сразу на шаг 2; переход по кнопке **«Следующий шаг →»** (**`admin-primary`**, disabled без выбора).
+- Стили radio в админке: **`calc-facade-radio`** 16×16px, **`accent-color: var(--ft-accent-2)`**, активная строка **`calc-facade--active`**.
+
+#### Шаг 2 — тип профиля
+
+- Заголовок и **«+ Добавить тип профиля»** в одной строке **`admin-heading-row calc-card-title-row`** (**`Step2FrameFacade.tsx`**); убран отдельный **`frame2-card-head`** только с кнопкой.
+- Админ-плитки: компактная сетка (**`#admin-panel-calculator .tiles`**) — **`--tile-h: auto`**, **`grid-template-rows: auto auto auto`**, уменьшенные **`gap`** и **`padding`**.
+
+#### Меню ⚙ на плитках (шаги 2 и 4) — portal
+
+- **Новый файл `calculator/TileGearMenu.tsx`:** пункты **«Редактировать»** / **«Удалить»** рендерятся через **`createPortal(..., document.body)`** с **`position: fixed`** и классом **`tree-gear-menu--portal`** (**`z-index: 10000`**).
+- Позиция от **`getBoundingClientRect()`** кнопки шестерёнки; сдвиг от краёв viewport; закрытие — клик снаружи, **Escape**, scroll/resize.
+- Подключено в **`Step2FrameFacade.tsx`** (типы профиля) и **`Step4FrameFilling.tsx`** (типы наполнения); удалены **`gearMenuWrapRef`** / **`fillingGearMenuWrapRef`** и document-level **`mousedown`** для закрытия.
+- CSS: **`.tree-gear-menu--portal`** в **`AdminApp.css`**; убраны хаки **`left/right`** у inline-меню в **`Step2FrameFacade.css`** (меню больше не обрезается **`overflow`** у **`.calc-side-panel-scroll`**).
+
+#### Админка — типографика и вкладки
+
+- **`#admin-panel-calculator`:** отступы **`admin-orders-placeholder`** и **`calc`** согласованы с вкладкой **«Заказы»**; кегль через **`--mat-scroll-fs`** / **`--admin-refs-scale`**.
+- Вкладки шагов **`.calc-step-tab`** и разделов **`.admin-section-tab`** — один стиль: квадратные углы **`--admin-refs-control-radius`**, одинаковый **`font-size`** (**`calc(0.88rem * var(--admin-refs-scale))`**).
+- Полоса **`calc-steps-tabs`** в админке — без «пилюльного» фона (прозрачный фон, как **`admin-section-tabs`**).
+
+#### Десктоп: прокрутка внутри вкладки «Калькулятор»
+
+- **`@media (min-width: 1025px)`** в **`AdminApp.css`:** цепочка **`flex` + `min-height: 0` + `overflow: hidden`** от **`admin-orders-placeholder`** до **`calc-routes-wrap`** — шаг не «вылезает» за панель админки; вертикальный скролл в **`calc-routes-wrap`** (кроме шага 8 — **`calc-routes-wrap--step8`**, скролл внутри **`Step8FrameResult`**).
+
+#### Мобильная вёрстка
+
+- **`mobile.css`:** адаптация под **`calc-totals-inline`**, **`calc-side-panel`** без фиксированной высоты на **`≤1024px`**, панели на **`width: 100%`**.
+
+#### Затронутые файлы (frontend)
+
+| Файл | Суть |
+|------|------|
+| **`CalculatorPage.tsx`** | **`syncCalcStepsTabsWidth`**, шаг 1, **`CalcPriceTotalsSlotProvider`**, одноколоночный **`calc-body-with-totals--wide`** |
+| **`CalculatorPage.css`** | **`calc-side-panel`**, **`--calc-steps-tabs-width`**, **`calc-totals-inline`**, **`calc-body-with-totals--wide`** |
+| **`AdminApp.css`** | Блок **`#admin-panel-calculator`** (~300 строк), **`tree-gear-menu--portal`**, flex-скролл десктопа |
+| **`CalcPriceTotals.tsx`** | **`CalcStepPriceTotals`**, **`CalcPriceTotalsSlotProvider`**, **`placement: inline \| aside`** |
+| **`TileGearMenu.tsx`** | **новый** — portal-меню плитки |
+| **`Step2FrameFacade.tsx` / `.css`** | Заголовок+кнопка в одной строке, **`TileGearMenu`** |
+| **`Step4FrameFilling.tsx`** | **`TileGearMenu`** |
+| **`Step2MdfFacade.tsx`**, **`Step2PvcFacade.tsx`**, **`Step3FrameSizes.tsx`**, **`Step5FrameSummary.tsx`**, **`Step6FrameHingeLayout.tsx`**, **`Step7FrameHandleHoles.tsx`** | **`CalcStepPriceTotals`** в scroll |
+| **`Step3FrameSizes.css`**, **`Step8FrameResult.css`** | Колонки с **`var(--calc-steps-tabs-width)`** |
+| **`mobile.css`** | Панели и inline-итог на узких экранах |
+
+#### Документация
+
+- **`docs/ARCHITECTURE.md`** — обновлены строки про **`CalcPriceTotals`**, **`TileGearMenu`**, ширину панели.
 
 ### Изменения 2026-05-20 (коэффициент избытка материала)
 

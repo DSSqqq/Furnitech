@@ -1,6 +1,6 @@
 /* Шаг «Итог»: две колонки; справа — одна прокручиваемая колонка (детали + таблица + кнопки) */
 .frame2.step8-result {
-  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 400px)) minmax(0, 1fr);
   gap: 1.25rem 1.75rem;
   align-items: stretch;
 }
@@ -311,7 +311,9 @@
   }
 
   .calc,
-  .calc-card,
+  #calc-step-panel-1 .calc-side-panel,
+  .frame2-card,
+  .frame3-left,
   .step8-panel {
     background: #fff !important;
     color: #111 !important;

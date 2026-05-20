@@ -198,8 +198,8 @@
   .admin-section-tab {
     flex: 0 0 auto;
     white-space: nowrap;
-    font-size: 0.84rem;
-    padding: 0.32rem 0.7rem;
+    font-size: calc(0.84rem * var(--admin-refs-scale));
+    padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.28rem * var(--admin-refs-scale));
   }
 
   /* Колонка body админки: меньше отступов и пустые правые поля. */
@@ -240,8 +240,8 @@
   }
 
   .admin-section-tab {
-    font-size: 0.8rem;
-    padding: 0.28rem 0.65rem;
+    font-size: calc(0.8rem * var(--admin-refs-scale));
+    padding: calc(0.1rem * var(--admin-refs-scale)) calc(0.26rem * var(--admin-refs-scale));
   }
 
   .admin-body {
@@ -267,6 +267,16 @@
 
   .calc-head {
     margin-bottom: 0.6rem;
+  }
+
+  .calc-head-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .calc-totals-inline {
+    margin-top: 0.5rem;
   }
 
   .admin-h2 {
@@ -323,13 +333,13 @@
     min-height: 0;
   }
 
-  /* Шаг 1: широкая карточка без жёсткого max-width. */
-  #calc-step-panel-1 .calc-card {
+  /* На узком экране панели на всю ширину. */
+  #calc-step-panel-1 .calc-side-panel,
+  .calc-grid > .calc-side-panel,
+  .calc-routes-step .frame2-card,
+  .calc-routes-step .frame3-left {
+    width: 100%;
     max-width: 100%;
-  }
-
-  .calc-card {
-    padding: 0.85rem 0.95rem;
   }
 }
 
@@ -338,7 +348,7 @@
     padding: 0.55rem 0.6rem 1rem;
   }
 
-  .calc-card {
+  #calc-step-panel-1 .calc-side-panel {
     padding: 0.75rem 0.75rem;
     border-radius: 12px;
   }
