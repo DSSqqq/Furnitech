@@ -161,6 +161,7 @@ class MaterialSummarySerializer(serializers.ModelSerializer):
             "base_currency",
             "material_class_ids",
             "pricing_calc_mode",
+            "excess_coefficient",
             "texture_mode",
             "texture_color",
             "texture_image",
@@ -312,6 +313,7 @@ class MaterialSerializer(serializers.ModelSerializer):
             "note",
             "rounding_mode",
             "rounding_multiple",
+            "excess_coefficient",
             "is_active",
             "thickness",
             "max_length",
@@ -545,6 +547,13 @@ class MaterialSerializer(serializers.ModelSerializer):
                 )
         if mode in (RoundingMode.NONE, RoundingMode.CEIL_UNIT):
             attrs = {**attrs, "rounding_multiple": None}
+        coeff = attrs.get("excess_coefficient")
+        if coeff is not None:
+            c = coeff if isinstance(coeff, Decimal) else Decimal(str(coeff))
+            if c <= 0:
+                raise serializers.ValidationError(
+                    {"excess_coefficient": "Коэффициент избытка должен быть положительным."}
+                )
         attrs = {**attrs, "base_currency": "KZT"}
         return attrs
 

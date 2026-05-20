@@ -312,6 +312,14 @@ class Material(models.Model):
         null=True,
         blank=True,
     )
+    excess_coefficient = models.DecimalField(
+        "Коэффициент избытка",
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal("1"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Множитель к рассчитанному количеству (1 — без запаса, 1.1 — +10%).",
+    )
     is_active = models.BooleanField("Активен", default=True)
     external_id = models.CharField("ID 1С", max_length=64, blank=True, null=True, unique=True, db_index=True)
     last_synced_at = models.DateTimeField("Синхронизирован", null=True, blank=True)
@@ -481,6 +489,10 @@ class Material(models.Model):
         ):
             raise ValidationError(
                 {"rounding_multiple": "Для кратного округления укажите положительное число (кратность)."}
+            )
+        if self.excess_coefficient is not None and self.excess_coefficient <= 0:
+            raise ValidationError(
+                {"excess_coefficient": "Коэффициент избытка должен быть положительным."}
             )
         if self.article:
             qs = Material.objects.filter(article=self.article)

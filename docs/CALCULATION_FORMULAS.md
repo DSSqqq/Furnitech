@@ -30,7 +30,26 @@
 - **`pricedUnitsForMaterial`**, **`materialLineCost`**, **`computeFramePriceBreakdown`** — используют **`resolveMaterialPricingUomCode`**.
 - Сопутствующие с **`quantity_scale = use_related_uom`** — объём по **`pricing_calc_mode`** (или fallback) **сопутствующего** материала; для этого **`pricing_calc_mode`** включён в **`MaterialSummarySerializer`**.
 
-Активная **формула по классам** (**`calculationFormula.ts`**) опирается на те же **`materialLineCost`** / **`pricedUnitsForMaterial`**, поэтому режим расчёта влияет и на альтернативный итог.
+Активная **формула по классам** (**`calculationFormula.ts`**) опирается на те же **`materialLineCost`** / **`pricedUnitsForMaterial`**, поэтому режим расчёта и коэффициент избытка влияют и на альтернативный итог.
+
+## Коэффициент избытка (`excess_coefficient`)
+
+Задаётся в карточке материала (админка → **Материалы** → поле **«Коэффициент избытка»** под блоком округления, **`mat-form-excess-field`**). Хранится в БД (**миграция `0046_material_excess_coefficient`**, default **`1`**).
+
+| Значение | Смысл |
+|----------|--------|
+| **`1`** (default) | Без запаса — в расчёт идёт точное геометрическое количество |
+| **`1.1`** | +10% к количеству (1 м.п. → 1.1 м.п. × цена) |
+| **`≤ 0`** или пусто в UI | При сохранении/расчёте трактуется как **`1`** |
+
+Формула в **`frontend/src/calculator/framePriceEstimate.ts`**:
+
+- **`unitsPerFacade(H, W, code)`** × **`N`** фасадов → «сырое» количество;
+- × **`parseExcessCoefficient(material)`** → количество для умножения на **`base_price`**.
+
+Применяется в **`pricedUnitsForMaterial`**, **`materialLineCost`**, **`computeFramePriceBreakdown`** и при **`use_related_uom`** у сопутствующих (коэффициент **сопутствующего** материала). Поле включено в **`MaterialSummarySerializer`** для summary в **`related_items`**.
+
+Не путать с **`rounding_mode`**: округление вверх до целого/кратного **пока не подключено** к калькулятору (только хранение в карточке).
 
 ## Альтернативный режим суммы против «старого» брейкдауна
 

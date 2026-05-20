@@ -1,6 +1,29 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-19 — **`pricing_calc_mode`** подключён к калькулятору; карточка материала (textarea «Примечание», флажки расчёта).
+**Последнее обновление:** 2026-05-20 — **`excess_coefficient`** (коэффициент избытка) в карточке материала и расчёте калькулятора.
+
+### Изменения 2026-05-20 (коэффициент избытка материала)
+
+#### Backend
+
+- **`Material.excess_coefficient`** — **`DecimalField`**, default **`1`**, миграция **`0046_material_excess_coefficient`**; валидация **`> 0`** в **`clean`** и **`MaterialSerializer.validate`**.
+- **`MaterialSerializer`**, **`MaterialSummarySerializer`** — поле **`excess_coefficient`** (read/write и в summary для сопутствующих с **`use_related_uom`**).
+
+#### Карточка материала (`MaterialForm`, `AdminApp.tsx`, `AdminApp.css`)
+
+- Под блоком **«Округление…»** — поле **«Коэффициент избытка»** (**`mat-form-rounding-stack`**, **`mat-form-excess-field`**); default **`1`**, при blur пусто или **`≤ 0`** → **`1`**.
+
+#### Калькулятор (`frontend/src/calculator/framePriceEstimate.ts`)
+
+- **`parseExcessCoefficient`**, **`pricedUnitsForMaterial`**: итоговое количество = геометрический объём × **`excess_coefficient`** (пусто/`≤ 0` → **`1`**). Затронуты **`materialLineCost`**, **`computeFramePriceBreakdown`**, **`calculationFormula.ts`**.
+
+#### Типы
+
+- **`frontend/src/types.ts`:** **`excess_coefficient`** в **`Material`** и вложенном **`related_material`**.
+
+#### Документация
+
+- **`docs/ARCHITECTURE.md`**, **`docs/CALCULATION_FORMULAS.md`** — описание поля и формулы.
 
 ### Изменения 2026-05-19 (калькулятор — режим расчёта материала)
 

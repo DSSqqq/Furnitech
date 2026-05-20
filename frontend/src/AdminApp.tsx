@@ -1841,6 +1841,10 @@ function MaterialForm({
     note: material?.note ?? '',
     rounding_mode: (material?.rounding_mode ?? 'none') as RoundingMode,
     rounding_multiple: material?.rounding_multiple ?? '',
+    excess_coefficient: formatDecimalStringForInput(
+      String(material?.excess_coefficient ?? '1'),
+      6
+    ),
     material_class_ids: normalizeMaterialClassIds(material?.material_class_ids),
     thickness: formatDecimalStringForInput(String(material?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
     min_length: formatDecimalStringForInput(String((material as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
@@ -2041,6 +2045,7 @@ function MaterialForm({
       note: form.note,
       rounding_mode: rounding_mode_out,
       rounding_multiple: rounding_multiple_out,
+      excess_coefficient: commitDecimalForApi(form.excess_coefficient || '1'),
       is_active: material?.is_active ?? true,
       material_class_ids: form.material_class_ids,
       thickness: commitDecimalForApi(form.thickness),
@@ -2288,39 +2293,63 @@ function MaterialForm({
               />
             </label>
             <div className="field mat-form-rounding-col">
-              <div className="mat-form-rounding-inline">
-                <label className="mat-form-rounding-check-wrap">
+              <div className="mat-form-rounding-stack">
+                <div className="mat-form-rounding-inline">
+                  <label className="mat-form-rounding-check-wrap">
+                    <input
+                      type="checkbox"
+                      checked={roundingEnabled}
+                      onChange={(e) => toggleRoundingEnabled(e.target.checked)}
+                    />
+                    <span>Округление в большую сторону до кратного числа</span>
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={roundingEnabled}
-                    onChange={(e) => toggleRoundingEnabled(e.target.checked)}
-                  />
-                  <span>Округление в большую сторону до кратного числа</span>
-                </label>
-                <input
-                  className="admin-input mat-form-rounding-mult-input"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  disabled={!roundingEnabled}
-                  aria-label="Кратность округления"
-                  value={roundingStepInputValue}
-                  onChange={(e) => {
-                    if (!roundingEnabled) return
-                    const v = e.target.value
-                    if (v.trim() === '') {
+                    className="admin-input mat-form-rounding-mult-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    disabled={!roundingEnabled}
+                    aria-label="Кратность округления"
+                    value={roundingStepInputValue}
+                    onChange={(e) => {
+                      if (!roundingEnabled) return
+                      const v = e.target.value
+                      if (v.trim() === '') {
+                        setField('rounding_mode', 'ceil_multiple')
+                        setField('rounding_multiple', '')
+                        return
+                      }
                       setField('rounding_mode', 'ceil_multiple')
-                      setField('rounding_multiple', '')
-                      return
+                      setField('rounding_multiple', filterDecimalInput(v, roundingStepFractionDigits))
+                    }}
+                    onBlur={(e) => {
+                      if (!roundingEnabled) return
+                      applyRoundingMultipleFromString(e.target.value)
+                    }}
+                  />
+                </div>
+                <label className="field mat-form-excess-field">
+                  <span>Коэффициент избытка</span>
+                  <input
+                    className="admin-input mat-form-excess-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="Коэффициент избытка"
+                    value={form.excess_coefficient}
+                    onChange={(e) =>
+                      setField('excess_coefficient', filterDecimalInput(e.target.value, 6))
                     }
-                    setField('rounding_mode', 'ceil_multiple')
-                    setField('rounding_multiple', filterDecimalInput(v, roundingStepFractionDigits))
-                  }}
-                  onBlur={(e) => {
-                    if (!roundingEnabled) return
-                    applyRoundingMultipleFromString(e.target.value)
-                  }}
-                />
+                    onBlur={(e) => {
+                      const norm = normalizeDecimalForInput(e.currentTarget.value, 6)
+                      setField(
+                        'excess_coefficient',
+                        norm === '' || Number(norm.replace(',', '.')) <= 0 ? '1' : norm
+                      )
+                    }}
+                    placeholder="1"
+                  />
+                </label>
               </div>
             </div>
           </div>

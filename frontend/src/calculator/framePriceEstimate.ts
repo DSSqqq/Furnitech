@@ -8,6 +8,16 @@ export function parseMoney(s: string | undefined | null): number {
   return parseFloat(normalizeDecimalOnBlur(String(s)).replace(',', '.')) || 0
 }
 
+/** Коэффициент избытка материала; пусто или ≤0 → 1 (без запаса). */
+export function parseExcessCoefficient(
+  material: Pick<Material, 'excess_coefficient'> | null | undefined
+): number {
+  if (!material) return 1
+  const n = parseMoney(material.excess_coefficient ?? '1')
+  if (!Number.isFinite(n) || n <= 0) return 1
+  return n
+}
+
 /** Код ед. изм. для расчёта: m2 | m | pc. Если в БД пустой `code`, угадываем по подписи (как у старых записей). */
 export function resolvePricingUomCode(u: UnitOfMeasure | undefined | null): string {
   if (!u) return 'm2'
@@ -107,14 +117,15 @@ export function unitsPerFacade(heightMm: number, widthMm: number, code: string):
 }
 
 export function pricedUnitsForMaterial(
-  material: Pick<Material, 'uom' | 'pricing_calc_mode'> | null | undefined,
+  material: Pick<Material, 'uom' | 'pricing_calc_mode' | 'excess_coefficient'> | null | undefined,
   heightMm: number,
   widthMm: number,
   facadeCount: number
 ): number {
   if (!material || facadeCount <= 0) return 0
   const code = resolveMaterialPricingUomCode(material)
-  return unitsPerFacade(heightMm, widthMm, code) * facadeCount
+  const raw = unitsPerFacade(heightMm, widthMm, code) * facadeCount
+  return raw * parseExcessCoefficient(material)
 }
 
 export function materialLineCost(

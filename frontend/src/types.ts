@@ -91,6 +91,7 @@ export type MaterialRelatedItemDto = {
     base_currency: string
     material_class_ids?: number[]
     pricing_calc_mode?: PricingCalcMode
+    excess_coefficient?: string
   }
   quantity: string
   /** Режим расчёта; по умолчанию как раньше — follow_parent. */
@@ -139,6 +140,8 @@ export type Material = {
   note: string
   rounding_mode: RoundingMode
   rounding_multiple: string | null
+  /** Множитель к рассчитанному количеству (1 — без запаса). */
+  excess_coefficient?: string
   is_active: boolean
   external_id: string | null
 }
