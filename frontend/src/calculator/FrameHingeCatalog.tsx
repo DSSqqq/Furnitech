@@ -10,7 +10,6 @@ import {
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
 import type { CalculatorHingeType, Material, MaterialCategory, MaterialClass } from '../types'
-import { HintButton } from '../HintButton'
 import {
   CALC_LS_HINGE_MATERIAL_ID,
   CALC_LS_HINGE_TYPE_ID,
@@ -582,8 +581,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               />
               <div className="frame2-file-row">
                 <div className="frame2-file-label-row">
-                  <span className="frame2-file-label">Изображения для карточки (до 4)</span>
-                  <HintButton text="До четырёх фото на один тип петель. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
+                  <span className="frame2-file-label">Изображения для карточки</span>
                 </div>
                 {(
                   [
@@ -631,7 +629,6 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               <div className="frame2-file-row frame2-colors-for-card-label">
                 <div className="frame2-file-label-row">
                   <span className="frame2-file-label">Материалы для карточки</span>
-                  <HintButton text="Отметьте материалы, которые будут доступны для этого типа петель в калькуляторе. Добавляйте через «Поиск»." />
                 </div>
               </div>
               {createMatHit.length > 0 && (
@@ -706,7 +703,6 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               <div className="frame2-file-row">
                 <div className="frame2-file-label-row">
                   <span className="frame2-file-label">Карточка: до 4 фото</span>
-                  <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                 </div>
                 {(
                   [
@@ -754,7 +750,6 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               <div className="frame2-file-row frame2-colors-for-card-label">
                 <div className="frame2-file-label-row">
                   <span className="frame2-file-label">Материалы для карточки</span>
-                  <HintButton text="Отметьте материалы, которые будут доступны для этого типа петель в калькуляторе. Добавляйте через «Поиск»." />
                 </div>
               </div>
               {editHingeMatHit.length > 0 && (

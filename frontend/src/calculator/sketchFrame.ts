@@ -92,6 +92,22 @@ function blendScale(defaultScale: number, targetScale: number, strength: number)
   return defaultScale + (targetScale - defaultScale) * k
 }
 
+/** Выше этой высоты фасада (мм) эскиз по вертикали не увеличивается. */
+export const SKETCH_SCALE_HEIGHT_CAP_MM = 1700
+
+export function facadeSketchScaleY(heightMm: number): number {
+  const cappedHeight = Math.min(heightMm, SKETCH_SCALE_HEIGHT_CAP_MM)
+  const targetScale = cappedHeight / 2000
+  const softenedScale = blendScale(1, targetScale, 0.22)
+  return clamp(softenedScale, 0.9, 1.1)
+}
+
+export function facadeSketchAspectRatio(widthMm: number, heightMm: number): number {
+  const target = widthMm / heightMm
+  const softened = blendAspect(3 / 4.2, target, 0.28)
+  return clamp(softened, 0.56, 0.92)
+}
+
 /**
  * Пропорции и вертикальный масштаб блока `.sketch` по габаритам фасада (мм), как на шаге 3.
  * W/H смягчённо подмешивается к базе 3/4.2; масштаб по высоте — от базы 2000 мм.
@@ -100,15 +116,9 @@ export function facadeSketchBoxStyle(heightMm: number, widthMm: number): CSSProp
   if (!Number.isFinite(heightMm) || !Number.isFinite(widthMm) || heightMm <= 0 || widthMm <= 0) {
     return undefined
   }
-  const target = widthMm / heightMm
-  const softened = blendAspect(3 / 4.2, target, 0.28)
-  const aspect = clamp(softened, 0.56, 0.92)
-  const targetScale = heightMm / 2000
-  const softenedScale = blendScale(1, targetScale, 0.22)
-  const scaleY = clamp(softenedScale, 0.9, 1.1)
   return {
-    aspectRatio: aspect,
-    ['--sketch-scale-y' as string]: scaleY,
+    aspectRatio: facadeSketchAspectRatio(widthMm, heightMm),
+    ['--sketch-scale-y' as string]: facadeSketchScaleY(heightMm),
   } as CSSProperties
 }
 

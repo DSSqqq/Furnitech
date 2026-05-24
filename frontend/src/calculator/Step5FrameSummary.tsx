@@ -12,7 +12,7 @@ import {
 } from './frameCalcSession'
 import { FrameHingeMortisePanel } from './FrameHingeMortisePanel'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
-import { materialTextureLayerStyle } from './sketchFrame'
+import { materialTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -101,9 +101,7 @@ export function Step5FrameSummary() {
 
   const sketchScaleY = useMemo(() => {
     if (parsed.heightN == null || parsed.heightN <= 0) return undefined
-    const target = parsed.heightN / 2000
-    const softened = blendScale(1, target, 0.22)
-    return clamp(softened, 0.9, 1.1)
+    return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
   const [frameTypeName, setFrameTypeName] = useState('—')

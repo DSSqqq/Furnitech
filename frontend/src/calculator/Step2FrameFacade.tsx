@@ -12,7 +12,6 @@ import {
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
 import type { CalculatorProfileType, Material, MaterialCategory, MaterialClass } from '../types'
-import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
@@ -742,8 +741,7 @@ export function Step2FrameFacade() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки (до 4)</span>
-                      <HintButton text="До четырёх фото на один тип профиля. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
+                      <span className="frame2-file-label">Изображения для карточки</span>
                     </div>
                     {(
                       [
@@ -790,7 +788,6 @@ export function Step2FrameFacade() {
                   <div className="frame2-file-row frame2-colors-for-card-label">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Цвета для карточки</span>
-                      <HintButton text="Отметьте материалы, которые будут доступны как цвета этого типа в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
                   </div>
                   {createColorsHit.length > 0 && (
@@ -913,7 +910,6 @@ export function Step2FrameFacade() {
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Карточка: до 4 фото</span>
-                      <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
                     {(
                       [
@@ -960,7 +956,6 @@ export function Step2FrameFacade() {
                   <div className="frame2-file-row frame2-colors-for-card-label">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Цвета для карточки</span>
-                      <HintButton text="Отметьте материалы, которые будут доступны как цвета этого типа в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
                   </div>
                   {editColorsHit.length > 0 && (

@@ -1268,12 +1268,15 @@ button.admin-secondary.frame2-file-btn:active {
 }
 
 .frame2-flags {
-  margin: 0.25rem 0 0 2.45rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
   display: flex;
   gap: 0.65rem;
   flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
   min-width: 0;
-  max-width: calc(100% - 2.45rem);
+  max-width: 100%;
   box-sizing: border-box;
 }
 

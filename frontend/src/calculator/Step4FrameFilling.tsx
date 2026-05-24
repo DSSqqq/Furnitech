@@ -13,7 +13,6 @@ import {
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
 import type { CalculatorFillingType, Material, MaterialCategory, MaterialClass } from '../types'
-import { HintButton } from '../HintButton'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
@@ -35,7 +34,7 @@ import {
   type CalcCardImageFiles,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
-import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
+import { resolveMediaUrl, materialTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -121,9 +120,7 @@ export function Step4FrameFilling() {
   }, [heightN, widthN])
   const sketchScaleY = useMemo(() => {
     if (heightN == null || heightN <= 0) return undefined
-    const target = heightN / 2000
-    const softened = blendScale(1, target, 0.22)
-    return clamp(softened, 0.9, 1.1)
+    return facadeSketchScaleY(heightN)
   }, [heightN])
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -656,13 +653,7 @@ export function Step4FrameFilling() {
             <div className="frame3-title" role="heading" aria-level={3}>
               Выберите тип наполнения
             </div>
-          </div>
-
-          {err && <div className="admin-error">{err}</div>}
-          {loading && <p className="admin-muted">Загрузка…</p>}
-
-          {!readOnly && (
-            <div className="frame2-card-head">
+            {!readOnly ? (
               <div className="frame2-actions">
                 <button
                   type="button"
@@ -678,8 +669,11 @@ export function Step4FrameFilling() {
                   + Добавить тип наполнения
                 </button>
               </div>
-            </div>
-          )}
+            ) : null}
+          </div>
+
+          {err && <div className="admin-error">{err}</div>}
+          {loading && <p className="admin-muted">Загрузка…</p>}
 
           <div className="calc-side-panel-scroll">
           {!readOnly && createOpen && (
@@ -720,8 +714,7 @@ export function Step4FrameFilling() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки (до 4)</span>
-                      <HintButton text="До четырёх фото на один тип наполнения. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
+                      <span className="frame2-file-label">Изображения для карточки</span>
                     </div>
                     {(
                       [
@@ -769,7 +762,6 @@ export function Step4FrameFilling() {
                   <div className="frame2-file-row frame2-colors-for-card-label">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Материалы для карточки</span>
-                      <HintButton text="Отметьте материалы, которые будут доступны для этого типа наполнения в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
                   </div>
                   {createMatHit.length > 0 && (
@@ -844,7 +836,6 @@ export function Step4FrameFilling() {
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Карточка: до 4 фото</span>
-                      <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
                     {(
                       [
@@ -892,7 +883,6 @@ export function Step4FrameFilling() {
                   <div className="frame2-file-row frame2-colors-for-card-label">
                     <div className="frame2-file-label-row">
                       <span className="frame2-file-label">Материалы для карточки</span>
-                      <HintButton text="Отметьте материалы, которые будут доступны для этого типа наполнения в калькуляторе. Добавляйте через «Поиск»." />
                     </div>
                   </div>
                   {editFillingMatHit.length > 0 && (
