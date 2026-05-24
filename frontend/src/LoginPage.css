@@ -6,15 +6,15 @@
   justify-content: center;
   padding: 1.5rem;
   background:
-    radial-gradient(900px 700px at 50% -100px, rgba(203, 176, 121, 0.18), transparent 60%),
-    radial-gradient(700px 600px at 80% 0, rgba(255, 255, 255, 0.07), transparent 60%),
+    radial-gradient(900px 700px at 50% -100px, var(--ft-body-glow-accent-strong), transparent 60%),
+    radial-gradient(700px 600px at 80% 0, var(--ft-body-glow-secondary), transparent 60%),
     var(--ft-bg);
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.7), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-card-gradient-start), var(--ft-card-gradient-end));
   border-radius: var(--ft-radius-md);
   padding: 1.75rem 1.5rem 2rem;
   box-shadow: var(--ft-shadow-2);
@@ -37,9 +37,9 @@
 }
 
 .login-error {
-  background: rgba(255, 107, 107, 0.12);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: var(--ft-danger-bg);
+  color: var(--ft-danger-text);
+  border: 1px solid var(--ft-danger-border);
   padding: 0.5rem 0.65rem;
   border-radius: 10px;
   font-size: 0.85rem;
@@ -62,24 +62,24 @@
   padding: 0.5rem 0.65rem;
   font: inherit;
   color: var(--ft-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-input-bg);
 }
 
 .login-input::placeholder {
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--ft-input-placeholder);
 }
 
 .login-input:focus {
   outline: none;
-  border-color: rgba(203, 176, 121, 0.48);
-  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-focus);
+  box-shadow: 0 0 0 3px var(--ft-accent-bg-muted);
 }
 
 .login-btn {
   margin-top: 0.5rem;
-  background: rgba(203, 176, 121, 0.14);
+  background: var(--ft-accent-bg-hover);
   color: var(--ft-accent-2);
-  border: 1px solid rgba(203, 176, 121, 0.32);
+  border: 1px solid var(--ft-accent-border);
   border-radius: 999px;
   padding: 0.55rem 1rem;
   font: inherit;
@@ -87,8 +87,8 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: rgba(203, 176, 121, 0.2);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-strong);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .login-btn:disabled {

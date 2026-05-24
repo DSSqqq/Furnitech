@@ -19,7 +19,7 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  opacity: 0.08;
+  opacity: var(--ft-wood-overlay-opacity);
   filter: saturate(0.7) contrast(1.05);
   mix-blend-mode: overlay;
 }
@@ -66,7 +66,7 @@
   gap: 1rem;
   padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--ft-border);
-  background: linear-gradient(180deg, rgba(7, 7, 8, 0.94), rgba(7, 7, 8, 0.78));
+  background: linear-gradient(180deg, var(--ft-header-gradient-start), var(--ft-header-gradient-end));
   backdrop-filter: blur(10px);
 }
 
@@ -109,9 +109,9 @@
 
 .public-shell__logout {
   flex-shrink: 0;
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
   color: var(--ft-accent-2);
-  border: 1px solid rgba(203, 176, 121, 0.32);
+  border: 1px solid var(--ft-accent-border);
   border-radius: 999px;
   padding: 0.35rem 0.65rem;
   font: inherit;
@@ -120,23 +120,23 @@
 }
 
 .public-shell__logout:hover {
-  background: rgba(203, 176, 121, 0.14);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-hover);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .public-shell__link {
   font-size: 0.9rem;
   color: var(--ft-accent);
   text-decoration: none;
-  border: 1px solid rgba(203, 176, 121, 0.32);
+  border: 1px solid var(--ft-accent-border);
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .public-shell__link:hover {
-  background: rgba(203, 176, 121, 0.14);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-hover);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .public-shell__link--button {
@@ -155,7 +155,7 @@
   gap: 0.35rem 0.5rem;
   padding: 0.55rem 1.25rem;
   border-bottom: 1px solid var(--ft-border);
-  background: rgba(7, 7, 8, 0.55);
+  background: var(--ft-tabs-bar-bg);
   flex-shrink: 0;
 }
 
@@ -180,18 +180,18 @@
 
 .public-shell__section-tab:hover {
   color: var(--ft-accent);
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .public-shell__section-tab:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline: 2px solid var(--ft-accent-focus-outline);
   outline-offset: 2px;
 }
 
 .public-shell__section-tab--active {
   color: var(--ft-accent-2);
-  border-color: rgba(203, 176, 121, 0.38);
-  background: rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-active);
+  background: var(--ft-accent-bg-muted);
 }
 
 /* Публичный калькулятор — та же оболочка и высота, что в админке */

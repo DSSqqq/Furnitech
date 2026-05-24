@@ -929,7 +929,7 @@
     padding: 0.7rem 0.85rem;
     border: 1px solid var(--ft-border);
     border-radius: var(--ft-radius-md);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--ft-hover-surface);
   }
 
   .admin-orders-table td,
@@ -939,7 +939,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.32rem 0;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    border-bottom: 1px dashed var(--ft-hover-surface-5);
     vertical-align: middle;
   }
 

@@ -211,7 +211,7 @@
 }
 
 .frame2-card {
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.62), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-panel-gradient-start), var(--ft-card-gradient-end));
   border: 1px solid var(--ft-border);
   border-radius: var(--ft-radius-md);
   padding: 0.85rem 0.9rem;
@@ -301,7 +301,7 @@
   border: 1px solid var(--ft-border);
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--ft-surface);
 }
 
 .frame2-picklist li button {
@@ -312,13 +312,14 @@
   align-items: center;
   padding: 0.55rem 0.65rem;
   border: 0;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--ft-surface);
   cursor: pointer;
   text-align: left;
+  color: var(--ft-text);
 }
 
 .frame2-picklist li button:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .frame2-pick-article {
@@ -354,7 +355,7 @@
   min-height: var(--tile-h);
   border: 1px solid var(--ft-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ft-surface);
   padding: 0.55rem;
   cursor: pointer;
   text-align: left;
@@ -367,14 +368,14 @@
 }
 
 .tile:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--ft-accent-border-hover);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .tile--active {
-  border-color: rgba(203, 176, 121, 0.55);
-  background: rgba(203, 176, 121, 0.12);
-  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-strong);
+  background: var(--ft-accent-bg-muted);
+  box-shadow: 0 0 0 3px var(--ft-accent-bg-muted);
 }
 
 .tile-thumb {
@@ -382,7 +383,7 @@
   aspect-ratio: 1 / 1;
   min-height: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   border: 1px solid var(--ft-border);
   overflow: hidden;
   position: relative;
@@ -478,7 +479,7 @@
   min-width: 0;
   border-radius: 4px;
   height: 100%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--ft-hover-surface-5);
   border: 1px solid var(--ft-border);
   box-sizing: border-box;
   cursor: default;
@@ -490,14 +491,14 @@
 
 /* Текущий кадр — чуть теплее; без смены высоты (иначе прыгает заголовок плитки). */
 .tile-card-stripe--active {
-  background: rgba(203, 176, 121, 0.22);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-border-soft);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .tile-card-stripe:hover {
-  background: rgba(203, 176, 121, 0.38);
+  background: var(--ft-accent-border-active);
   border-color: rgba(203, 176, 121, 0.62);
-  box-shadow: 0 0 0 1px rgba(203, 176, 121, 0.2);
+  box-shadow: 0 0 0 1px var(--ft-accent-bg-strong);
 }
 
 /* Плитки выбора фото карточки типа профиля (шаг 2) */
@@ -518,7 +519,7 @@
   margin: 0;
   border: 1px solid var(--ft-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   cursor: pointer;
   overflow: hidden;
   flex: 0 0 auto;
@@ -529,17 +530,17 @@
 }
 
 .frame2-card-image-tile:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--ft-border-strong);
+  background: var(--ft-hover-surface-5);
 }
 
 .frame2-card-image-tile:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.55);
+  outline: 2px solid var(--ft-accent-border-strong);
   outline-offset: 2px;
 }
 
 .frame2-card-image-tile--filled {
-  border-color: rgba(203, 176, 121, 0.38);
+  border-color: var(--ft-accent-border-active);
 }
 
 .frame2-card-image-tile-img {
@@ -573,8 +574,8 @@
   font-weight: 800;
   line-height: 1.2;
   color: var(--ft-text);
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--ft-overlay-backdrop);
+  border: 1px solid var(--ft-surface-border-soft);
 }
 
 /* Плитка + шестерёнка (шаги 2 и 4): правка типа без открытия модалки выбора */
@@ -621,13 +622,13 @@
   width: 1.75rem;
   height: 1.75rem;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: #000;
+  border: 1px solid var(--ft-border-strong);
+  background: var(--ft-btn-primary-bg);
   border-radius: 4px;
   font: inherit;
   padding: 0;
   cursor: pointer;
-  color: #fff;
+  color: var(--ft-btn-primary-text);
   line-height: 1;
   opacity: 0;
   transition: opacity 0.1s ease, background 0.12s ease, border-color 0.12s ease;
@@ -641,9 +642,9 @@
 
 .tile-gear:hover,
 .tile-gear:focus-visible {
-  background: #141414;
-  border-color: rgba(255, 255, 255, 0.38);
-  color: #fff;
+  background: var(--ft-btn-primary-bg-hover);
+  border-color: var(--ft-btn-primary-border-hover);
+  color: var(--ft-btn-primary-text);
   outline: none;
 }
 
@@ -657,7 +658,7 @@
 .frame2-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.66);
+  background: var(--ft-overlay-backdrop);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -670,7 +671,7 @@
   width: min(980px, 100%);
   max-height: min(720px, 100%);
   overflow: auto;
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.72), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-card-gradient-alt-start), var(--ft-card-gradient-end));
   border-radius: var(--ft-radius-md);
   border: 1px solid var(--ft-border);
   box-shadow: var(--ft-shadow-2);
@@ -723,9 +724,9 @@
   height: 1.65rem;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 107, 107, 0.12);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: var(--ft-danger-bg);
+  color: var(--ft-danger-text);
+  border: 1px solid var(--ft-danger-border);
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
@@ -734,7 +735,7 @@
 }
 
 .tile-action-remove:hover:not(:disabled) {
-  background: rgba(255, 107, 107, 0.18);
+  background: var(--ft-danger-bg-hover);
 }
 
 .tile-action-remove:disabled {
@@ -745,9 +746,9 @@
 .frame2-drop {
   margin-top: 0.45rem;
   padding: 0.65rem 0.7rem;
-  border: 1px solid #e6e8ed;
+  border: 1px solid var(--ft-config-border);
   border-radius: 10px;
-  background: #fbfcfd;
+  background: var(--ft-surface-2);
 }
 
 .frame2-drop-row {
@@ -758,7 +759,7 @@
 }
 
 .frame2-drop-label {
-  color: #566074;
+  color: var(--ft-config-muted);
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -778,7 +779,7 @@
   padding: 0.75rem 0.8rem;
   border: 1px solid var(--ft-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ft-hover-surface);
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
@@ -967,13 +968,13 @@ button.admin-secondary.frame2-file-btn {
 
 button.admin-secondary.frame2-material-tree-search-btn:hover,
 button.admin-secondary.frame2-file-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--ft-hover-surface-5);
+  border-color: var(--ft-border-stronger);
 }
 
 button.admin-secondary.frame2-material-tree-search-btn:focus-visible,
 button.admin-secondary.frame2-file-btn:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline: 2px solid var(--ft-accent-focus-outline);
   outline-offset: 2px;
 }
 
@@ -985,9 +986,9 @@ button.admin-secondary.frame2-file-btn:active {
 .frame2-picked {
   margin-top: 0.5rem;
   padding: 0.55rem 0.65rem;
-  border: 1px solid #e6e8ed;
+  border: 1px solid var(--ft-config-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--ft-surface);
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
@@ -996,14 +997,14 @@ button.admin-secondary.frame2-file-btn:active {
 
 .frame2-picked-title {
   font-weight: 800;
-  color: #1a1d23;
+  color: var(--ft-config-text);
 }
 
 .frame2-link {
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: #2563eb;
+  color: var(--ft-link-focus);
   font-weight: 800;
 }
 
@@ -1033,8 +1034,8 @@ button.admin-secondary.frame2-file-btn:active {
   border-radius: 8px;
   border: 1px solid var(--ft-border-2);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  background: var(--ft-hover-surface-5);
+  box-shadow: inset 0 0 0 1px var(--ft-overlay-panel);
 }
 
 .frame2-check-swatch-img {
@@ -1053,7 +1054,7 @@ button.admin-secondary.frame2-file-btn:active {
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--ft-border-2);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   color: var(--ft-text);
   cursor: pointer;
   min-width: 0;
@@ -1067,24 +1068,24 @@ button.admin-secondary.frame2-file-btn:active {
 }
 
 .frame2-checkrow:hover:not(.frame2-checkrow--disabled) {
-  border-color: rgba(203, 176, 121, 0.35);
-  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--ft-accent-glow);
+  background: var(--ft-hover-surface-6);
 }
 
 .frame2-checkrow:focus-within:not(.frame2-checkrow--disabled) {
-  border-color: rgba(203, 176, 121, 0.48);
-  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-focus);
+  box-shadow: 0 0 0 3px var(--ft-accent-bg-muted);
 }
 
 .frame2-checkrow--checked {
-  border-color: rgba(203, 176, 121, 0.42);
-  background: rgba(203, 176, 121, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(203, 176, 121, 0.14);
+  border-color: var(--ft-accent-border-hover);
+  background: var(--ft-accent-bg-soft);
+  box-shadow: inset 0 0 0 1px var(--ft-accent-bg-hover);
 }
 
 .frame2-checkrow--checked:hover:not(.frame2-checkrow--disabled) {
-  border-color: rgba(203, 176, 121, 0.55);
-  background: rgba(203, 176, 121, 0.14);
+  border-color: var(--ft-accent-border-strong);
+  background: var(--ft-accent-bg-hover);
 }
 
 .frame2-checkrow input[type='checkbox'] {
@@ -1194,7 +1195,7 @@ button.admin-secondary.frame2-file-btn:active {
   font: inherit;
   font-size: 0.9rem;
   line-height: 1.35;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   color: var(--ft-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1204,13 +1205,13 @@ button.admin-secondary.frame2-file-btn:active {
 }
 
 .frame2-file-name--empty {
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--ft-input-placeholder);
 }
 
 .frame2-file-input::file-selector-button {
   margin-right: 0.6rem;
-  border: 1px solid rgba(203, 176, 121, 0.32);
-  background: rgba(203, 176, 121, 0.14);
+  border: 1px solid var(--ft-accent-border);
+  background: var(--ft-accent-bg-hover);
   color: var(--ft-accent-2);
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
@@ -1219,8 +1220,8 @@ button.admin-secondary.frame2-file-btn:active {
 }
 
 .frame2-file-input::file-selector-button:hover {
-  background: rgba(203, 176, 121, 0.2);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-strong);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .frame2-file-preview {
@@ -1232,7 +1233,7 @@ button.admin-secondary.frame2-file-btn:active {
   border-radius: 10px;
   border: 1px solid var(--ft-border);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1282,7 +1283,7 @@ button.admin-secondary.frame2-file-btn:active {
 
 .frame2-flag {
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--ft-config-muted);
   font-weight: 700;
   user-select: none;
 }
@@ -1306,9 +1307,9 @@ button.admin-secondary.frame2-file-btn:active {
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.02em;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  background: #f3f4f6;
-  color: #374151;
+  border: 1px solid var(--ft-border);
+  background: var(--ft-surface-2);
+  color: var(--ft-config-muted);
 }
 
 .tile-flag--new {

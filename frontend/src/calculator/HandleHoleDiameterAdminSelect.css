@@ -30,7 +30,7 @@
 }
 
 .step7-dia-row--current {
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .step7-dia-row__pick {
@@ -47,7 +47,7 @@
 }
 
 .step7-dia-row__pick:hover {
-  background: rgba(203, 176, 121, 0.14);
+  background: var(--ft-accent-bg-hover);
   color: var(--ft-accent-2, #e8c89a);
 }
 
@@ -56,9 +56,9 @@
 .step7-dia-row__del {
   margin: 0;
   padding: 0.35rem 0.5rem;
-  border: 1px solid rgba(203, 176, 121, 0.35);
+  border: 1px solid var(--ft-accent-glow);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   color: var(--ft-muted, #9aa3af);
   font: inherit;
   font-size: 0.78rem;
@@ -71,20 +71,20 @@
 }
 
 .step7-dia-row__vis:hover {
-  border-color: rgba(203, 176, 121, 0.55);
+  border-color: var(--ft-accent-border-strong);
   color: var(--ft-accent-2, #e8c89a);
-  background: rgba(203, 176, 121, 0.1);
+  background: var(--ft-accent-bg-soft);
 }
 
 .step7-dia-row__vis--on {
-  border-color: rgba(203, 176, 121, 0.55);
+  border-color: var(--ft-accent-border-strong);
   color: var(--ft-accent-2, #e8c89a);
-  background: rgba(203, 176, 121, 0.12);
+  background: var(--ft-accent-bg-muted);
 }
 
 .step7-dia-row__vis--on:hover {
-  border-color: rgba(203, 176, 121, 0.65);
-  background: rgba(203, 176, 121, 0.16);
+  border-color: var(--ft-accent-outline-medium);
+  background: var(--ft-accent-bg-medium);
 }
 
 .step7-dia-row__del:hover {
@@ -95,7 +95,7 @@
 
 .step7-dia-admin-add {
   flex: 0 0 auto;
-  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  border-top: 1px dashed var(--ft-surface-border-soft);
   padding: 0.55rem 0.35rem 0.35rem;
   margin-top: 0.15rem;
 }

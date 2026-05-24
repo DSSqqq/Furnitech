@@ -24,7 +24,7 @@
   align-items: center;
   gap: 0.65rem 1rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #ecf0f4;
+  border-bottom: 1px solid var(--ft-config-border-soft);
 }
 
 .calcconf-handle-dia-row:last-child {
@@ -42,7 +42,7 @@
   gap: 0.4rem;
   cursor: pointer;
   font-size: 0.92rem;
-  color: #3a4149;
+  color: var(--ft-config-check);
 }
 
 @media (max-width: 1024px) {
@@ -52,12 +52,12 @@
 }
 
 .calcconf-card {
-  background: #fff;
+  background: var(--ft-surface);
   border-radius: 10px;
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--ft-shadow-1);
   min-width: 0;
-  border: 1px solid #e6e8ed;
+  border: 1px solid var(--ft-config-border);
 }
 
 .calcconf-card-head {
@@ -73,6 +73,7 @@
   font-size: 1rem;
   font-weight: 700;
   margin: 0;
+  color: var(--ft-text);
 }
 
 .calcconf-picker {
@@ -85,9 +86,9 @@
   padding: 0;
   max-height: 12rem;
   overflow-y: auto;
-  border: 1px solid #e2e5ea;
+  border: 1px solid var(--ft-config-border);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--ft-surface-2);
 }
 
 .calcconf-picklist li button {
@@ -97,12 +98,12 @@
   width: 100%;
   text-align: left;
   border: none;
-  border-bottom: 1px solid #ecf0f4;
+  border-bottom: 1px solid var(--ft-config-border-soft);
   background: none;
   padding: 0.45rem 0.55rem;
   font: inherit;
   cursor: pointer;
-  color: #1a1d23;
+  color: var(--ft-config-text);
 }
 
 .calcconf-picklist li:last-child button {
@@ -110,12 +111,12 @@
 }
 
 .calcconf-picklist li button:hover {
-  background: #eef4ff;
+  background: var(--ft-picklist-hover);
 }
 
 .calcconf-pick-article {
   font-size: 0.8rem;
-  color: #5c6370;
+  color: var(--ft-config-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -132,7 +133,7 @@
 .calcconf-pick-price {
   font-size: 0.8rem;
   text-align: right;
-  color: #1a1d23;
+  color: var(--ft-config-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -148,27 +149,28 @@
 .calcconf-row {
   width: 100%;
   text-align: left;
-  border: 1px solid #e2e5ea;
+  border: 1px solid var(--ft-config-border);
   border-radius: 10px;
   padding: 0.55rem 0.65rem;
-  background: #fff;
+  background: var(--ft-surface);
   cursor: pointer;
   font: inherit;
+  color: var(--ft-text);
 }
 
 .calcconf-row:hover {
-  background: #fafbfd;
-  border-color: #b8c2d0;
+  background: var(--ft-surface-2);
+  border-color: var(--ft-border-2);
 }
 
 .calcconf-row:focus-visible {
-  outline: 2px solid #2d6cdf;
+  outline: 2px solid var(--ft-link-focus);
   outline-offset: 1px;
 }
 
 .calcconf-row--active {
-  border-color: #2d6cdf;
-  background: #eef4ff;
+  border-color: var(--ft-accent-border);
+  background: var(--ft-picklist-active);
 }
 
 .calcconf-row-title {
@@ -183,25 +185,26 @@
   display: block;
   margin-top: 0.1rem;
   font-size: 0.82rem;
-  color: #5c6370;
+  color: var(--ft-config-muted);
 }
 
 .calcconf-summary {
   padding: 0.65rem 0.75rem;
-  border: 1px solid #e2e5ea;
+  border: 1px solid var(--ft-config-border);
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--ft-surface-2);
   margin-bottom: 0.75rem;
 }
 
 .calcconf-summary-title {
   font-weight: 700;
+  color: var(--ft-text);
 }
 
 .calcconf-summary-sub {
   margin-top: 0.15rem;
   font-size: 0.85rem;
-  color: #5c6370;
+  color: var(--ft-config-muted);
 }
 
 .calcconf-colors-head {
@@ -227,10 +230,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border: 1px solid #e2e5ea;
+  border: 1px solid var(--ft-config-border);
   border-radius: 10px;
   padding: 0.55rem 0.65rem;
-  background: #fff;
+  background: var(--ft-surface);
 }
 
 .calcconf-color-main {
@@ -242,18 +245,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--ft-text);
 }
 
 .calcconf-color-sub {
   margin-top: 0.1rem;
   font-size: 0.82rem;
-  color: #5c6370;
+  color: var(--ft-config-muted);
 }
 
 .calcconf-rm {
-  border: 1px solid #d4a0a0;
-  background: #fdf5f5;
-  color: #7a2a2a;
+  border: 1px solid var(--ft-config-rm-border);
+  background: var(--ft-config-rm-bg);
+  color: var(--ft-config-rm-text);
   width: 1.75rem;
   height: 1.75rem;
   min-width: 1.75rem;
@@ -267,6 +271,5 @@
 }
 
 .calcconf-rm:hover {
-  background: #f8e8e8;
+  background: var(--ft-config-rm-bg-hover);
 }
-

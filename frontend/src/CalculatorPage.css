@@ -30,7 +30,7 @@
 }
 
 .calc-totals-card {
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.7), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-card-gradient-start), var(--ft-card-gradient-end));
   border-radius: var(--ft-radius-md);
   padding: 1rem 1.15rem;
   box-shadow: var(--ft-shadow-1);
@@ -59,7 +59,7 @@
 .calc-totals-err {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
-  color: rgba(255, 107, 107, 0.92);
+  color: var(--ft-danger-text-muted);
 }
 
 .calc-totals-warn {
@@ -67,9 +67,9 @@
   padding: 0.5rem 0.55rem;
   font-size: 0.8rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(255, 204, 102, 0.12);
-  border: 1px solid rgba(255, 204, 102, 0.32);
+  color: var(--ft-warn-text);
+  background: var(--ft-warn-bg);
+  border: 1px solid var(--ft-warn-border);
   border-radius: 8px;
 }
 
@@ -110,7 +110,7 @@
   gap: 0.75rem;
   padding: 0.65rem 0 0;
   margin: 0 0 0.65rem;
-  border-top: 2px solid rgba(203, 176, 121, 0.55);
+  border-top: 2px solid var(--ft-accent-border-strong);
 }
 
 .calc-totals-grand-label {
@@ -171,14 +171,15 @@
   gap: 0.35rem;
   padding: 0.35rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--ft-surface);
+  border: 1px solid var(--ft-border);
+  box-shadow: var(--ft-shadow-1);
 }
 
 .calc-step-tab {
   border: 0;
   background: transparent;
-  color: rgba(240, 242, 245, 0.86);
+  color: var(--ft-step-tab-text);
   padding: 0.55rem 0.8rem;
   border-radius: 10px;
   font-weight: 700;
@@ -196,20 +197,22 @@
 }
 
 a.calc-step-tab:visited {
-  color: rgba(240, 242, 245, 0.86);
+  color: var(--ft-step-tab-text);
 }
 
 a.calc-step-tab.calc-step-tab--active:visited {
-  color: #1a1d23;
+  color: var(--ft-step-tab-active-text);
 }
 
 .calc-step-tab:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ft-accent-bg-subtle);
+  color: var(--ft-accent-2);
 }
 
 .calc-step-tab--active {
-  background: rgba(255, 255, 255, 0.92);
-  color: #1a1d23;
+  background: var(--ft-step-tab-active-bg);
+  color: var(--ft-step-tab-active-text);
+  box-shadow: 0 0 0 1px var(--ft-accent-border);
 }
 
 .calc-step-tab:disabled {
@@ -232,7 +235,7 @@ a.calc-step-tab.calc-step-tab--active:visited {
 
 /* Панель без внешней обёртки .calc-card (шаг 1, МДФ/ПВХ и т.п.) */
 .calc-grid > .calc-side-panel:not(.frame2-card) {
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.62), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-panel-gradient-start), var(--ft-card-gradient-end));
   border-radius: var(--ft-radius-md);
   padding: 1rem 1.25rem;
   box-shadow: var(--ft-shadow-1);
@@ -320,19 +323,21 @@ a.calc-step-tab.calc-step-tab--active:visited {
   padding: 0.7rem 0.75rem;
   border: 1px solid var(--ft-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ft-surface);
+  color: var(--ft-text);
   cursor: pointer;
   user-select: none;
 }
 
 .calc-facade:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.045);
+  border-color: var(--ft-accent-border-hover);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .calc-facade--active {
-  border-color: rgba(203, 176, 121, 0.55);
-  box-shadow: 0 0 0 3px rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-strong);
+  background: var(--ft-accent-bg-muted);
+  box-shadow: 0 0 0 3px var(--ft-accent-bg-muted);
 }
 
 .calc-facade-radio {
@@ -359,7 +364,7 @@ a.calc-step-tab.calc-step-tab--active:visited {
 .calc-note {
   margin-top: 0.5rem;
   padding: 0.55rem 0.65rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-surface);
   border: 1px solid var(--ft-border);
   border-radius: 8px;
   color: var(--ft-muted);
@@ -398,7 +403,7 @@ a.calc-step-tab.calc-step-tab--active:visited {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--ft-overlay-backdrop);
   backdrop-filter: blur(4px);
   pointer-events: none;
   animation: calc-route-shade-in 0.12s ease-out both;
@@ -417,8 +422,8 @@ a.calc-step-tab.calc-step-tab--active:visited {
   display: block;
   width: 1.65rem;
   height: 1.65rem;
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-top-color: rgba(203, 176, 121, 0.92);
+  border: 2px solid var(--ft-surface-border-medium);
+  border-top-color: var(--ft-accent-spinner);
   border-radius: 50%;
   animation: calc-route-spin 0.65s linear infinite;
 }
@@ -438,12 +443,12 @@ a.calc-step-tab.calc-step-tab--active:visited {
   .calc-route-shade {
     animation: none;
     backdrop-filter: none;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--ft-overlay-backdrop);
   }
 
   .calc-route-shade__spinner {
     animation: none;
-    border-top-color: rgba(203, 176, 121, 0.92);
+    border-top-color: var(--ft-accent-spinner);
     opacity: 0.9;
   }
 }

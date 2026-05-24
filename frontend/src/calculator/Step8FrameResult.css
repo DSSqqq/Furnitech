@@ -170,7 +170,7 @@
 }
 
 .step8-panel {
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.72), rgba(15, 16, 19, 0.96));
+  background: linear-gradient(180deg, var(--ft-card-gradient-alt-start), var(--ft-card-gradient-end));
   border-radius: var(--ft-radius-md);
   padding: 1rem 1.15rem;
   border: 1px solid var(--ft-border);
@@ -191,9 +191,9 @@
   padding: 0.5rem 0.55rem;
   font-size: 0.8rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(255, 204, 102, 0.12);
-  border: 1px solid rgba(255, 204, 102, 0.32);
+  color: var(--ft-warn-text);
+  background: var(--ft-warn-bg);
+  border: 1px solid var(--ft-warn-border);
   border-radius: 8px;
 }
 
@@ -254,7 +254,7 @@
 }
 
 .step8-table th {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   color: var(--ft-muted);
   font-weight: 600;
   white-space: nowrap;

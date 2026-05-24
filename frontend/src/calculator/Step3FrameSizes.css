@@ -1,6 +1,6 @@
 .frame3-left {
   grid-column: 1;
-  background: linear-gradient(180deg, rgba(15, 16, 19, 0.62), rgba(15, 16, 19, 0.98));
+  background: linear-gradient(180deg, var(--ft-panel-gradient-start), var(--ft-card-gradient-end));
   border: 1px solid var(--ft-border);
   border-radius: var(--ft-radius-md);
   padding: 1rem 1.1rem;
@@ -109,11 +109,11 @@
 .frame3-dim-drawing {
   pointer-events: none;
   z-index: 6;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--ft-danger-text);
   font-weight: 700;
   font-size: 0.78rem;
   /* зазоры и vtrack наследуются с .frame3-drawing; здесь только цвет выносок */
-  --frame3-dim-witness: rgba(255, 255, 255, 0.55);
+  --frame3-dim-witness: var(--ft-canvas-dim-witness);
 }
 
 /* Ширина: сверху */
@@ -159,7 +159,7 @@
 .frame3-dim-drawing__h-line {
   flex: 1 1 auto;
   height: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-top: 1px solid var(--ft-canvas-dim-line);
   min-width: 12px;
 }
 
@@ -173,7 +173,7 @@
   height: 0;
   border-style: solid;
   border-width: 4px 7px 4px 0;
-  border-color: transparent rgba(255, 255, 255, 0.8) transparent transparent;
+  border-color: transparent var(--ft-canvas-dim-line) transparent transparent;
 }
 
 .frame3-dim-drawing__arrow--e {
@@ -181,7 +181,7 @@
   height: 0;
   border-style: solid;
   border-width: 4px 0 4px 7px;
-  border-color: transparent transparent transparent rgba(255, 255, 255, 0.8);
+  border-color: transparent transparent transparent var(--ft-canvas-dim-line);
 }
 
 /* Вертикальные выносные: от верхних углов эскиза к концам горизонтальной размерной линии */
@@ -256,7 +256,7 @@
 
 .frame3-dim-drawing__v-line {
   width: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  border-left: 1px solid var(--ft-canvas-dim-line);
   min-height: 12px;
   height: 100%;
 }
@@ -266,7 +266,7 @@
   height: 0;
   border-style: solid;
   border-width: 0 4px 7px 4px;
-  border-color: transparent transparent rgba(255, 255, 255, 0.8) transparent;
+  border-color: transparent transparent var(--ft-canvas-dim-line) transparent;
 }
 
 .frame3-dim-drawing__arrow--s {
@@ -274,7 +274,7 @@
   height: 0;
   border-style: solid;
   border-width: 7px 4px 0 4px;
-  border-color: rgba(255, 255, 255, 0.8) transparent transparent transparent;
+  border-color: var(--ft-canvas-dim-line) transparent transparent transparent;
 }
 
 /*
@@ -420,10 +420,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0c;
+  background: var(--ft-canvas-bg);
   border: 1px solid rgba(255, 255, 255, 0.38);
   border-radius: 2px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 4px var(--ft-canvas-shadow);
 }
 
 .sketch-hinge-pin-body::after {
@@ -450,10 +450,10 @@
 .sketch-hinge-pin-label {
   font-size: 0.5rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ft-btn-primary-text);
   line-height: 1;
   letter-spacing: 0.03em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 3px var(--ft-canvas-text-shadow);
   white-space: nowrap;
 }
 
@@ -503,9 +503,9 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--ft-canvas-overlay-bg);
   border: 2px solid rgba(120, 125, 135, 0.95);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 1px 4px var(--ft-canvas-shadow);
 }
 
 .sketch-handle-pin--first .sketch-handle-pin-body {
@@ -516,10 +516,10 @@
 .sketch-handle-pin-label {
   font-size: 0.5rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ft-btn-primary-text);
   line-height: 1;
   letter-spacing: 0.03em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 1px 3px var(--ft-canvas-text-shadow);
   white-space: nowrap;
 }
 
@@ -565,11 +565,11 @@
 .hinge-chain-dim {
   position: absolute;
   pointer-events: none;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--ft-danger-text);
   font-weight: 700;
   font-size: 0.68rem;
   letter-spacing: 0.02em;
-  --hinge-dim-witness: rgba(255, 255, 255, 0.55);
+  --hinge-dim-witness: var(--ft-canvas-dim-witness);
 }
 
 .hinge-chain-dim__wit {
@@ -689,7 +689,7 @@
 
 .hinge-chain-dim__v-line {
   width: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.82);
+  border-left: 1px solid var(--ft-canvas-dim-line-strong);
   min-height: 4px;
   height: 100%;
 }
@@ -744,6 +744,6 @@
 .hinge-chain-dim__h-line {
   flex: 1 1 auto;
   height: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.82);
+  border-top: 1px solid var(--ft-canvas-dim-line-strong);
   min-width: 8px;
 }

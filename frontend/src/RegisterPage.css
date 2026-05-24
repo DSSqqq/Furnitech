@@ -15,24 +15,24 @@
   font-size: 0.9rem;
   color: var(--ft-accent-2);
   text-decoration: none;
-  border: 1px solid rgba(203, 176, 121, 0.32);
+  border: 1px solid var(--ft-accent-border);
   border-radius: 999px;
   padding: 0.5rem 1rem;
-  background: rgba(203, 176, 121, 0.14);
+  background: var(--ft-accent-bg-hover);
 }
 
 .register-page__link:hover {
-  background: rgba(203, 176, 121, 0.22);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-border-soft);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .register-page__link--secondary {
   color: var(--ft-muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-hover-surface-2);
   border-color: var(--ft-border-2);
 }
 
 .register-page__link--secondary:hover {
   color: var(--ft-text);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--ft-hover-surface-5);
 }

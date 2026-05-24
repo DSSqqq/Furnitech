@@ -15,8 +15,8 @@
   min-width: 1.15rem;
   min-height: 1.15rem;
   border-radius: 50%;
-  border: 1px solid rgba(203, 176, 121, 0.35);
-  background: rgba(203, 176, 121, 0.1);
+  border: 1px solid var(--ft-accent-glow);
+  background: var(--ft-accent-bg-soft);
   color: var(--ft-accent-2);
   font-size: 0.65rem;
   font-style: italic;
@@ -31,19 +31,19 @@
 
 .hint-btn:hover,
 .hint-btn:focus-visible {
-  background: rgba(203, 176, 121, 0.16);
-  border-color: rgba(203, 176, 121, 0.48);
+  background: var(--ft-accent-bg-medium);
+  border-color: var(--ft-accent-border-focus);
   color: var(--ft-accent-2);
 }
 
 .hint-btn:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline: 2px solid var(--ft-accent-focus-outline);
   outline-offset: 1px;
 }
 
 .hint-btn[aria-expanded='true'] {
-  background: rgba(203, 176, 121, 0.18);
-  border-color: rgba(203, 176, 121, 0.55);
+  background: var(--ft-accent-inset-ring);
+  border-color: var(--ft-accent-border-strong);
   color: var(--ft-accent-2);
 }
 

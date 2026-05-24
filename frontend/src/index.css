@@ -1,7 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700&display=swap');
 
-:root {
+:root,
+[data-theme='dark'] {
   color-scheme: dark;
+
   --ft-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23cbb079' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 
   --ft-bg: #070708;
@@ -14,16 +16,151 @@
   --ft-faint: rgba(255, 255, 255, 0.48);
   --ft-border: rgba(255, 255, 255, 0.12);
   --ft-border-2: rgba(255, 255, 255, 0.2);
+  --ft-border-strong: rgba(255, 255, 255, 0.22);
+  --ft-border-stronger: rgba(255, 255, 255, 0.28);
   --ft-accent: #cbb079;
   --ft-accent-2: #e6d4ae;
   --ft-danger: #ff6b6b;
   --ft-warn: #ffcc66;
 
-  --ft-radius-sm: 10px;
-  --ft-radius-md: 14px;
-
   --ft-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.35);
   --ft-shadow-2: 0 14px 45px rgba(0, 0, 0, 0.55);
+
+  --ft-accent-bg-subtle: rgba(203, 176, 121, 0.08);
+  --ft-accent-bg-muted: rgba(203, 176, 121, 0.12);
+  --ft-accent-bg-hover: rgba(203, 176, 121, 0.14);
+  --ft-accent-bg-strong: rgba(203, 176, 121, 0.2);
+  --ft-accent-border: rgba(203, 176, 121, 0.32);
+  --ft-accent-border-active: rgba(203, 176, 121, 0.38);
+  --ft-accent-border-hover: rgba(203, 176, 121, 0.42);
+  --ft-accent-border-focus: rgba(203, 176, 121, 0.48);
+  --ft-accent-focus-ring: rgba(203, 176, 121, 0.12);
+  --ft-accent-focus-outline: rgba(203, 176, 121, 0.7);
+
+  --ft-header-gradient-start: rgba(7, 7, 8, 0.94);
+  --ft-header-gradient-end: rgba(7, 7, 8, 0.78);
+  --ft-tabs-bar-bg: rgba(7, 7, 8, 0.55);
+  --ft-card-gradient-start: rgba(15, 16, 19, 0.7);
+  --ft-card-gradient-end: rgba(15, 16, 19, 0.98);
+
+  --ft-input-bg: rgba(255, 255, 255, 0.04);
+  --ft-input-placeholder: rgba(255, 255, 255, 0.42);
+  --ft-hover-surface: rgba(255, 255, 255, 0.03);
+  --ft-hover-surface-2: rgba(255, 255, 255, 0.04);
+  --ft-hover-surface-3: rgba(255, 255, 255, 0.045);
+  --ft-hover-surface-4: rgba(255, 255, 255, 0.05);
+  --ft-hover-surface-5: rgba(255, 255, 255, 0.06);
+  --ft-hover-surface-6: rgba(255, 255, 255, 0.07);
+
+  --ft-danger-bg: rgba(255, 107, 107, 0.12);
+  --ft-danger-bg-hover: rgba(255, 107, 107, 0.18);
+  --ft-danger-bg-strong: rgba(255, 107, 107, 0.22);
+  --ft-danger-border: rgba(255, 107, 107, 0.35);
+  --ft-danger-border-hover: rgba(255, 107, 107, 0.5);
+  --ft-danger-border-strong: rgba(255, 107, 107, 0.45);
+  --ft-danger-text: rgba(255, 255, 255, 0.92);
+  --ft-danger-text-muted: rgba(255, 107, 107, 0.92);
+  --ft-danger-text-bright: rgba(255, 128, 128, 1);
+  --ft-danger-focus-outline: rgba(255, 107, 107, 0.6);
+  --ft-danger-accent-border: rgba(255, 107, 107, 0.55);
+
+  --ft-warn-bg: rgba(255, 204, 102, 0.12);
+  --ft-warn-text: rgba(255, 255, 255, 0.86);
+  --ft-warn-border: rgba(255, 204, 102, 0.32);
+
+  --ft-overlay-backdrop: rgba(0, 0, 0, 0.62);
+  --ft-overlay-panel: rgba(0, 0, 0, 0.2);
+  --ft-overlay-panel-2: rgba(0, 0, 0, 0.18);
+  --ft-overlay-panel-3: rgba(0, 0, 0, 0.15);
+  --ft-overlay-panel-4: rgba(0, 0, 0, 0.22);
+  --ft-dropdown-bg: rgba(14, 14, 16, 0.98);
+  --ft-dropdown-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+
+  --ft-scrollbar-track: rgba(255, 255, 255, 0.04);
+  --ft-scrollbar-thumb-start: rgba(230, 212, 174, 0.5);
+  --ft-scrollbar-thumb-end: rgba(203, 176, 121, 0.42);
+  --ft-scrollbar-thumb-hover-start: rgba(230, 212, 174, 0.68);
+  --ft-scrollbar-thumb-hover-end: rgba(203, 176, 121, 0.56);
+  --ft-scrollbar-thumb-border: rgba(7, 7, 8, 0.88);
+  --ft-scrollbar-color-track: rgba(255, 255, 255, 0.06);
+  --ft-scrollbar-color-thumb: rgba(203, 176, 121, 0.5);
+
+  --ft-body-glow-accent: rgba(203, 176, 121, 0.12);
+  --ft-body-glow-secondary: rgba(255, 255, 255, 0.06);
+  --ft-body-glow-accent-strong: rgba(203, 176, 121, 0.18);
+  --ft-wood-overlay-opacity: 0.08;
+  --ft-selection-bg: rgba(203, 176, 121, 0.28);
+
+  --ft-btn-primary-bg: #000;
+  --ft-btn-primary-bg-hover: #141414;
+  --ft-btn-primary-text: #fff;
+  --ft-btn-primary-border: rgba(255, 255, 255, 0.22);
+  --ft-btn-primary-border-hover: rgba(255, 255, 255, 0.38);
+
+  --ft-accent-border-soft: rgba(203, 176, 121, 0.22);
+  --ft-accent-border-medium: rgba(203, 176, 121, 0.4);
+  --ft-accent-border-strong: rgba(203, 176, 121, 0.55);
+  --ft-accent-border-emphasis: rgba(203, 176, 121, 0.75);
+  --ft-accent-border-highlight: rgba(203, 176, 121, 0.52);
+  --ft-accent-bg-soft: rgba(203, 176, 121, 0.1);
+  --ft-accent-bg-medium: rgba(203, 176, 121, 0.16);
+  --ft-accent-inset-ring: rgba(203, 176, 121, 0.18);
+  --ft-accent-control: rgba(203, 176, 121, 0.9);
+  --ft-accent-outline-medium: rgba(203, 176, 121, 0.65);
+  --ft-accent-outline-soft: rgba(203, 176, 121, 0.55);
+  --ft-accent-glow: rgba(203, 176, 121, 0.35);
+  --ft-accent-spinner: rgba(203, 176, 121, 0.95);
+
+  --ft-modal-backdrop: rgba(5, 5, 8, 0.42);
+  --ft-modal-backdrop-strong: rgba(5, 5, 8, 0.72);
+  --ft-modal-surface-start: rgba(22, 20, 17, 0.92);
+  --ft-modal-surface-end: rgba(14, 13, 12, 0.88);
+  --ft-modal-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --ft-spinner-track: rgba(255, 255, 255, 0.1);
+  --ft-faint-text: rgba(255, 255, 255, 0.6);
+  --ft-card-gradient-alt-start: rgba(15, 16, 19, 0.72);
+  --ft-toolbar-bg: rgba(12, 12, 14, 0.98);
+  --ft-toolbar-bg-soft: rgba(12, 12, 14, 0.76);
+  --ft-surface-border: rgba(255, 255, 255, 0.1);
+  --ft-surface-border-soft: rgba(255, 255, 255, 0.12);
+  --ft-surface-border-medium: rgba(255, 255, 255, 0.16);
+  --ft-surface-border-light: rgba(255, 255, 255, 0.18);
+  --ft-surface-highlight: rgba(255, 255, 255, 0.09);
+  --ft-surface-highlight-strong: rgba(255, 255, 255, 0.1);
+  --ft-picklist-hover: rgba(203, 176, 121, 0.1);
+  --ft-picklist-active: rgba(203, 176, 121, 0.14);
+  --ft-link-focus: #2d6cdf;
+  --ft-config-border: rgba(255, 255, 255, 0.14);
+  --ft-config-border-soft: rgba(255, 255, 255, 0.1);
+  --ft-config-muted: rgba(255, 255, 255, 0.66);
+  --ft-config-text: rgba(255, 255, 255, 0.92);
+  --ft-config-check: rgba(255, 255, 255, 0.86);
+  --ft-config-rm-border: rgba(255, 107, 107, 0.35);
+  --ft-config-rm-bg: rgba(255, 107, 107, 0.12);
+  --ft-config-rm-text: rgba(255, 255, 255, 0.92);
+  --ft-config-rm-bg-hover: rgba(255, 107, 107, 0.18);
+  --ft-canvas-bg: #0a0a0c;
+  --ft-canvas-handle: #fff;
+  --ft-canvas-shadow: rgba(0, 0, 0, 0.55);
+  --ft-canvas-text-shadow: rgba(0, 0, 0, 0.9);
+  --ft-canvas-dim-witness: rgba(255, 255, 255, 0.55);
+  --ft-canvas-dim-line: rgba(255, 255, 255, 0.8);
+  --ft-canvas-dim-line-strong: rgba(255, 255, 255, 0.82);
+  --ft-canvas-overlay-bg: rgba(255, 255, 255, 0.95);
+  --ft-danger-text-strong: rgba(255, 107, 107, 0.98);
+  --ft-danger-alt-bg: rgba(232, 106, 106, 0.08);
+  --ft-danger-alt-bg-hover: rgba(232, 106, 106, 0.16);
+  --ft-danger-alt-border: rgba(232, 106, 106, 0.45);
+  --ft-danger-alt-text: rgba(248, 113, 113, 0.95);
+  --ft-danger-alt-border-hover: rgba(248, 113, 113, 0.55);
+  --ft-tex-border: #c8ccd4;
+  --ft-step-tab-text: rgba(240, 242, 245, 0.86);
+  --ft-step-tab-active-bg: rgba(255, 255, 255, 0.92);
+  --ft-step-tab-active-text: rgba(24, 22, 19, 0.92);
+  --ft-panel-gradient-start: rgba(15, 16, 19, 0.62);
+
+  --ft-radius-sm: 10px;
+  --ft-radius-md: 14px;
 
   --ft-font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ft-font-display: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
@@ -49,6 +186,165 @@
   -webkit-font-smoothing: antialiased;
 }
 
+[data-theme='light'] {
+  color-scheme: light;
+
+  --ft-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238a6b2e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  --ft-bg: #f4f1eb;
+  --ft-bg-elev: #ffffff;
+  --ft-surface: #ffffff;
+  --ft-surface-2: #f0ece4;
+  --ft-surface-3: #e6e0d6;
+  --ft-text: rgba(24, 22, 19, 0.94);
+  --ft-muted: rgba(24, 22, 19, 0.94);
+  --ft-faint: rgba(24, 22, 19, 0.94);
+  --ft-border: rgba(24, 22, 19, 0.12);
+  --ft-border-2: rgba(24, 22, 19, 0.22);
+  --ft-border-strong: rgba(24, 22, 19, 0.24);
+  --ft-border-stronger: rgba(24, 22, 19, 0.32);
+  --ft-accent: #8a6b2e;
+  --ft-accent-2: #6b531f;
+  --ft-danger: #b91c1c;
+  --ft-warn: #a16207;
+
+  --ft-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --ft-shadow-2: 0 14px 45px rgba(0, 0, 0, 0.12);
+
+  --ft-accent-bg-subtle: rgba(138, 107, 46, 0.08);
+  --ft-accent-bg-muted: rgba(138, 107, 46, 0.12);
+  --ft-accent-bg-hover: rgba(138, 107, 46, 0.16);
+  --ft-accent-bg-strong: rgba(138, 107, 46, 0.22);
+  --ft-accent-border: rgba(138, 107, 46, 0.32);
+  --ft-accent-border-active: rgba(138, 107, 46, 0.42);
+  --ft-accent-border-hover: rgba(138, 107, 46, 0.48);
+  --ft-accent-border-focus: rgba(138, 107, 46, 0.55);
+  --ft-accent-focus-ring: rgba(138, 107, 46, 0.14);
+  --ft-accent-focus-outline: rgba(138, 107, 46, 0.65);
+
+  --ft-header-gradient-start: rgba(255, 255, 255, 0.96);
+  --ft-header-gradient-end: rgba(244, 241, 235, 0.92);
+  --ft-tabs-bar-bg: rgba(255, 255, 255, 0.72);
+  --ft-card-gradient-start: rgba(255, 255, 255, 0.92);
+  --ft-card-gradient-end: rgba(255, 255, 255, 0.98);
+
+  --ft-input-bg: rgba(24, 22, 19, 0.04);
+  --ft-input-placeholder: rgba(24, 22, 19, 0.42);
+  --ft-hover-surface: rgba(24, 22, 19, 0.03);
+  --ft-hover-surface-2: rgba(24, 22, 19, 0.04);
+  --ft-hover-surface-3: rgba(24, 22, 19, 0.045);
+  --ft-hover-surface-4: rgba(24, 22, 19, 0.05);
+  --ft-hover-surface-5: rgba(24, 22, 19, 0.06);
+  --ft-hover-surface-6: rgba(24, 22, 19, 0.07);
+
+  --ft-danger-bg: rgba(185, 28, 28, 0.08);
+  --ft-danger-bg-hover: rgba(185, 28, 28, 0.14);
+  --ft-danger-bg-strong: rgba(185, 28, 28, 0.18);
+  --ft-danger-border: rgba(185, 28, 28, 0.32);
+  --ft-danger-border-hover: rgba(185, 28, 28, 0.45);
+  --ft-danger-border-strong: rgba(185, 28, 28, 0.4);
+  --ft-danger-text: rgba(24, 22, 19, 0.92);
+  --ft-danger-text-muted: rgba(185, 28, 28, 0.92);
+  --ft-danger-text-bright: rgba(185, 28, 28, 1);
+  --ft-danger-focus-outline: rgba(185, 28, 28, 0.55);
+  --ft-danger-accent-border: rgba(185, 28, 28, 0.45);
+
+  --ft-warn-bg: rgba(161, 98, 7, 0.1);
+  --ft-warn-text: rgba(24, 22, 19, 0.86);
+  --ft-warn-border: rgba(161, 98, 7, 0.28);
+
+  --ft-overlay-backdrop: rgba(24, 22, 19, 0.45);
+  --ft-overlay-panel: rgba(24, 22, 19, 0.06);
+  --ft-overlay-panel-2: rgba(24, 22, 19, 0.05);
+  --ft-overlay-panel-3: rgba(24, 22, 19, 0.04);
+  --ft-overlay-panel-4: rgba(24, 22, 19, 0.07);
+  --ft-dropdown-bg: rgba(255, 255, 255, 0.98);
+  --ft-dropdown-shadow: 0 14px 36px rgba(0, 0, 0, 0.14);
+
+  --ft-scrollbar-track: rgba(24, 22, 19, 0.06);
+  --ft-scrollbar-thumb-start: rgba(138, 107, 46, 0.45);
+  --ft-scrollbar-thumb-end: rgba(107, 83, 31, 0.38);
+  --ft-scrollbar-thumb-hover-start: rgba(138, 107, 46, 0.62);
+  --ft-scrollbar-thumb-hover-end: rgba(107, 83, 31, 0.52);
+  --ft-scrollbar-thumb-border: rgba(244, 241, 235, 0.88);
+  --ft-scrollbar-color-track: rgba(24, 22, 19, 0.08);
+  --ft-scrollbar-color-thumb: rgba(138, 107, 46, 0.45);
+
+  --ft-body-glow-accent: rgba(138, 107, 46, 0.14);
+  --ft-body-glow-secondary: rgba(255, 255, 255, 0.65);
+  --ft-body-glow-accent-strong: rgba(138, 107, 46, 0.2);
+  --ft-wood-overlay-opacity: 0.05;
+  --ft-selection-bg: rgba(138, 107, 46, 0.22);
+
+  --ft-btn-primary-bg: var(--ft-accent);
+  --ft-btn-primary-bg-hover: #7a5f28;
+  --ft-btn-primary-text: #fff;
+  --ft-btn-primary-border: rgba(138, 107, 46, 0.45);
+  --ft-btn-primary-border-hover: rgba(107, 83, 31, 0.55);
+
+  --ft-accent-border-soft: rgba(138, 107, 46, 0.22);
+  --ft-accent-border-medium: rgba(138, 107, 46, 0.4);
+  --ft-accent-border-strong: rgba(138, 107, 46, 0.55);
+  --ft-accent-border-emphasis: rgba(138, 107, 46, 0.75);
+  --ft-accent-border-highlight: rgba(138, 107, 46, 0.52);
+  --ft-accent-bg-soft: rgba(138, 107, 46, 0.1);
+  --ft-accent-bg-medium: rgba(138, 107, 46, 0.16);
+  --ft-accent-inset-ring: rgba(138, 107, 46, 0.18);
+  --ft-accent-control: rgba(138, 107, 46, 0.9);
+  --ft-accent-outline-medium: rgba(138, 107, 46, 0.65);
+  --ft-accent-outline-soft: rgba(138, 107, 46, 0.55);
+  --ft-accent-glow: rgba(138, 107, 46, 0.35);
+  --ft-accent-spinner: rgba(138, 107, 46, 0.95);
+
+  --ft-modal-backdrop: rgba(24, 22, 19, 0.35);
+  --ft-modal-backdrop-strong: rgba(24, 22, 19, 0.55);
+  --ft-modal-surface-start: rgba(255, 255, 255, 0.96);
+  --ft-modal-surface-end: rgba(244, 241, 235, 0.98);
+  --ft-modal-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  --ft-spinner-track: rgba(24, 22, 19, 0.1);
+  --ft-faint-text: rgba(24, 22, 19, 0.6);
+  --ft-card-gradient-alt-start: rgba(255, 255, 255, 0.92);
+  --ft-toolbar-bg: rgba(255, 255, 255, 0.98);
+  --ft-toolbar-bg-soft: rgba(255, 255, 255, 0.88);
+  --ft-surface-border: rgba(24, 22, 19, 0.1);
+  --ft-surface-border-soft: rgba(24, 22, 19, 0.12);
+  --ft-surface-border-medium: rgba(24, 22, 19, 0.16);
+  --ft-surface-border-light: rgba(24, 22, 19, 0.18);
+  --ft-surface-highlight: rgba(24, 22, 19, 0.06);
+  --ft-surface-highlight-strong: rgba(24, 22, 19, 0.08);
+  --ft-picklist-hover: rgba(138, 107, 46, 0.1);
+  --ft-picklist-active: rgba(138, 107, 46, 0.14);
+  --ft-link-focus: #2563eb;
+  --ft-config-border: rgba(24, 22, 19, 0.14);
+  --ft-config-border-soft: rgba(24, 22, 19, 0.1);
+  --ft-config-muted: rgba(24, 22, 19, 0.94);
+  --ft-config-text: rgba(24, 22, 19, 0.94);
+  --ft-config-check: rgba(24, 22, 19, 0.94);
+  --ft-config-rm-border: rgba(185, 28, 28, 0.28);
+  --ft-config-rm-bg: rgba(185, 28, 28, 0.06);
+  --ft-config-rm-text: rgba(185, 28, 28, 0.88);
+  --ft-config-rm-bg-hover: rgba(185, 28, 28, 0.1);
+  --ft-canvas-bg: #0a0a0c;
+  --ft-canvas-handle: #fff;
+  --ft-canvas-shadow: rgba(0, 0, 0, 0.55);
+  --ft-canvas-text-shadow: rgba(0, 0, 0, 0.9);
+  --ft-canvas-dim-witness: rgba(24, 22, 19, 0.58);
+  --ft-canvas-dim-line: rgba(24, 22, 19, 0.86);
+  --ft-canvas-dim-line-strong: rgba(24, 22, 19, 0.9);
+  --ft-canvas-overlay-bg: rgba(255, 255, 255, 0.95);
+  --ft-danger-text-strong: rgba(185, 28, 28, 0.98);
+  --ft-danger-alt-bg: rgba(185, 28, 28, 0.06);
+  --ft-danger-alt-bg-hover: rgba(185, 28, 28, 0.12);
+  --ft-danger-alt-border: rgba(185, 28, 28, 0.32);
+  --ft-danger-alt-text: rgba(185, 28, 28, 0.92);
+  --ft-danger-alt-border-hover: rgba(185, 28, 28, 0.45);
+  --ft-tex-border: rgba(24, 22, 19, 0.18);
+  --ft-step-tab-text: rgba(24, 22, 19, 0.94);
+  --ft-step-tab-active-bg: var(--ft-accent);
+  --ft-step-tab-active-text: #ffffff;
+  --ft-panel-gradient-start: rgba(255, 255, 255, 0.92);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -56,7 +352,7 @@
 /* Scrollbar (global) */
 html {
   scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(203, 176, 121, 0.5) rgba(255, 255, 255, 0.06);
+  scrollbar-color: var(--ft-scrollbar-color-thumb) var(--ft-scrollbar-color-track);
 }
 
 /* Chromium / WebKit */
@@ -66,37 +362,38 @@ html {
 }
 
 *::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-scrollbar-track);
 }
 
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(
     180deg,
-    rgba(230, 212, 174, 0.5),
-    rgba(203, 176, 121, 0.42)
+    var(--ft-scrollbar-thumb-start),
+    var(--ft-scrollbar-thumb-end)
   );
-  border: 2px solid rgba(7, 7, 8, 0.88);
+  border: 2px solid var(--ft-scrollbar-thumb-border);
   border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(
     180deg,
-    rgba(230, 212, 174, 0.68),
-    rgba(203, 176, 121, 0.56)
+    var(--ft-scrollbar-thumb-hover-start),
+    var(--ft-scrollbar-thumb-hover-end)
   );
 }
 
 *::-webkit-scrollbar-corner {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ft-scrollbar-track);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100dvh;
-  background: radial-gradient(1200px 900px at 50% -180px, rgba(203, 176, 121, 0.12), transparent 55%),
-    radial-gradient(900px 700px at 75% 0, rgba(255, 255, 255, 0.06), transparent 55%),
+  background:
+    radial-gradient(1200px 900px at 50% -180px, var(--ft-body-glow-accent), transparent 55%),
+    radial-gradient(900px 700px at 75% 0, var(--ft-body-glow-secondary), transparent 55%),
     var(--ft-bg);
   color: var(--ft-text);
 }
@@ -108,5 +405,5 @@ button {
 }
 
 ::selection {
-  background: rgba(203, 176, 121, 0.28);
+  background: var(--ft-selection-bg);
 }

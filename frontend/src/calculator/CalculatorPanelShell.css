@@ -31,9 +31,9 @@
 }
 
 .calc-panel-shell .admin-primary {
-  background: rgba(203, 176, 121, 0.14);
+  background: var(--ft-accent-bg-hover);
   color: var(--ft-accent-2);
-  border: 1px solid rgba(203, 176, 121, 0.32);
+  border: 1px solid var(--ft-accent-border);
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   font: inherit;
@@ -41,8 +41,8 @@
 }
 
 .calc-panel-shell .admin-primary:hover {
-  background: rgba(203, 176, 121, 0.2);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-strong);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .calc-panel-shell .admin-primary:disabled {
@@ -62,8 +62,8 @@
 }
 
 .calc-panel-shell .admin-secondary:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--ft-hover-surface-5);
+  border-color: var(--ft-border-stronger);
 }
 /* Калькулятор: кегль как у списка материалов */
 .calc-panel-shell .admin-orders-placeholder {
@@ -138,14 +138,14 @@
 
 .calc-panel-shell .calc-step-tab:hover:not(:disabled) {
   color: var(--ft-accent);
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .calc-panel-shell .calc-step-tab--active,
 .calc-panel-shell a.calc-step-tab.calc-step-tab--active {
   color: var(--ft-accent-2);
-  border-color: rgba(203, 176, 121, 0.38);
-  background: rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-active);
+  background: var(--ft-accent-bg-muted);
   box-shadow: none;
 }
 

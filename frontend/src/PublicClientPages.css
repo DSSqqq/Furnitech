@@ -56,34 +56,34 @@
 
 .public-page__cta:hover {
   color: var(--ft-accent);
-  background: rgba(203, 176, 121, 0.08);
+  background: var(--ft-accent-bg-subtle);
 }
 
 .public-page__cta:focus-visible {
-  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline: 2px solid var(--ft-accent-focus-outline);
   outline-offset: 2px;
 }
 
 .public-page__cta--secondary {
   margin-top: 0.75rem;
   color: var(--ft-accent-2);
-  border-color: rgba(203, 176, 121, 0.38);
-  background: rgba(203, 176, 121, 0.12);
+  border-color: var(--ft-accent-border-active);
+  background: var(--ft-accent-bg-muted);
 }
 
 .public-page__cta--secondary:hover {
   color: var(--ft-accent-2);
-  background: rgba(203, 176, 121, 0.16);
-  border-color: rgba(203, 176, 121, 0.42);
+  background: var(--ft-accent-bg-medium);
+  border-color: var(--ft-accent-border-hover);
 }
 
 .public-orders-error {
   margin: 0 0 1rem;
   padding: 0.65rem 0.85rem;
   border-radius: 10px;
-  background: rgba(255, 107, 107, 0.12);
-  border: 1px solid rgba(255, 107, 107, 0.35);
-  color: rgba(255, 255, 255, 0.92);
+  background: var(--ft-danger-bg);
+  border: 1px solid var(--ft-danger-border);
+  color: var(--ft-danger-text);
   font-size: 0.9rem;
 }
 
@@ -101,7 +101,7 @@
   border-radius: var(--ft-radius-md, 12px);
   border: 1px solid var(--ft-border);
   background: var(--ft-surface, rgba(12, 12, 14, 0.72));
-  box-shadow: var(--ft-shadow-1, 0 4px 24px rgba(0, 0, 0, 0.2));
+  box-shadow: var(--ft-shadow-1, 0 4px 24px var(--ft-overlay-panel));
 }
 
 .public-orders-card__row {

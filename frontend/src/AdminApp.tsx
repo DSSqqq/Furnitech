@@ -56,6 +56,7 @@ import { CalculatorPage } from './CalculatorPage'
 import { resolveTextureImageUrl, TexturePickerModal } from './TexturePickerModal'
 import { MaterialClassPickModal } from './MaterialClassPickModal'
 import type { Material, MaterialCategory, MaterialClass, PricingCalcMode, RoundingMode, UnitOfMeasure } from './types'
+import { ThemeToggle } from './ThemeToggle'
 import './AdminApp.css'
 
 const MODAL_CLOSE_X_SVG = (
@@ -1066,6 +1067,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             <span className="admin-user-email" title={user.username}>
               {user.email || user.username}
             </span>
+            <ThemeToggle />
             <button type="button" className="admin-logout" onClick={onLogout}>
               Выйти
             </button>
@@ -1518,39 +1520,39 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   </ul>
                 </div>
               </div>
-              {extrasTarget ? (
-                <div
-                  className="admin-extras-dock"
-                  role="region"
-                  aria-label="Сопутствующие материалы: редактирование и сохранение"
-                >
-                  {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
-                  <div className="admin-extras-panel" aria-label="Сопутствующие материалы и операции">
-                    <MaterialExtrasPanel
-                      categoryTree={tree}
-                      uomList={uom}
-                      mainMaterialId={extrasTarget.id}
-                      relatedItems={extrasRelated}
-                      onRelatedChange={setExtrasRelated}
-                      basePrice={extrasBasePrice}
-                    />
-                  </div>
-                  <div className="admin-extras-dock-actions">
-                    <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
-                      {extrasSaving ? 'Сохранение…' : 'Сохранить'}
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-secondary"
-                      disabled={extrasSaving}
-                      onClick={() => setExtrasTarget(null)}
-                    >
-                      Закрыть
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </main>
+            {extrasTarget ? (
+              <div
+                className="admin-extras-dock"
+                role="region"
+                aria-label="Сопутствующие материалы: редактирование и сохранение"
+              >
+                {extrasErr ? <div className="admin-error admin-error--compact">{extrasErr}</div> : null}
+                <div className="admin-extras-panel" aria-label="Сопутствующие материалы и операции">
+                  <MaterialExtrasPanel
+                    categoryTree={tree}
+                    uomList={uom}
+                    mainMaterialId={extrasTarget.id}
+                    relatedItems={extrasRelated}
+                    onRelatedChange={setExtrasRelated}
+                    basePrice={extrasBasePrice}
+                  />
+                </div>
+                <div className="admin-extras-dock-actions">
+                  <button type="button" className="admin-primary" disabled={extrasSaving} onClick={saveExtras}>
+                    {extrasSaving ? 'Сохранение…' : 'Сохранить'}
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-secondary"
+                    disabled={extrasSaving}
+                    onClick={() => setExtrasTarget(null)}
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
           {editing &&
             (editing !== 'new' || selected != null) &&
