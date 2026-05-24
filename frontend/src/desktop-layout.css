@@ -6,25 +6,27 @@
 
 :root {
   --ft-layout-min-width: 1280px;
+  --ft-layout-min-height: 720px;
 }
 
 html {
   min-width: var(--ft-layout-min-width);
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 body {
   min-width: var(--ft-layout-min-width);
-  min-height: 100dvh;
+  min-height: var(--ft-layout-min-height);
   height: auto;
   max-height: none;
-  overflow: auto;
+  overflow: visible;
 }
 
 #root {
   min-width: var(--ft-layout-min-width);
   width: max(var(--ft-layout-min-width), 100%);
-  min-height: 100dvh;
+  min-height: 0;
   height: auto;
   max-height: none;
   overflow: visible;
@@ -33,6 +35,7 @@ body {
 .admin,
 .public-shell {
   min-width: var(--ft-layout-min-width);
+  min-height: 0;
   height: auto;
   max-height: none;
   overflow: visible;
@@ -50,8 +53,45 @@ body {
   overflow: visible;
   height: auto;
   max-height: none;
-  min-height: 0;
+  min-height: var(--ft-layout-min-height);
   flex: none;
+}
+
+.admin-aside,
+.admin-panel,
+.admin-main,
+.admin-main-scroll {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.admin-body {
+  grid-template-rows: auto;
+  flex: none;
+  min-height: 0;
+  align-items: start;
+}
+
+.admin-main-col {
+  min-height: 0;
+  height: auto;
+}
+
+.admin-main-col > .admin-main {
+  flex: none;
+  min-height: 0;
+  height: auto;
+}
+
+.admin-main {
+  height: auto;
+  min-height: 0;
+}
+
+.admin-main-scroll {
+  flex: none;
+  min-height: 0;
 }
 
 @media (min-width: 1025px) {
@@ -69,25 +109,13 @@ body {
     max-height: none;
   }
 
-  .admin-aside,
-  .admin-main,
-  .admin-panel {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .admin-main-scroll {
-    overflow: visible;
-    max-height: none;
-  }
-
   .public-shell__main:has(.calc-panel-shell),
   .public-shell:has(.calc-panel-shell) {
     display: block;
     overflow: visible;
     height: auto;
     max-height: none;
+    min-height: var(--ft-layout-min-height);
   }
 
   .calc-panel-shell .admin-orders-placeholder,
@@ -114,4 +142,231 @@ body {
     flex: none;
     min-height: 0;
   }
+}
+
+/*
+ * Lock desktop geometry even when the CSS viewport becomes narrow because of
+ * browser zoom. These rules intentionally repeat desktop grid values after
+ * all app styles, so max-width breakpoints do not switch pages to mobile UI.
+ */
+body {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.public-shell__main:has(.calc-panel-shell) {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-body {
+  grid-template-columns: minmax(220px, 280px) 1fr minmax(280px, 400px);
+  grid-template-rows: auto;
+  min-height: calc(var(--ft-layout-min-height) - 7.75rem);
+}
+
+#admin-panel-materials.admin-body,
+#admin-panel-textures.admin-body,
+#admin-panel-classes.admin-body,
+#admin-panel-calculations.admin-body,
+#material-search-modal.admin-body {
+  grid-template-columns: minmax(var(--admin-refs-aside-min), var(--admin-refs-aside-max)) minmax(0, 1fr);
+}
+
+#admin-panel-uom.admin-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Справочники: дерево папок остаётся на экране при прокрутке списка */
+#admin-panel-materials .admin-aside,
+#admin-panel-textures .admin-aside,
+#admin-panel-classes .admin-aside,
+#admin-panel-calculations .admin-aside,
+#material-search-modal .admin-aside {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  max-height: calc(100vh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 2;
+}
+
+/* «Расчёты»: снять overflow:hidden у контейнера — иначе sticky у папок не работает */
+#admin-panel-calculations.admin-body {
+  overflow: visible;
+  align-items: start;
+}
+
+#admin-panel-calculations .admin-calculations-list,
+#admin-panel-calculations .admin-calculations-editor,
+#admin-panel-calculations .admin-calculations-editor > .admin-main,
+#admin-panel-calculations .admin-calculations-editor .admin-main-scroll {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+
+.folder-explorer {
+  grid-template-columns: minmax(200px, 280px) 1fr;
+}
+
+.admin-calculations-formula-dialog .admin-calculations-picker-keypad-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.admin-calculations-formula-dialog .admin-calculations-picker-keypad-row .admin-calculations-embedded-class-picker,
+.admin-calculations-formula-dialog .admin-calculations-picker-keypad-row .folder-explorer {
+  display: contents;
+}
+
+.admin-calculations-formula-dialog .admin-calculations-picker-keypad-row .admin-calculations-builder {
+  width: auto;
+  height: var(--formula-panel-h);
+  min-height: var(--formula-panel-h);
+}
+
+.admin-calculations-formula-dialog .admin-calculations-picker-keypad-row .admin-calculations-keypad-grid {
+  height: 100%;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+
+.tex-layout {
+  grid-template-columns: 160px 1fr;
+}
+
+.admin-modal--material-card .mat-form-uom-texture-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+}
+
+.admin-modal--material-card .mat-form-uom-label-cell {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.admin-modal--material-card .mat-form-uom-select-cell {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.admin-modal--material-card .mat-form-texture-cell {
+  grid-column: 2;
+  grid-row: 2;
+  align-items: center;
+}
+
+.admin-modal--material-card .mat-form-price-round-row,
+.admin-modal--material-card .mat-form-note-calc-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.admin-modal--material-card .mat-form-rounding-inline {
+  flex-wrap: nowrap;
+}
+
+.calc-body-with-totals:not(.calc-body-with-totals--wide) {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+}
+
+.calc-side-panel {
+  --calc-side-h: 520px;
+}
+
+.calcconf-grid {
+  grid-template-columns: 1fr 1.2fr;
+}
+
+.frame2,
+.frame3 {
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 700px)) minmax(4rem, 15%) max-content 1fr;
+}
+
+.frame2-card,
+.frame2 .frame3-left,
+.frame3-left {
+  grid-column: 1;
+}
+
+.frame2-sketch,
+.frame3-right {
+  grid-column: 3;
+}
+
+.frame2-sketch-inner {
+  flex-direction: row;
+  align-items: flex-start;
+  row-gap: 0;
+}
+
+.sketch {
+  height: calc(520px * var(--sketch-scale-y, 1) * var(--sketch-size-factor));
+  width: auto;
+  max-width: 100%;
+}
+
+.frame2-create-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.frame2-create-grid--file-status-pair {
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'create-tl create-tr'
+    'create-ml create-mr'
+    'create-bl create-br';
+}
+
+.frame2-create-grid--file-status-pair.frame2-create-grid--profile-type-slim {
+  grid-template-areas: 'create-tl create-tr';
+}
+
+.frame3-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.frame3-drawing {
+  --frame3-dim-sketch-gap-y: 30px;
+  --frame3-dim-sketch-gap-x: 28px;
+  --frame3-dim-vtrack: 34px;
+}
+
+.frame3-dim-drawing--left,
+.frame3-dim-drawing--right {
+  width: 70px;
+}
+
+.frame3-dim-drawing {
+  font-size: 0.78rem;
+}
+
+.frame2.step8-result {
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 400px)) minmax(0, 1fr);
+}
+
+.step8-result__contact {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 920px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.step8-result__contact.calc-side-panel {
+  position: static;
+  align-self: stretch;
+  max-height: none;
+  overflow: hidden;
+}
+
+.step8-result__details {
+  max-height: 920px;
+}
+
+.step8-result__scroll-pack {
+  overflow-y: auto;
+  overflow-x: hidden;
 }

@@ -53,11 +53,6 @@ function blendAspect(defaultAspect: number, targetAspect: number, strength: numb
   return defaultAspect + (targetAspect - defaultAspect) * k
 }
 
-function blendScale(defaultScale: number, targetScale: number, strength: number) {
-  const k = clamp(strength, 0, 1)
-  return defaultScale + (targetScale - defaultScale) * k
-}
-
 function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
   const lab = materialTextureLabel(m)
