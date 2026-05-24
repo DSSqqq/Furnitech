@@ -4,9 +4,54 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta
+      id="ft-viewport"
       name="viewport"
-      content="width=1280, initial-scale=1, minimum-scale=0.25, maximum-scale=5, user-scalable=yes, viewport-fit=cover"
+      content="width=1280, minimum-scale=0.25, maximum-scale=5, user-scalable=yes, viewport-fit=cover"
     />
+    <script>
+      (function () {
+        var LAYOUT_W = 1280
+        var MIN = 0.25
+        var MAX = 5
+        function fitViewport() {
+          var vp = document.getElementById('ft-viewport')
+          if (!vp) return
+          var vw = window.innerWidth || document.documentElement.clientWidth || screen.width
+          if (vw >= LAYOUT_W) {
+            vp.setAttribute(
+              'content',
+              'width=' +
+                LAYOUT_W +
+                ', initial-scale=1, minimum-scale=' +
+                MIN +
+                ', maximum-scale=' +
+                MAX +
+                ', user-scalable=yes, viewport-fit=cover',
+            )
+            return
+          }
+          var scale = Math.min(MAX, Math.max(MIN, vw / LAYOUT_W))
+          scale = Math.round(scale * 10000) / 10000
+          vp.setAttribute(
+            'content',
+            'width=' +
+              LAYOUT_W +
+              ', initial-scale=' +
+              scale +
+              ', minimum-scale=' +
+              MIN +
+              ', maximum-scale=' +
+              MAX +
+              ', user-scalable=yes, viewport-fit=cover',
+          )
+        }
+        fitViewport()
+        window.addEventListener('orientationchange', function () {
+          setTimeout(fitViewport, 150)
+        })
+        window.addEventListener('resize', fitViewport)
+      })()
+    </script>
     <meta name="theme-color" content="#070708" />
     <meta name="color-scheme" content="dark" />
     <meta name="format-detection" content="telephone=no" />
