@@ -216,6 +216,7 @@ export type CalculatorProfileType = {
   card_image?: string | null
   card_image_2?: string | null
   card_image_3?: string | null
+  card_image_4?: string | null
   is_active: boolean
   sort_order: number
   colors: CalculatorProfileTypeColorDto[]
@@ -248,6 +249,7 @@ export type CalculatorFillingType = {
   card_image?: string | null
   card_image_2?: string | null
   card_image_3?: string | null
+  card_image_4?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorFillingTypeMaterialDto[]
@@ -264,6 +266,7 @@ export type CalculatorHingeType = {
   card_image?: string | null
   card_image_2?: string | null
   card_image_3?: string | null
+  card_image_4?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorHingeTypeMaterialDto[]

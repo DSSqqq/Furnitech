@@ -646,6 +646,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
     card_image = serializers.ImageField(required=False, allow_null=True)
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
+    card_image_4 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorProfileType
@@ -656,6 +657,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             "card_image",
             "card_image_2",
             "card_image_3",
+            "card_image_4",
             "is_active",
             "sort_order",
             "colors",
@@ -720,6 +722,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
     card_image = serializers.ImageField(required=False, allow_null=True)
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
+    card_image_4 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorFillingType
@@ -730,6 +733,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
             "card_image",
             "card_image_2",
             "card_image_3",
+            "card_image_4",
             "is_active",
             "sort_order",
             "materials",
@@ -788,6 +792,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
     card_image = serializers.ImageField(required=False, allow_null=True)
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
+    card_image_4 = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = CalculatorHingeType
@@ -798,6 +803,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
             "card_image",
             "card_image_2",
             "card_image_3",
+            "card_image_4",
             "is_active",
             "sort_order",
             "materials",

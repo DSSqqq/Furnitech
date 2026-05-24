@@ -1,6 +1,80 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-20 — админка «Калькулятор»: единая панель шагов, блок «Расчёт» внутри шага, portal для меню плиток (см. блок ниже). Ранее в этот день: **`excess_coefficient`** в карточке материала.
+**Последнее обновление:** 2026-05-24 — калькулятор: 4 фото карточки типов; **`MaterialSearchModal`** как в «Материалах» + **`subtree`**; габариты шага 3 и лист эскиза (см. блоки ниже). Ранее: 2026-05-20 — админка «Калькулятор»: единая панель шагов…
+
+### Изменения 2026-05-24 (калькулятор — фото карточек и поиск материалов)
+
+#### До 4 фото на карточке типа (шаги 2, 4, 5)
+
+- **Backend:** поле **`card_image_4`** у **`CalculatorProfileType`**, **`CalculatorFillingType`**, **`CalculatorHingeType`**; миграция **`0047_calculator_card_image_4`**; сериализаторы — **`ImageField(required=False, allow_null=True)`** для **`card_image_4`**.
+- **Frontend:** **`calculatorCardTiles.tsx`** — **`CALC_CARD_IMAGE_SLOT_COUNT = 4`**, **`ProfileCardImageTileRow`** (4 плитки), **`CalculatorCardTileStriped`** (**`slot3`**), хелперы **`appendCalcCardImagesToFormData`**, **`calcCardImageGridSlots`**.
+- **Формы:** **`Step2FrameFacade`**, **`Step4FrameFilling`**, **`FrameHingeCatalog`** — 4 file input, **`FormData`** с **`card_image` … `card_image_4`**; подписи «до 4» / «до четырёх».
+- **`types.ts`:** опциональное **`card_image_4?`** у трёх типов калькулятора.
+
+#### `MaterialSearchModal` — как вкладка «Материалы»
+
+- **Убраны** текстовые фильтры (артикул, наименование, цена, классы, имя папки). Остаётся **дерево папок** + **список материалов**.
+- **Layout:** **`admin-body`** внутри модалки — **`admin-aside`** («Папки материалов», корень **«База материалов»** с expander) + **`admin-main`** со списком **`mat-list-table`** (колонки как в **`#admin-panel-materials`**: артикул, наименование, ед. изм., цена); в режиме **`multiPick`** — колонка чекбоксов.
+- **Загрузка списка:** **`selectedTreeId == null`** → **`fetchMaterialsFiltered({})`** (вся база); выбрана папка → **`fetchMaterials(id, { subtree: true })`** — материалы **в папке и во всех вложенных**, как на вкладке «Материалы» админки.
+- **Стили:** **`material-search-modal`**, **`#material-search-modal`**, **`material-search-mat-list`** в **`AdminApp.css`**; мобильная вёрстка строк — как **`#admin-panel-materials .mat-list-row`** (**`mobile.css`**).
+- **Шаги калькулятора:** 2 (цвета профиля), 4 (материалы наполнения), 5 (**`FrameHingeCatalog`**) — один общий компонент.
+
+#### Прочее (калькулятор, та же сессия)
+
+- **Количество фасадов (шаг 3):** максимум **99999** (**`FRAME_FACADE_COUNT_MAX`** в **`frameCalcSession.ts`**, clamp в **`Step3FrameSizes.tsx`**).
+- **Кнопка «Поиск»** (шаги 2, 4, 5): компактная как «Отмена», **на всю ширину** колонки (**`.frame2-material-tree-search-btn`**, **`CalculatorPanelShell.css`**).
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Backend | **`models.py`**, **`serializers.py`**, **`0047_calculator_card_image_4.py`** |
+| Поиск | **`MaterialSearchModal.tsx`**, **`AdminApp.css`**, **`mobile.css`** |
+| 4 фото | **`calculatorCardTiles.tsx`**, **`Step2FrameFacade.tsx`**, **`Step4FrameFilling.tsx`**, **`FrameHingeCatalog.tsx`**, **`types.ts`** |
+| Габариты / UI | **`frameCalcSession.ts`**, **`Step3FrameSizes.tsx`**, **`Step2FrameFacade.css`**, **`CalculatorPanelShell.css`** |
+
+### Изменения 2026-05-24 (калькулятор — габариты и лист эскиза)
+
+#### Дефолтные габариты эскиза из материала
+
+- **`frameCalcSession.ts`**: добавлены **`frameDimDefaultsFromMaterial`**, **`hasSavedFrameDims`**, **`seedFrameDimsFromMaterial`**, тип **`FrameDimMaterialLimits`**.
+- **Логика дефолта:** если в `localStorage` ещё нет **`calc_frame_height_mm` / `calc_frame_width_mm`**, при загрузке материала цвета профиля записываются минимальные габариты материала (**`min_length`**, **`min_width`**, округление вверх). Если минимумы не заданы — fallback **`FRAME_DEFAULT_HEIGHT_MM = 500`**, **`FRAME_DEFAULT_WIDTH_MM = 200`**.
+- **Шаг 2 (`Step2FrameFacade.tsx`):** после **`fetchMaterial(selectedColorId)`** вызывается **`seedFrameDimsFromMaterial(m)`**; эскиз без сохранённых габаритов использует **`frameDimDefaultsFromMaterial(selectedColorMaterialFull)`** как fallback для **`facadeSketchBoxStyle`**.
+- **Шаг 3 (`Step3FrameSizes.tsx`):** при загрузке материала — **`seedFrameDimsFromMaterial`** + синхронизация полей; эскиз и размерные подписи показывают **`sketchHeightN` / `sketchWidthN`** (ввод пользователя или дефолт материала). В **`localStorage`** размеры пишутся только когда оба поля непустые (не затирают сессию пустыми строками до загрузки материала).
+- **Сохранённые пользователем размеры** (уже есть в `localStorage`) **не перезаписываются** при смене цвета или повторном заходе на шаг 3.
+
+#### Ограничения ввода габаритов (шаг 3)
+
+- **`FRAME_DIM_FALLBACK_MAX_MM = 99999`** — верхняя граница, если у материала **`max_length` / `max_width`** не заданы (≤ 0).
+- **`effectiveFrameDimMax(materialMax)`** — фактический максимум: `floor(max)` из материала или **99999**.
+- **`clampFrameDimDigits(raw, materialMax)`** — при **`onChange`**: только цифры, длина строки не больше числа знаков в максимуме, значение не выше максимума.
+- Поля **«Высота»** и **«Ширина»**: атрибут **`maxLength`**, **`onBlur`** — clamp к **[min, max]** (min из материала или 0). Блок «Ограничение по размерам» показывает **99999** вместо «—», если max в карточке материала не задан.
+- Валидация **`heightOk` / `widthOk`** и кнопка «Следующий шаг» учитывают **`effectiveMaxH` / `effectiveMaxW`**.
+
+#### Типографика и таблица на листе эскиза (`.sketch-sheet`)
+
+- **`Step2FrameFacade.css`** (общий стиль для эскизов шагов 2–7):
+  - текст **чёрный** (`#000`);
+  - уменьшенный кегль: заголовок **0.82rem**, подзаголовок **0.68rem**, ключи **0.7rem**, значения **0.72rem**;
+  - таблица параметров: колонка названия **5rem**, зазор между ключом и значением **0.25rem** (было **6.2rem** / **0.65rem**).
+
+#### Затронутые файлы (frontend)
+
+| Файл | Суть |
+|------|------|
+| **`calculator/frameCalcSession.ts`** | **`FRAME_DIM_FALLBACK_MAX_MM`**, дефолты/seed габаритов, **`effectiveFrameDimMax`**, **`clampFrameDimDigits`** |
+| **`calculator/Step2FrameFacade.tsx`** | **`seedFrameDimsFromMaterial`**, fallback эскиза из min материала |
+| **`calculator/Step2FrameFacade.css`** | **`.sketch-sheet`**, **`.sketch-title/sub/key/val`**, **`.sketch-row`** |
+| **`calculator/Step3FrameSizes.tsx`** | seed дефолтов, ограничение ввода, **`sketchHeightN` / `sketchWidthN`** |
+
+#### Документация
+
+- **`docs/ARCHITECTURE.md`** — обновлены строки про сессию габаритов, шаг 3 и **`frameCalcSession.ts`**.
+
+#### Не вошло (откатано)
+
+- Попытки показать размер ширины на очень высоких фасадах через **`frame3-drawing--dim-inset-top`** / **`--width-outside`** / overlay — **отменены** (ломали вёрстку размерных линий).
+- Защита переполнения текста в **`.sketch-sheet`** через **`overflow: hidden`** и **`ellipsis`** на **`frame3-dim-drawing__value`** — **отменена** по той же причине.
 
 ### Изменения 2026-05-20 (админка «Калькулятор» — вёрстка и UX)
 
@@ -602,11 +676,10 @@
   - **Frontend** (`**AdminApp.tsx**`): модалка удаления предупреждает про **все вложенные папки и материалы**; снят запрет «сначала удалите вложенные»; после успеха сбрасывается выбор, если **`selected`** попал в удалённое поддерево (**`collectSubtreeCategoryIds`**). Подсказка у дерева обновлена.
 
 - **Калькулятор (рамочный): габариты по умолчанию и эскиз шага 2**
-  - **`frameCalcSession.ts`**: константы **`FRAME_DEFAULT_HEIGHT_MM = 500`**, **`FRAME_DEFAULT_WIDTH_MM = 200`** — если ключей **`calc_frame_height_mm` / `calc_frame_width_mm`** нет (после **`clearFrameCalculatorStorage`** или первый визит).
-  - **`Step3FrameSizes`**, **`Step8FrameResult`**, **`CalcPriceTotals`**: те же значения как fallback при парсинге сессии.
-  - **`sketchFrame.ts`**: **`facadeSketchBoxStyle(H, W)`** — общая формула **`aspectRatio`** и **`--sketch-scale-y`** (как раньше только на шаге 3).
-  - **`Step3FrameSizes`**: эскиз использует **`facadeSketchBoxStyle`**.
-  - **`Step2FrameFacade`**: эскиз **`.sketch`** получает те же пропорции; габариты из **`readFrameDimsMm()`** + подписка **`useSyncExternalStore(subscribeFrameCalcSession, …)`**; снимок — **строка** `"h|w"` (не объект), иначе React считает снимок всегда изменившимся и уходит в **бесконечный ререндер** (пустая страница на `/frame`).
+  - **`frameCalcSession.ts`**: **`FRAME_DEFAULT_HEIGHT_MM = 500`**, **`FRAME_DEFAULT_WIDTH_MM = 200`**; с **2026-05-24** — **`FRAME_DIM_FALLBACK_MAX_MM`**, **`frameDimDefaultsFromMaterial`**, **`seedFrameDimsFromMaterial`** (подробнее в блоке **2026-05-24** в начале файла).
+  - **`Step3FrameSizes`**, **`Step8FrameResult`**, **`CalcPriceTotals`**: fallback 500×200 при пустой сессии.
+  - **`sketchFrame.ts`**: **`facadeSketchBoxStyle(H, W)`** — **`aspectRatio`** и **`--sketch-scale-y`**.
+  - **`Step2FrameFacade`**: габариты из **`readFrameDimsMm()`** или дефолта материала; **`useSyncExternalStore`**, снимок **`"h|w"`** (не объект — иначе бесконечный ререндер).
 
 - **Калькулятор: шаг 5 → 6 → 7 при «Присадка не требуется»**
   - Если на шаге 5 не выбраны **«Присадки под петли»** (в `localStorage` нет `calc_frame_mortise=hinge`): вкладка **«Шаг 6»** остаётся в DOM, но **неактивна** (`disabled`); «Следующий шаг» с шага 5 ведёт на **`/frame/handle-holes`**; при прямом открытии **`/frame/hinge-layout`** — редирект на шаг 7. В **`FrameHingeMortisePanel`** при выборе «Не требуется» дополнительно **`writeHingeLayout(null)`**. Хелпер **`isFrameMortiseHingeSelected()`** в **`frameCalcSession.ts`**; на шаге 7 кнопка «Назад» ведёт на шаг 5 или 6 в зависимости от присадки.

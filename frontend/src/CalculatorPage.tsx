@@ -25,6 +25,7 @@ import { Step7FrameHandleHoles } from './calculator/Step7FrameHandleHoles'
 import { Step8FrameResult } from './calculator/Step8FrameResult'
 import { CalcPriceTotalsSlotProvider, CalcStepPriceTotals } from './calculator/CalcPriceTotals'
 import './calculator/Step3FrameSizes.css'
+import './calculator/CalculatorPanelShell.css'
 import './CalculatorPage.css'
 
 type FacadeType = 'frame' | 'mdf' | 'pvc'
@@ -457,11 +458,19 @@ export type CalculatorPageProps = {
 export function CalculatorPage({ variant = 'admin' }: CalculatorPageProps) {
   const calcBase = variant === 'public' ? '' : '/calculator'
   const readOnly = variant === 'public'
-  return (
+  const inner = (
     <CalcPathsProvider base={calcBase} readOnly={readOnly}>
       <CalculatorPageInner />
     </CalcPathsProvider>
   )
+  if (variant === 'public') {
+    return (
+      <div className="calc-panel-shell" id="public-panel-calculator">
+        <div className="admin-orders-placeholder">{inner}</div>
+      </div>
+    )
+  }
+  return inner
 }
 
 export default CalculatorPage

@@ -1,28 +1,91 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { resolveMediaUrl } from './sketchFrame'
 
-/** Плитка в сетке калькулятора: превью + полоски при нескольких кадрах (шаги 2 и 4). */
+export const CALC_CARD_IMAGE_SLOT_COUNT = 4 as const
+
+export type CalcCardImageFiles = [File | null, File | null, File | null, File | null]
+
+export type CalcCardImageUrls = [string, string, string, string]
+
+export const CALC_CARD_IMAGE_FIELD_NAMES = [
+  'card_image',
+  'card_image_2',
+  'card_image_3',
+  'card_image_4',
+] as const
+
+export function emptyCalcCardImageFiles(): CalcCardImageFiles {
+  return [null, null, null, null]
+}
+
+export function appendCalcCardImagesToFormData(fd: FormData, files: CalcCardImageFiles) {
+  files.forEach((file, i) => {
+    if (file) fd.append(CALC_CARD_IMAGE_FIELD_NAMES[i], file)
+  })
+}
+
+export type CalcCardImageEntity = {
+  card_image?: string | null
+  image_url?: string | null
+  card_image_2?: string | null
+  card_image_3?: string | null
+  card_image_4?: string | null
+}
+
+export function calcCardImageUrlsFromEntity(entity: CalcCardImageEntity): CalcCardImageUrls {
+  const slots = [
+    ((entity.card_image ?? '') || (entity.image_url ?? '')).trim(),
+    (entity.card_image_2 ?? '').trim(),
+    (entity.card_image_3 ?? '').trim(),
+    (entity.card_image_4 ?? '').trim(),
+  ]
+  return slots.map((s) => (s ? resolveMediaUrl(s) : '')) as CalcCardImageUrls
+}
+
+export function calcCardImageTileUrls(
+  files: CalcCardImageFiles,
+  filePreviewUrls: CalcCardImageUrls,
+  existingUrls: CalcCardImageUrls,
+): CalcCardImageUrls {
+  return files.map((file, i) =>
+    file ? filePreviewUrls[i] : existingUrls[i] || '',
+  ) as CalcCardImageUrls
+}
+
+export function calcCardImageGridSlots(entity: CalcCardImageEntity) {
+  const u = calcCardImageUrlsFromEntity(entity)
+  return {
+    slot0: u[0],
+    slot1: u[1],
+    slot2: u[2],
+    slot3: u[3],
+  }
+}
+
+/** Плитка в сетке калькулятора: превью + полоски при нескольких кадрах (шаги 2, 4, 5). */
 export function CalculatorCardTileStriped({
   title,
   versionKey,
   slot0,
   slot1,
   slot2,
+  slot3,
 }: {
   title: string
   versionKey: number
   slot0: string
   slot1: string
   slot2: string
+  slot3: string
 }) {
   const srcs = useMemo(() => {
     const out: string[] = []
-    for (const s of [slot0, slot1, slot2]) {
+    for (const s of [slot0, slot1, slot2, slot3]) {
       const t = (s ?? '').trim()
       if (t) out.push(resolveMediaUrl(t))
     }
     return out.filter(Boolean)
-  }, [versionKey, slot0, slot1, slot2])
+  }, [versionKey, slot0, slot1, slot2, slot3])
   const [activeIdx, setActiveIdx] = useState(0)
 
   useEffect(() => {
@@ -64,15 +127,20 @@ export function CalculatorCardTileStriped({
 export function ProfileCardImageTileRow({
   urls,
   inputRefs,
-  groupAriaLabel = 'Фото карточки, до трёх',
+  groupAriaLabel = 'Фото карточки, до четырёх',
 }: {
-  urls: readonly [string, string, string]
-  inputRefs: readonly [RefObject<HTMLInputElement | null>, RefObject<HTMLInputElement | null>, RefObject<HTMLInputElement | null>]
+  urls: CalcCardImageUrls
+  inputRefs: readonly [
+    RefObject<HTMLInputElement | null>,
+    RefObject<HTMLInputElement | null>,
+    RefObject<HTMLInputElement | null>,
+    RefObject<HTMLInputElement | null>,
+  ]
   groupAriaLabel?: string
 }) {
   return (
     <div className="frame2-card-image-tile-row" role="group" aria-label={groupAriaLabel}>
-      {([0, 1, 2] as const).map((slot) => (
+      {([0, 1, 2, 3] as const).map((slot) => (
         <button
           key={slot}
           type="button"

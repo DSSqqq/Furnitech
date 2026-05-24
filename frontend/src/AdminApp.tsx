@@ -1598,7 +1598,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         <AdminTexturesPanel />
       ) : section === 'calculator' ? (
         <div
-          className="admin-body"
+          className="admin-body calc-panel-shell"
           id="admin-panel-calculator"
           role="tabpanel"
           aria-labelledby="admin-tab-calculator"

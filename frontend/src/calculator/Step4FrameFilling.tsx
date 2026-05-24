@@ -24,7 +24,16 @@ import {
   textureLabelDisplayWrap,
   type MaterialTextureFields,
 } from './materialTextureLabel'
-import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
+import {
+  CalculatorCardTileStriped,
+  ProfileCardImageTileRow,
+  appendCalcCardImagesToFormData,
+  calcCardImageGridSlots,
+  calcCardImageTileUrls,
+  calcCardImageUrlsFromEntity,
+  emptyCalcCardImageFiles,
+  type CalcCardImageFiles,
+} from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
 import { resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
@@ -119,27 +128,21 @@ export function Step4FrameFilling() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
-  const [createCardFiles, setCreateCardFiles] = useState<[File | null, File | null, File | null]>([
-    null,
-    null,
-    null,
-  ])
+  const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
   const fillingCardInputRef0 = useRef<HTMLInputElement>(null)
   const fillingCardInputRef1 = useRef<HTMLInputElement>(null)
   const fillingCardInputRef2 = useRef<HTMLInputElement>(null)
+  const fillingCardInputRef3 = useRef<HTMLInputElement>(null)
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
-  const [editCardFiles, setEditCardFiles] = useState<[File | null, File | null, File | null]>([
-    null,
-    null,
-    null,
-  ])
+  const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
   const editFillingCardInputRef0 = useRef<HTMLInputElement>(null)
   const editFillingCardInputRef1 = useRef<HTMLInputElement>(null)
   const editFillingCardInputRef2 = useRef<HTMLInputElement>(null)
+  const editFillingCardInputRef3 = useRef<HTMLInputElement>(null)
   const [editFillingMatHit, setEditFillingMatHit] = useState<Material[]>([])
   const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
 
@@ -347,30 +350,27 @@ export function Step4FrameFilling() {
     () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
     [createCardFiles[2]],
   )
+  const createPreview3 = useMemo(
+    () => (createCardFiles[3] ? URL.createObjectURL(createCardFiles[3]) : ''),
+    [createCardFiles[3]],
+  )
 
   useEffect(() => {
     return () => {
-      for (const u of [createPreview0, createPreview1, createPreview2]) {
+      for (const u of [createPreview0, createPreview1, createPreview2, createPreview3]) {
         if (u) URL.revokeObjectURL(u)
       }
     }
-  }, [createPreview0, createPreview1, createPreview2])
+  }, [createPreview0, createPreview1, createPreview2, createPreview3])
 
   const editingFilling = useMemo(
     () => (editFillingId != null ? fillingTypes.find((p) => p.id === editFillingId) ?? null : null),
     [editFillingId, fillingTypes]
   )
 
-  const editFillingSlotExistingResolved = useMemo((): [string, string, string] => {
-    if (!editingFilling) return ['', '', '']
-    const s0 = ((editingFilling.card_image ?? '') || (editingFilling.image_url ?? '')).trim()
-    const s1 = (editingFilling.card_image_2 ?? '').trim()
-    const s2 = (editingFilling.card_image_3 ?? '').trim()
-    return [
-      s0 ? resolveMediaUrl(s0) : '',
-      s1 ? resolveMediaUrl(s1) : '',
-      s2 ? resolveMediaUrl(s2) : '',
-    ]
+  const editFillingSlotExistingResolved = useMemo(() => {
+    if (!editingFilling) return calcCardImageUrlsFromEntity({})
+    return calcCardImageUrlsFromEntity(editingFilling)
   }, [editingFilling])
 
   const editBlob0 = useMemo(
@@ -385,38 +385,35 @@ export function Step4FrameFilling() {
     () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
     [editCardFiles[2]],
   )
+  const editBlob3 = useMemo(
+    () => (editCardFiles[3] ? URL.createObjectURL(editCardFiles[3]) : ''),
+    [editCardFiles[3]],
+  )
 
   useEffect(() => {
     return () => {
-      for (const u of [editBlob0, editBlob1, editBlob2]) {
+      for (const u of [editBlob0, editBlob1, editBlob2, editBlob3]) {
         if (u) URL.revokeObjectURL(u)
       }
     }
-  }, [editBlob0, editBlob1, editBlob2])
+  }, [editBlob0, editBlob1, editBlob2, editBlob3])
 
-  const editFillingCardTileUrls = useMemo((): [string, string, string] => {
-    const blobs: [string, string, string] = [editBlob0, editBlob1, editBlob2]
-    return [
-      editCardFiles[0] ? blobs[0] : editFillingSlotExistingResolved[0] || '',
-      editCardFiles[1] ? blobs[1] : editFillingSlotExistingResolved[1] || '',
-      editCardFiles[2] ? blobs[2] : editFillingSlotExistingResolved[2] || '',
-    ]
-  }, [
-    editBlob0,
-    editBlob1,
-    editBlob2,
-    editCardFiles[0],
-    editCardFiles[1],
-    editCardFiles[2],
-    editFillingSlotExistingResolved,
-  ])
+  const editFillingCardTileUrls = useMemo(
+    () =>
+      calcCardImageTileUrls(
+        editCardFiles,
+        [editBlob0, editBlob1, editBlob2, editBlob3],
+        editFillingSlotExistingResolved,
+      ),
+    [editBlob0, editBlob1, editBlob2, editBlob3, editCardFiles, editFillingSlotExistingResolved],
+  )
 
   const closeEditFilling = () => {
     closeMaterialSearch()
     setEditFillingId(null)
     setEditFillingName('')
-    setEditCardFiles([null, null, null])
-    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+    setEditCardFiles(emptyCalcCardImageFiles())
+    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
       if (r.current) r.current.value = ''
     }
     setEditFillingMatIds({})
@@ -429,8 +426,8 @@ export function Step4FrameFilling() {
     setErr(null)
     setEditFillingId(t.id)
     setEditFillingName(t.name)
-    setEditCardFiles([null, null, null])
-    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+    setEditCardFiles(emptyCalcCardImageFiles())
+    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
       if (r.current) r.current.value = ''
     }
     const ids: Record<number, true> = {}
@@ -463,9 +460,7 @@ export function Step4FrameFilling() {
         fd.append('is_active', String(t.is_active))
         fd.append('sort_order', String(t.sort_order))
         fd.append('materials', JSON.stringify(materials))
-        if (editCardFiles[0]) fd.append('card_image', editCardFiles[0])
-        if (editCardFiles[1]) fd.append('card_image_2', editCardFiles[1])
-        if (editCardFiles[2]) fd.append('card_image_3', editCardFiles[2])
+        appendCalcCardImagesToFormData(fd, editCardFiles)
         updated = await updateCalculatorFillingType(editFillingId, fd)
       } else {
         updated = await updateCalculatorFillingType(editFillingId, {
@@ -496,16 +491,14 @@ export function Step4FrameFilling() {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(fillingTypes.length))
       fd.append('materials', JSON.stringify(materials))
-      if (createCardFiles[0]) fd.append('card_image', createCardFiles[0])
-      if (createCardFiles[1]) fd.append('card_image_2', createCardFiles[1])
-      if (createCardFiles[2]) fd.append('card_image_3', createCardFiles[2])
+      appendCalcCardImagesToFormData(fd, createCardFiles)
       const created = await createCalculatorFillingType(fd)
       setFillingTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateName('')
-      setCreateCardFiles([null, null, null])
-      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]) {
+      setCreateCardFiles(emptyCalcCardImageFiles())
+      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
         if (r.current) r.current.value = ''
       }
       setCreateMatHit([])
@@ -552,8 +545,8 @@ export function Step4FrameFilling() {
     if (!fillingTypes.some((p) => p.id === editFillingId)) {
       setEditFillingId(null)
       setEditFillingName('')
-      setEditCardFiles([null, null, null])
-      for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]) {
+      setEditCardFiles(emptyCalcCardImageFiles())
+      for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
         if (r.current) r.current.value = ''
       }
       setEditFillingMatIds({})
@@ -701,8 +694,8 @@ export function Step4FrameFilling() {
                       closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateName('')
-                      setCreateCardFiles([null, null, null])
-                      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]) {
+                      setCreateCardFiles(emptyCalcCardImageFiles())
+                      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
                         if (r.current) r.current.value = ''
                       }
                       setCreateMatHit([])
@@ -727,14 +720,15 @@ export function Step4FrameFilling() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки (до 3)</span>
-                      <HintButton text="До трёх фото на один тип наполнения. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
+                      <span className="frame2-file-label">Изображения для карточки (до 4)</span>
+                      <HintButton text="До четырёх фото на один тип наполнения. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
                     </div>
                     {(
                       [
                         [0, fillingCardInputRef0],
                         [1, fillingCardInputRef1],
                         [2, fillingCardInputRef2],
+                        [3, fillingCardInputRef3],
                       ] as const
                     ).map(([slot, refEl]) => (
                       <input
@@ -746,7 +740,7 @@ export function Step4FrameFilling() {
                         accept="image/*"
                         onChange={(e) => {
                           setCreateCardFiles((prev) => {
-                            const next: [File | null, File | null, File | null] = [...prev]
+                            const next: CalcCardImageFiles = [...prev]
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
@@ -755,9 +749,9 @@ export function Step4FrameFilling() {
                     ))}
                   </div>
                   <ProfileCardImageTileRow
-                    urls={[createPreview0, createPreview1, createPreview2]}
-                    inputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2]}
-                    groupAriaLabel="Фото карточки наполнения, до трёх"
+                    urls={[createPreview0, createPreview1, createPreview2, createPreview3]}
+                    inputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]}
+                    groupAriaLabel="Фото карточки наполнения, до четырёх"
                   />
                 </div>
 
@@ -849,7 +843,7 @@ export function Step4FrameFilling() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Карточка: до 3 фото</span>
+                      <span className="frame2-file-label">Карточка: до 4 фото</span>
                       <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
                     {(
@@ -857,6 +851,7 @@ export function Step4FrameFilling() {
                         [0, editFillingCardInputRef0],
                         [1, editFillingCardInputRef1],
                         [2, editFillingCardInputRef2],
+                        [3, editFillingCardInputRef3],
                       ] as const
                     ).map(([slot, refEl]) => (
                       <input
@@ -868,7 +863,7 @@ export function Step4FrameFilling() {
                         accept="image/*"
                         onChange={(e) => {
                           setEditCardFiles((prev) => {
-                            const next: [File | null, File | null, File | null] = [...prev]
+                            const next: CalcCardImageFiles = [...prev]
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
@@ -878,8 +873,8 @@ export function Step4FrameFilling() {
                   </div>
                   <ProfileCardImageTileRow
                     urls={editFillingCardTileUrls}
-                    inputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2]}
-                    groupAriaLabel="Фото карточки наполнения, до трёх"
+                    inputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]}
+                    groupAriaLabel="Фото карточки наполнения, до четырёх"
                   />
                 </div>
 
@@ -966,9 +961,7 @@ export function Step4FrameFilling() {
                     <CalculatorCardTileStriped
                       title={title}
                       versionKey={t.id}
-                      slot0={((t.card_image ?? '') || (t.image_url ?? '')).trim()}
-                      slot1={(t.card_image_2 ?? '').trim()}
-                      slot2={(t.card_image_3 ?? '').trim()}
+                      {...calcCardImageGridSlots(t)}
                     />
                     <div className="tile-title">{title}</div>
                     <div className="tile-sub">Материалов: {(t.materials ?? []).length}</div>

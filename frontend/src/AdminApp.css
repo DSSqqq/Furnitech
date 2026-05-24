@@ -356,376 +356,7 @@
   text-align: right;
 }
 
-/* Калькулятор: кегль как у списка материалов */
-#admin-panel-calculator .admin-orders-placeholder {
-  padding: 0.25rem 1rem 1rem 0.35rem;
-}
-
-#admin-panel-calculator .calc {
-  padding-top: 0;
-  padding-left: 0;
-  padding-right: 0.75rem;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-}
-
-#admin-panel-calculator .calc-head {
-  margin-bottom: calc(0.25rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .calc-head-bar {
-  display: block;
-}
-
-#admin-panel-calculator .calc-head-bar .calc-steps-tabs {
-  flex: none;
-  width: fit-content;
-  max-width: 100%;
-}
-
-#admin-panel-calculator .calc-side-panel-scroll > .calc-totals-inline {
-  margin-top: auto;
-  padding-top: calc(0.35rem * var(--admin-refs-scale));
-  flex-shrink: 0;
-}
-
-#admin-panel-calculator .calc-totals-inline .calc-totals-card {
-  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
-  border-radius: var(--admin-refs-control-radius);
-  position: static;
-}
-
-#admin-panel-calculator .calc-steps-tabs {
-  margin-top: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(0.25rem * var(--admin-refs-scale)) calc(0.35rem * var(--admin-refs-scale));
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  border: 0;
-  font-size: calc(0.88rem * var(--admin-refs-scale));
-  line-height: 1.05;
-  letter-spacing: normal;
-}
-
-#admin-panel-calculator .calc-step-tab {
-  font-size: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
-  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
-  border-radius: var(--admin-refs-control-radius);
-  border: 1px solid transparent;
-  font-weight: 600;
-  color: var(--ft-muted);
-  background: transparent;
-}
-
-#admin-panel-calculator a.calc-step-tab:visited {
-  color: var(--ft-muted);
-}
-
-#admin-panel-calculator .calc-step-tab:hover:not(:disabled) {
-  color: var(--ft-accent);
-  background: rgba(203, 176, 121, 0.08);
-}
-
-#admin-panel-calculator .calc-step-tab--active,
-#admin-panel-calculator a.calc-step-tab.calc-step-tab--active {
-  color: var(--ft-accent-2);
-  border-color: rgba(203, 176, 121, 0.38);
-  background: rgba(203, 176, 121, 0.12);
-  box-shadow: none;
-}
-
-#admin-panel-calculator a.calc-step-tab.calc-step-tab--active:visited {
-  color: var(--ft-accent-2);
-}
-
-#admin-panel-calculator .calc-body-with-totals {
-  gap: calc(0.65rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .calc-grid > .calc-side-panel:not(.frame2-card),
-#admin-panel-calculator .frame3-left,
-#admin-panel-calculator .frame2-card {
-  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
-  border-radius: var(--admin-refs-control-radius);
-}
-
-#admin-panel-calculator .calc-card-title-row {
-  margin-bottom: calc(0.12rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .frame3-title,
-#admin-panel-calculator .frame2-h4 {
-  margin-top: 0;
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-  font-family: inherit;
-  text-transform: none;
-  color: var(--ft-text);
-}
-
-#admin-panel-calculator .calc-facade-grid {
-  gap: calc(0.08rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .calc-facade {
-  grid-template-columns: 1rem 1fr;
-  column-gap: calc(0.35rem * var(--admin-refs-scale));
-  row-gap: 0;
-  align-items: center;
-  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
-  border-radius: var(--admin-refs-control-radius);
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-}
-
-#admin-panel-calculator .calc-facade-radio {
-  width: 1rem;
-  height: 1rem;
-  margin: 0;
-  accent-color: var(--ft-accent-2, #cbb079);
-}
-
-#admin-panel-calculator .calc-facade-title {
-  font-weight: 500;
-  font-size: var(--mat-scroll-fs);
-}
-
-#admin-panel-calculator .calc-facade-sub {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-}
-
-#admin-panel-calculator .admin-primary,
-#admin-panel-calculator .admin-secondary,
-#admin-panel-calculator .frame2-card-nav button,
-#admin-panel-calculator .frame2-actions > button,
-#admin-panel-calculator .frame2-file-btn,
-#admin-panel-calculator .frame2-material-tree-search-btn {
-  min-width: 0;
-  min-height: 0;
-  padding: calc(0.1rem * var(--admin-refs-scale)) calc(0.5rem * var(--admin-refs-scale));
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-  border-radius: calc(4px * var(--admin-refs-scale));
-  box-shadow: none;
-}
-
-#admin-panel-calculator .frame2-card-nav button {
-  min-width: calc(5.5rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .frame2-card-nav {
-  margin-top: calc(0.35rem * var(--admin-refs-scale));
-  padding-top: calc(0.35rem * var(--admin-refs-scale));
-  gap: calc(0.35rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .frame2-actions {
-  gap: calc(0.35rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .frame3-label,
-#admin-panel-calculator .frame3-sub,
-#admin-panel-calculator .calc-totals-line,
-#admin-panel-calculator .calc-totals-muted,
-#admin-panel-calculator .calc-totals-note,
-#admin-panel-calculator .calc-totals-warn,
-#admin-panel-calculator .calc-totals-err {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-}
-
-#admin-panel-calculator .frame3-grid {
-  margin-top: calc(0.35rem * var(--admin-refs-scale));
-  gap: calc(0.35rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .admin-input,
-#admin-panel-calculator .frame3-input,
-#admin-panel-calculator .ft-select--compact .ft-select-trigger {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  border-radius: var(--admin-refs-control-radius);
-  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.35rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .calc-totals-card {
-  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
-  border-radius: var(--admin-refs-control-radius);
-  position: static;
-}
-
-#admin-panel-calculator .calc-totals-title {
-  margin-bottom: calc(0.2rem * var(--admin-refs-scale));
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  letter-spacing: var(--mat-scroll-ls);
-  font-weight: 600;
-  font-family: inherit;
-  text-transform: none;
-}
-
-#admin-panel-calculator .calc-totals-grand-label,
-#admin-panel-calculator .calc-totals-grand-value {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-}
-
-#admin-panel-calculator .calc-totals-grand-value {
-  font-weight: 700;
-}
-
-#admin-panel-calculator .tiles {
-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-  gap: calc(0.35rem * var(--admin-refs-scale));
-  margin-top: calc(0.25rem * var(--admin-refs-scale));
-  --tile-h: auto;
-}
-
-#admin-panel-calculator .tile {
-  height: auto;
-  min-height: 0;
-  grid-template-rows: auto auto auto;
-  align-content: start;
-  gap: calc(0.1rem * var(--admin-refs-scale));
-  padding: calc(0.35rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .tile-title {
-  line-height: var(--mat-scroll-lh);
-}
-
-#admin-panel-calculator .tile-sub {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  margin-top: 0;
-}
-
-#admin-panel-calculator .tree-gear-menu--portal {
-  min-width: calc(7.5rem * var(--admin-refs-scale));
-  font-size: var(--mat-scroll-fs);
-}
-
-#admin-panel-calculator .tree-gear-menu--portal .tree-gear-menu-item {
-  font-size: var(--mat-scroll-fs);
-  line-height: var(--mat-scroll-lh);
-  padding: calc(0.2rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
-}
-
-#admin-panel-calculator .calc-grid {
-  gap: calc(0.35rem * var(--admin-refs-scale));
-}
-
-/* Вкладка «Калькулятор»: шаг (в т.ч. итог) не вылезает за панель — прокрутка внутри */
-@media (min-width: 1025px) {
-  #admin-panel-calculator .admin-orders-placeholder {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  #admin-panel-calculator .calc {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  #admin-panel-calculator .calc-head {
-    flex-shrink: 0;
-  }
-
-  #admin-panel-calculator .calc-body-with-totals {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    align-items: stretch;
-  }
-
-  #admin-panel-calculator .calc-main-column {
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #admin-panel-calculator .calc-routes-wrap {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-  }
-
-  /* Шаг 8: без прокрутки всей области маршрута — скролл только в правой колонке Step8 */
-  /* Шаг 8: без прокрутки всего маршрута — высота задаётся цепочкой flex, скролл в Step8 */
-  #admin-panel-calculator .calc-routes-wrap--step8 {
-    overflow: hidden;
-    overscroll-behavior: auto;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #admin-panel-calculator .calc-routes-wrap--step8 .calc-routes-inner,
-  #admin-panel-calculator .calc-routes-wrap--step8 .calc-routes-step {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #admin-panel-calculator #calc-step-panel-8.calc-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #admin-panel-calculator #calc-step-panel-8 .frame2.step8-result {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    max-height: none;
-    align-items: stretch;
-  }
-
-  #admin-panel-calculator #calc-step-panel-8 .step8-result__contact {
-    max-height: none;
-    height: 100%;
-    box-sizing: border-box;
-  }
-
-  #admin-panel-calculator #calc-step-panel-8 .step8-result__details {
-    max-height: none;
-    height: 100%;
-    min-height: 0;
-  }
-
-  #admin-panel-calculator #calc-step-panel-8 .step8-result__scroll-pack {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-  }
-}
+/* Стили калькулятора в оболочке — calculator/CalculatorPanelShell.css */
 
 .admin-error {
   margin: 0.75rem 1.5rem;
@@ -1425,6 +1056,188 @@
 /* Иначе min-height: 280px у .folder-explorer не даёт сжаться под max-height модалки — футер уезжает вниз */
 .admin-modal--explorer .folder-explorer {
   min-height: 0;
+}
+
+/* MaterialSearchModal — layout как #admin-panel-materials (дерево + mat-list) */
+.admin-modal.material-search-modal {
+  max-width: min(1240px, 96vw);
+}
+
+.admin-modal--explorer.material-search-modal {
+  gap: 0.75rem;
+}
+
+#material-search-modal.admin-body {
+  grid-template-columns: minmax(var(--admin-refs-aside-min), var(--admin-refs-aside-max)) minmax(0, 1fr);
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 1rem;
+  --mat-scroll-fs: var(--admin-refs-fs);
+  --mat-scroll-lh: 1.05;
+  --mat-scroll-ls: 0.02em;
+  --admin-mat-add-btn-min-w: var(--admin-refs-btn-min-w);
+}
+
+.material-search-modal .admin-aside,
+.material-search-modal .admin-main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.material-search-modal .admin-main-col {
+  min-height: 0;
+}
+
+.material-search-modal .admin-main-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#material-search-modal .admin-aside .admin-heading-row,
+#material-search-modal .admin-main-scroll .admin-heading-row {
+  margin-bottom: calc(0.45rem * var(--admin-refs-scale));
+}
+
+#material-search-modal .admin-materials-tree-root {
+  margin-top: calc(0.12rem * var(--admin-refs-scale));
+}
+
+#material-search-modal .folder-explorer-tree-item--materials-root > .folder-explorer-tree-line {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  padding-left: 0;
+}
+
+#material-search-modal .folder-explorer-tree-line {
+  padding: calc(0.05rem * var(--admin-refs-scale)) calc(0.28rem * var(--admin-refs-scale))
+    calc(0.05rem * var(--admin-refs-scale)) 0;
+  border-radius: calc(3px * var(--admin-refs-scale));
+  gap: calc(0.1rem * var(--admin-refs-scale));
+}
+
+#material-search-modal .folder-explorer-tree-link {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  gap: calc(0.18rem * var(--admin-refs-scale));
+  padding: 0 calc(0.04rem * var(--admin-refs-scale));
+}
+
+#material-search-modal .folder-explorer-tree-expander {
+  width: calc(0.92rem * var(--admin-refs-scale));
+  height: calc(0.92rem * var(--admin-refs-scale));
+  font-size: var(--mat-scroll-fs);
+  line-height: 1;
+}
+
+#material-search-modal .folder-explorer-icon {
+  font-size: calc(0.72rem * var(--admin-refs-scale));
+  line-height: 1;
+}
+
+.material-search-picked-count,
+.material-search-results-limit {
+  margin: 0 0 calc(0.35rem * var(--admin-refs-scale));
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+.material-search-mat-list {
+  min-width: 0;
+}
+
+.material-search-mat-list .mat-list-item-inner--legend {
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: calc(0.03rem * var(--admin-refs-scale));
+}
+
+.material-search-mat-list .mat-list-item-inner--legend .mat-list-legend {
+  margin-bottom: 0;
+}
+
+.material-search-mat-list .mat-list-legend,
+.material-search-mat-list .mat-list-row {
+  gap: calc(0.15rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
+  align-items: center;
+}
+
+.material-search-mat-list .mat-list-legend {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  padding-bottom: 0.05rem;
+  margin-bottom: 0.03rem;
+}
+
+.material-search-mat-list .mat-list-item {
+  margin-top: 0.04rem;
+}
+
+.material-search-mat-list .mat-list-item:first-child {
+  margin-top: 0.06rem;
+}
+
+.material-search-mat-list .mat-list-row {
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius, calc(3px * var(--admin-refs-scale)));
+  line-height: var(--mat-scroll-lh);
+  font-size: var(--mat-scroll-fs);
+  letter-spacing: var(--mat-scroll-ls);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.material-search-mat-list .mat-list-cell,
+.material-search-mat-list .mat-list-cell-name,
+.material-search-mat-list .mat-list-cell-article,
+.material-search-mat-list .mat-list-cell-uom,
+.material-search-mat-list .mat-list-cell-price {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+.material-search-mat-list .mat-list-legend--pick,
+.material-search-mat-list .mat-list-row--pick {
+  grid-template-columns:
+    minmax(4.5rem, 0.9fr) minmax(6rem, 2fr) minmax(3rem, 0.6fr) minmax(5.5rem, 1fr)
+    2.25rem;
+}
+
+.material-search-mat-list .mat-list-item-inner--pick {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.material-search-pick-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.material-search-pick-check input {
+  width: calc(0.95rem * var(--admin-refs-scale));
+  height: calc(0.95rem * var(--admin-refs-scale));
+  accent-color: rgba(203, 176, 121, 0.9);
+  cursor: pointer;
+}
+
+.material-search-pick-legend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.material-search-mat-list .mat-list-row--active::before {
+  border-radius: calc(3px * var(--admin-refs-scale)) 0 0 calc(3px * var(--admin-refs-scale));
+  width: calc(3px * var(--admin-refs-scale));
 }
 
 /* Встроенный выбор классов в модалке «Формула» (как вкладка «Классы») */
@@ -2511,8 +2324,7 @@ button.admin-primary.admin-modal-confirm:hover {
 #admin-panel-textures.admin-body,
 #admin-panel-classes.admin-body,
 #admin-panel-uom.admin-body,
-#admin-panel-calculations.admin-body,
-#admin-panel-calculator.admin-body {
+#admin-panel-calculations.admin-body {
   --mat-scroll-fs: var(--admin-refs-fs);
   --mat-scroll-lh: 1.05;
   --mat-scroll-ls: 0.02em;
@@ -2985,6 +2797,10 @@ button.admin-primary.admin-modal-confirm:hover {
   #admin-panel-materials.admin-body,
   #admin-panel-textures.admin-body,
   #admin-panel-classes.admin-body {
+    grid-template-columns: 1fr;
+  }
+
+  #material-search-modal.admin-body {
     grid-template-columns: 1fr;
   }
 

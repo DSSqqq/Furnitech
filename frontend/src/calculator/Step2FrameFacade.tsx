@@ -18,8 +18,10 @@ import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   FRAME_DEFAULT_HEIGHT_MM,
   FRAME_DEFAULT_WIDTH_MM,
+  frameDimDefaultsFromMaterial,
   notifyFrameCalcSession,
   readFrameDimsMm,
+  seedFrameDimsFromMaterial,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
@@ -28,7 +30,16 @@ import {
   textureLabelDisplayWrap,
   type MaterialTextureFields,
 } from './materialTextureLabel'
-import { CalculatorCardTileStriped, ProfileCardImageTileRow } from './calculatorCardTiles'
+import {
+  CalculatorCardTileStriped,
+  ProfileCardImageTileRow,
+  appendCalcCardImagesToFormData,
+  calcCardImageGridSlots,
+  calcCardImageTileUrls,
+  calcCardImageUrlsFromEntity,
+  emptyCalcCardImageFiles,
+  type CalcCardImageFiles,
+} from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
 import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
 import './Step2FrameFacade.css'
@@ -83,14 +94,11 @@ export function Step2FrameFacade() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createTypeName, setCreateTypeName] = useState('')
-  const [createCardFiles, setCreateCardFiles] = useState<[File | null, File | null, File | null]>([
-    null,
-    null,
-    null,
-  ])
+  const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
   const cardImageInputRef0 = useRef<HTMLInputElement>(null)
   const cardImageInputRef1 = useRef<HTMLInputElement>(null)
   const cardImageInputRef2 = useRef<HTMLInputElement>(null)
+  const cardImageInputRef3 = useRef<HTMLInputElement>(null)
 
   const [createColorsHit, setCreateColorsHit] = useState<Material[]>([])
   const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
@@ -98,14 +106,11 @@ export function Step2FrameFacade() {
 
   const [editTypeId, setEditTypeId] = useState<number | null>(null)
   const [editTypeName, setEditTypeName] = useState('')
-  const [editCardFiles, setEditCardFiles] = useState<[File | null, File | null, File | null]>([
-    null,
-    null,
-    null,
-  ])
+  const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
   const editImageInputRef0 = useRef<HTMLInputElement>(null)
   const editImageInputRef1 = useRef<HTMLInputElement>(null)
   const editImageInputRef2 = useRef<HTMLInputElement>(null)
+  const editImageInputRef3 = useRef<HTMLInputElement>(null)
   const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
   const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
 
@@ -305,30 +310,27 @@ export function Step2FrameFacade() {
     () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
     [createCardFiles[2]],
   )
+  const createPreview3 = useMemo(
+    () => (createCardFiles[3] ? URL.createObjectURL(createCardFiles[3]) : ''),
+    [createCardFiles[3]],
+  )
 
   useEffect(() => {
     return () => {
-      for (const u of [createPreview0, createPreview1, createPreview2]) {
+      for (const u of [createPreview0, createPreview1, createPreview2, createPreview3]) {
         if (u) URL.revokeObjectURL(u)
       }
     }
-  }, [createPreview0, createPreview1, createPreview2])
+  }, [createPreview0, createPreview1, createPreview2, createPreview3])
 
   const editingType = useMemo(
     () => (editTypeId != null ? profileTypes.find((p) => p.id === editTypeId) ?? null : null),
     [editTypeId, profileTypes]
   )
 
-  const editSlotExistingResolved = useMemo((): [string, string, string] => {
-    if (!editingType) return ['', '', '']
-    const s0 = ((editingType.card_image ?? '') || (editingType.image_url ?? '')).trim()
-    const s1 = (editingType.card_image_2 ?? '').trim()
-    const s2 = (editingType.card_image_3 ?? '').trim()
-    return [
-      s0 ? resolveMediaUrl(s0) : '',
-      s1 ? resolveMediaUrl(s1) : '',
-      s2 ? resolveMediaUrl(s2) : '',
-    ]
+  const editSlotExistingResolved = useMemo(() => {
+    if (!editingType) return calcCardImageUrlsFromEntity({})
+    return calcCardImageUrlsFromEntity(editingType)
   }, [editingType])
 
   const editBlob0 = useMemo(
@@ -343,31 +345,31 @@ export function Step2FrameFacade() {
     () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
     [editCardFiles[2]],
   )
+  const editBlob3 = useMemo(
+    () => (editCardFiles[3] ? URL.createObjectURL(editCardFiles[3]) : ''),
+    [editCardFiles[3]],
+  )
 
   useEffect(() => {
     return () => {
-      for (const u of [editBlob0, editBlob1, editBlob2]) {
+      for (const u of [editBlob0, editBlob1, editBlob2, editBlob3]) {
         if (u) URL.revokeObjectURL(u)
       }
     }
-  }, [editBlob0, editBlob1, editBlob2])
+  }, [editBlob0, editBlob1, editBlob2, editBlob3])
 
-  const editCardTileUrls = useMemo((): [string, string, string] => {
-    const blobs: [string, string, string] = [editBlob0, editBlob1, editBlob2]
-    return [
-      editCardFiles[0] ? blobs[0] : editSlotExistingResolved[0] || '',
-      editCardFiles[1] ? blobs[1] : editSlotExistingResolved[1] || '',
-      editCardFiles[2] ? blobs[2] : editSlotExistingResolved[2] || '',
-    ]
-  }, [
-    editBlob0,
-    editBlob1,
-    editBlob2,
-    editCardFiles[0],
-    editCardFiles[1],
-    editCardFiles[2],
-    editSlotExistingResolved,
-  ])
+  const editCardTileUrls = useMemo(
+    () =>
+      calcCardImageTileUrls(editCardFiles, [editBlob0, editBlob1, editBlob2, editBlob3], editSlotExistingResolved),
+    [
+      editBlob0,
+      editBlob1,
+      editBlob2,
+      editBlob3,
+      editCardFiles,
+      editSlotExistingResolved,
+    ],
+  )
 
   const openEditType = (t: CalculatorProfileType) => {
     closeMaterialSearch()
@@ -375,8 +377,8 @@ export function Step2FrameFacade() {
     setErr(null)
     setEditTypeId(t.id)
     setEditTypeName(t.name)
-    setEditCardFiles([null, null, null])
-    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+    setEditCardFiles(emptyCalcCardImageFiles())
+    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
       if (r.current) r.current.value = ''
     }
     const m: Record<number, ColorFlags> = {}
@@ -400,8 +402,8 @@ export function Step2FrameFacade() {
     closeMaterialSearch()
     setEditTypeId(null)
     setEditTypeName('')
-    setEditCardFiles([null, null, null])
-    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+    setEditCardFiles(emptyCalcCardImageFiles())
+    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
       if (r.current) r.current.value = ''
     }
     setEditColors({})
@@ -432,9 +434,7 @@ export function Step2FrameFacade() {
         fd.append('is_active', String(t.is_active))
         fd.append('sort_order', String(t.sort_order))
         fd.append('colors', JSON.stringify(colors))
-        if (editCardFiles[0]) fd.append('card_image', editCardFiles[0])
-        if (editCardFiles[1]) fd.append('card_image_2', editCardFiles[1])
-        if (editCardFiles[2]) fd.append('card_image_3', editCardFiles[2])
+        appendCalcCardImagesToFormData(fd, editCardFiles)
         updated = await updateCalculatorProfileType(editTypeId, fd)
       } else {
         updated = await updateCalculatorProfileType(editTypeId, {
@@ -470,16 +470,14 @@ export function Step2FrameFacade() {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(profileTypes.length))
       fd.append('colors', JSON.stringify(colors))
-      if (createCardFiles[0]) fd.append('card_image', createCardFiles[0])
-      if (createCardFiles[1]) fd.append('card_image_2', createCardFiles[1])
-      if (createCardFiles[2]) fd.append('card_image_3', createCardFiles[2])
+      appendCalcCardImagesToFormData(fd, createCardFiles)
       const created = await createCalculatorProfileType(fd)
       setProfileTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateTypeName('')
-      setCreateCardFiles([null, null, null])
-      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]) {
+      setCreateCardFiles(emptyCalcCardImageFiles())
+      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
         if (r.current) r.current.value = ''
       }
       setCreateColorsHit([])
@@ -526,8 +524,8 @@ export function Step2FrameFacade() {
     if (!profileTypes.some((p) => p.id === editTypeId)) {
       setEditTypeId(null)
       setEditTypeName('')
-      setEditCardFiles([null, null, null])
-      for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2]) {
+      setEditCardFiles(emptyCalcCardImageFiles())
+      for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
         if (r.current) r.current.value = ''
       }
       setEditColors({})
@@ -636,7 +634,10 @@ export function Step2FrameFacade() {
       }
       try {
         const m = await fetchMaterial(selectedColorId)
-        if (!cancel) setSelectedColorMaterialFull(m)
+        if (!cancel) {
+          seedFrameDimsFromMaterial(m)
+          setSelectedColorMaterialFull(m)
+        }
       } catch {
         if (!cancel) setSelectedColorMaterialFull(null)
       }
@@ -664,14 +665,12 @@ export function Step2FrameFacade() {
   )
 
   const step2SketchBoxStyle = useMemo(() => {
-    const [hs, ws] = sketchDimsKey.split('|')
-    const h = Number(hs)
-    const w = Number(ws)
-    if (!Number.isFinite(h) || !Number.isFinite(w)) {
-      return facadeSketchBoxStyle(FRAME_DEFAULT_HEIGHT_MM, FRAME_DEFAULT_WIDTH_MM)
-    }
+    const d = readFrameDimsMm()
+    const fallback = frameDimDefaultsFromMaterial(selectedColorMaterialFull)
+    const h = d.h ?? fallback.heightMm
+    const w = d.w ?? fallback.widthMm
     return facadeSketchBoxStyle(h, w)
-  }, [sketchDimsKey])
+  }, [sketchDimsKey, selectedColorMaterialFull])
 
   return (
     <>
@@ -716,8 +715,8 @@ export function Step2FrameFacade() {
                       closeMaterialSearch()
                       setCreateOpen(false)
                       setCreateTypeName('')
-                      setCreateCardFiles([null, null, null])
-                      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]) {
+                      setCreateCardFiles(emptyCalcCardImageFiles())
+                      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
                         if (r.current) r.current.value = ''
                       }
                       setCreateColorsHit([])
@@ -743,14 +742,15 @@ export function Step2FrameFacade() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки (до 3)</span>
-                      <HintButton text="До трёх фото на один тип профиля. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
+                      <span className="frame2-file-label">Изображения для карточки (до 4)</span>
+                      <HintButton text="До четырёх фото на один тип профиля. Нажмите плитку, чтобы выбрать файл. В списке типов под превью — полоски: наведите, чтобы переключить кадр. PNG, JPG, WebP и др." />
                     </div>
                     {(
                       [
                         [0, cardImageInputRef0],
                         [1, cardImageInputRef1],
                         [2, cardImageInputRef2],
+                        [3, cardImageInputRef3],
                       ] as const
                     ).map(([slot, refEl]) => (
                       <input
@@ -762,7 +762,7 @@ export function Step2FrameFacade() {
                         accept="image/*"
                         onChange={(e) => {
                           setCreateCardFiles((prev) => {
-                            const next: [File | null, File | null, File | null] = [...prev]
+                            const next: CalcCardImageFiles = [...prev]
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
@@ -771,8 +771,8 @@ export function Step2FrameFacade() {
                     ))}
                   </div>
                   <ProfileCardImageTileRow
-                    urls={[createPreview0, createPreview1, createPreview2]}
-                    inputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2]}
+                    urls={[createPreview0, createPreview1, createPreview2, createPreview3]}
+                    inputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]}
                   />
                 </div>
 
@@ -912,7 +912,7 @@ export function Step2FrameFacade() {
                   />
                   <div className="frame2-file-row">
                     <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Карточка: до 3 фото</span>
+                      <span className="frame2-file-label">Карточка: до 4 фото</span>
                       <HintButton text="Нажмите плитку, чтобы заменить фото в слоте. Пустой слот при сохранении не меняет уже загруженное изображение." />
                     </div>
                     {(
@@ -920,6 +920,7 @@ export function Step2FrameFacade() {
                         [0, editImageInputRef0],
                         [1, editImageInputRef1],
                         [2, editImageInputRef2],
+                        [3, editImageInputRef3],
                       ] as const
                     ).map(([slot, refEl]) => (
                       <input
@@ -931,7 +932,7 @@ export function Step2FrameFacade() {
                         accept="image/*"
                         onChange={(e) => {
                           setEditCardFiles((prev) => {
-                            const next: [File | null, File | null, File | null] = [...prev]
+                            const next: CalcCardImageFiles = [...prev]
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
@@ -941,7 +942,7 @@ export function Step2FrameFacade() {
                   </div>
                   <ProfileCardImageTileRow
                     urls={editCardTileUrls}
-                    inputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2]}
+                    inputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]}
                   />
                 </div>
 
@@ -1078,9 +1079,7 @@ export function Step2FrameFacade() {
                     <CalculatorCardTileStriped
                       title={title}
                       versionKey={t.id}
-                      slot0={((t.card_image ?? '') || (t.image_url ?? '')).trim()}
-                      slot1={(t.card_image_2 ?? '').trim()}
-                      slot2={(t.card_image_3 ?? '').trim()}
+                      {...calcCardImageGridSlots(t)}
                     />
                     <div className="tile-title">{title}</div>
                     <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>

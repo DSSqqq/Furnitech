@@ -21,6 +21,68 @@ export const CALC_LS_HANDLE_HOLES = 'calc_handle_holes'
 /** Дефолтные габариты шага 3 (мм), если в localStorage пусто (после сброса или первый визит). */
 export const FRAME_DEFAULT_HEIGHT_MM = 500
 export const FRAME_DEFAULT_WIDTH_MM = 200
+/** Верхняя граница габарита (мм), если у материала max_length / max_width не заданы. */
+export const FRAME_DIM_FALLBACK_MAX_MM = 99999
+/** Максимальное количество фасадов в одном расчёте (шаг 3). */
+export const FRAME_FACADE_COUNT_MAX = 99999
+
+export type FrameDimMaterialLimits = {
+  min_length?: string | number | null
+  min_width?: string | number | null
+}
+
+function parsePositiveMaterialDim(v: unknown): number {
+  if (v == null || v === '') return 0
+  const n = Number(String(v).trim().replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/** Дефолтные габариты эскиза: min материала или 500×200. */
+export function frameDimDefaultsFromMaterial(material: FrameDimMaterialLimits | null | undefined): {
+  heightMm: number
+  widthMm: number
+} {
+  const minH = parsePositiveMaterialDim(material?.min_length)
+  const minW = parsePositiveMaterialDim(material?.min_width)
+  return {
+    heightMm: minH > 0 ? Math.ceil(minH) : FRAME_DEFAULT_HEIGHT_MM,
+    widthMm: minW > 0 ? Math.ceil(minW) : FRAME_DEFAULT_WIDTH_MM,
+  }
+}
+
+export function hasSavedFrameDims(): boolean {
+  const { h, w } = readFrameDimsMm()
+  return h != null && w != null
+}
+
+/** Записать дефолтные габариты из материала, если пользователь ещё не задавал размеры. */
+export function seedFrameDimsFromMaterial(material: FrameDimMaterialLimits | null | undefined): boolean {
+  if (hasSavedFrameDims() || !material) return false
+  const { heightMm, widthMm } = frameDimDefaultsFromMaterial(material)
+  try {
+    localStorage.setItem('calc_frame_height_mm', String(heightMm))
+    localStorage.setItem('calc_frame_width_mm', String(widthMm))
+    notifyFrameCalcSession()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function effectiveFrameDimMax(materialMax: number): number {
+  return materialMax > 0 ? Math.floor(materialMax) : FRAME_DIM_FALLBACK_MAX_MM
+}
+
+/** Цифры в поле габарита: длина и значение не выше effectiveFrameDimMax. */
+export function clampFrameDimDigits(raw: string, materialMax: number): string {
+  const max = effectiveFrameDimMax(materialMax)
+  const maxLen = String(max).length
+  const digits = String(raw ?? '').replace(/[^\d]/g, '').slice(0, maxLen)
+  if (!digits) return digits
+  const n = Number(digits)
+  if (!Number.isFinite(n)) return digits
+  return n > max ? String(max) : digits
+}
 
 export type HingeMountSide = 'left' | 'right' | 'top' | 'bottom'
 

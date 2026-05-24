@@ -1,0 +1,452 @@
+/* Общая оболочка калькулятора (админка + публичный сайт). */
+.calc-panel-shell {
+  --mat-scroll-fs: var(--admin-refs-fs);
+  --mat-scroll-lh: 1.05;
+  --mat-scroll-ls: 0.02em;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.calc-panel-shell > .admin-orders-placeholder {
+  background: var(--ft-surface);
+  border-radius: var(--ft-radius-md);
+  box-shadow: var(--ft-shadow-1);
+  border: 1px solid var(--ft-border);
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Базовые кнопки/заголовки калькулятора (на публичном сайте AdminApp.css не подключается). */
+.calc-panel-shell .admin-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+}
+
+.calc-panel-shell .admin-primary {
+  background: rgba(203, 176, 121, 0.14);
+  color: var(--ft-accent-2);
+  border: 1px solid rgba(203, 176, 121, 0.32);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.calc-panel-shell .admin-primary:hover {
+  background: rgba(203, 176, 121, 0.2);
+  border-color: rgba(203, 176, 121, 0.42);
+}
+
+.calc-panel-shell .admin-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.calc-panel-shell .admin-secondary {
+  background: transparent;
+  color: var(--ft-text);
+  border: 1px solid var(--ft-border-2);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.calc-panel-shell .admin-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+/* Калькулятор: кегль как у списка материалов */
+.calc-panel-shell .admin-orders-placeholder {
+  padding: 0.25rem 1rem 1rem 0.35rem;
+}
+
+.calc-panel-shell .calc {
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0.75rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+.calc-panel-shell .calc-head {
+  margin-bottom: calc(0.25rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .calc-head-bar {
+  display: block;
+}
+
+.calc-panel-shell .calc-head-bar .calc-steps-tabs {
+  flex: none;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.calc-panel-shell .calc-side-panel-scroll > .calc-totals-inline {
+  margin-top: auto;
+  padding-top: calc(0.35rem * var(--admin-refs-scale));
+  flex-shrink: 0;
+}
+
+.calc-panel-shell .calc-totals-inline .calc-totals-card {
+  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
+  position: static;
+}
+
+.calc-panel-shell .calc-steps-tabs {
+  margin-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(0.25rem * var(--admin-refs-scale)) calc(0.35rem * var(--admin-refs-scale));
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  font-size: calc(0.88rem * var(--admin-refs-scale));
+  line-height: 1.05;
+  letter-spacing: normal;
+}
+
+.calc-panel-shell .calc-step-tab {
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
+  border: 1px solid transparent;
+  font-weight: 600;
+  color: var(--ft-muted);
+  background: transparent;
+}
+
+.calc-panel-shell a.calc-step-tab:visited {
+  color: var(--ft-muted);
+}
+
+.calc-panel-shell .calc-step-tab:hover:not(:disabled) {
+  color: var(--ft-accent);
+  background: rgba(203, 176, 121, 0.08);
+}
+
+.calc-panel-shell .calc-step-tab--active,
+.calc-panel-shell a.calc-step-tab.calc-step-tab--active {
+  color: var(--ft-accent-2);
+  border-color: rgba(203, 176, 121, 0.38);
+  background: rgba(203, 176, 121, 0.12);
+  box-shadow: none;
+}
+
+.calc-panel-shell a.calc-step-tab.calc-step-tab--active:visited {
+  color: var(--ft-accent-2);
+}
+
+.calc-panel-shell .calc-body-with-totals {
+  gap: calc(0.65rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .calc-grid > .calc-side-panel:not(.frame2-card),
+.calc-panel-shell .frame3-left,
+.calc-panel-shell .frame2-card {
+  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
+}
+
+.calc-panel-shell .calc-card-title-row {
+  margin-bottom: calc(0.12rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .frame3-title,
+.calc-panel-shell .frame2-h4 {
+  margin-top: 0;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  font-family: inherit;
+  text-transform: none;
+  color: var(--ft-text);
+}
+
+.calc-panel-shell .calc-facade-grid {
+  gap: calc(0.08rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .calc-facade {
+  grid-template-columns: 1rem 1fr;
+  column-gap: calc(0.35rem * var(--admin-refs-scale));
+  row-gap: 0;
+  align-items: center;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+.calc-panel-shell .calc-facade-radio {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--ft-accent-2, #cbb079);
+}
+
+.calc-panel-shell .calc-facade-title {
+  font-weight: 500;
+  font-size: var(--mat-scroll-fs);
+}
+
+.calc-panel-shell .calc-facade-sub {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+.calc-panel-shell .admin-primary,
+.calc-panel-shell .admin-secondary,
+.calc-panel-shell .frame2-card-nav button,
+.calc-panel-shell .frame2-actions > button,
+.calc-panel-shell .frame2-file-btn,
+.calc-panel-shell .frame2-material-tree-search-btn {
+  min-width: 0;
+  min-height: 0;
+  padding: calc(0.1rem * var(--admin-refs-scale)) calc(0.5rem * var(--admin-refs-scale));
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  border-radius: calc(4px * var(--admin-refs-scale));
+  box-shadow: none;
+}
+
+.calc-panel-shell .frame2-card-nav button {
+  min-width: calc(5.5rem * var(--admin-refs-scale));
+}
+
+/* «Поиск» в формах типов: компактно как «Отмена», ширина колонки сохраняется. */
+.calc-panel-shell button.admin-secondary.frame2-material-tree-search-btn {
+  width: 100%;
+  min-height: 0;
+  padding: calc(0.1rem * var(--admin-refs-scale, 1)) calc(0.5rem * var(--admin-refs-scale, 1));
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  border-radius: calc(4px * var(--admin-refs-scale, 1));
+  box-shadow: none;
+}
+
+.calc-panel-shell .frame2-card-nav {
+  margin-top: calc(0.35rem * var(--admin-refs-scale));
+  padding-top: calc(0.35rem * var(--admin-refs-scale));
+  gap: calc(0.35rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .frame2-actions {
+  gap: calc(0.35rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .frame3-label,
+.calc-panel-shell .frame3-sub,
+.calc-panel-shell .calc-totals-line,
+.calc-panel-shell .calc-totals-muted,
+.calc-panel-shell .calc-totals-note,
+.calc-panel-shell .calc-totals-warn,
+.calc-panel-shell .calc-totals-err {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+}
+
+.calc-panel-shell .frame3-grid {
+  margin-top: calc(0.35rem * var(--admin-refs-scale));
+  gap: calc(0.35rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .admin-input,
+.calc-panel-shell .frame3-input,
+.calc-panel-shell .ft-select--compact .ft-select-trigger {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  border-radius: var(--admin-refs-control-radius);
+  padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.35rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .calc-totals-card {
+  padding: calc(0.35rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
+  position: static;
+}
+
+.calc-panel-shell .calc-totals-title {
+  margin-bottom: calc(0.2rem * var(--admin-refs-scale));
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  font-family: inherit;
+  text-transform: none;
+}
+
+.calc-panel-shell .calc-totals-grand-label,
+.calc-panel-shell .calc-totals-grand-value {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+}
+
+.calc-panel-shell .calc-totals-grand-value {
+  font-weight: 700;
+}
+
+.calc-panel-shell .tiles {
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: calc(0.35rem * var(--admin-refs-scale));
+  margin-top: calc(0.25rem * var(--admin-refs-scale));
+  --tile-h: auto;
+}
+
+.calc-panel-shell .tile {
+  height: auto;
+  min-height: 0;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: calc(0.1rem * var(--admin-refs-scale));
+  padding: calc(0.35rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .tile-title {
+  line-height: var(--mat-scroll-lh);
+}
+
+.calc-panel-shell .tile-sub {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  margin-top: 0;
+}
+
+.calc-panel-shell .tree-gear-menu--portal {
+  min-width: calc(7.5rem * var(--admin-refs-scale));
+  font-size: var(--mat-scroll-fs);
+}
+
+.calc-panel-shell .tree-gear-menu--portal .tree-gear-menu-item {
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  padding: calc(0.2rem * var(--admin-refs-scale)) calc(0.45rem * var(--admin-refs-scale));
+}
+
+.calc-panel-shell .calc-grid {
+  gap: calc(0.35rem * var(--admin-refs-scale));
+}
+
+/* Вкладка «Калькулятор»: шаг (в т.ч. итог) не вылезает за панель — прокрутка внутри */
+@media (min-width: 1025px) {
+  .calc-panel-shell .admin-orders-placeholder {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .calc-panel-shell .calc {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .calc-panel-shell .calc-head {
+    flex-shrink: 0;
+  }
+
+  .calc-panel-shell .calc-body-with-totals {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  .calc-panel-shell .calc-main-column {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calc-panel-shell .calc-routes-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* Шаг 8: без прокрутки всей области маршрута — скролл только в правой колонке Step8 */
+  /* Шаг 8: без прокрутки всего маршрута — высота задаётся цепочкой flex, скролл в Step8 */
+  .calc-panel-shell .calc-routes-wrap--step8 {
+    overflow: hidden;
+    overscroll-behavior: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-inner,
+  .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-step {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calc-panel-shell #calc-step-panel-8.calc-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calc-panel-shell #calc-step-panel-8 .frame2.step8-result {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-height: none;
+    align-items: stretch;
+  }
+
+  .calc-panel-shell #calc-step-panel-8 .step8-result__contact {
+    max-height: none;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .calc-panel-shell #calc-step-panel-8 .step8-result__details {
+    max-height: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .calc-panel-shell #calc-step-panel-8 .step8-result__scroll-pack {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+}
+
+

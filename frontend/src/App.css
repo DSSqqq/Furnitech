@@ -160,12 +160,18 @@
 }
 
 .public-shell__section-tab {
-  font-size: 0.88rem;
+  appearance: none;
+  font-family: inherit;
+  font-size: calc(0.88rem * var(--admin-refs-scale));
+  font-weight: 600;
+  line-height: 1.05;
   color: var(--ft-muted);
   text-decoration: none;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+  padding: calc(0.12rem * var(--admin-refs-scale)) calc(0.3rem * var(--admin-refs-scale));
+  border-radius: var(--admin-refs-control-radius);
   border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
   transition:
     color 0.15s ease,
     background 0.15s ease,
@@ -177,8 +183,37 @@
   background: rgba(203, 176, 121, 0.08);
 }
 
+.public-shell__section-tab:focus-visible {
+  outline: 2px solid rgba(203, 176, 121, 0.7);
+  outline-offset: 2px;
+}
+
 .public-shell__section-tab--active {
   color: var(--ft-accent-2);
   border-color: rgba(203, 176, 121, 0.38);
   background: rgba(203, 176, 121, 0.12);
+}
+
+/* Публичный калькулятор — та же оболочка и высота, что в админке */
+@media (min-width: 1025px) {
+  .public-shell__main:has(.calc-panel-shell) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 1rem 1.25rem 1.25rem;
+  }
+
+  .public-shell:has(.calc-panel-shell) {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 1024px) {
+  .public-shell__main:has(.calc-panel-shell) {
+    padding: 0.75rem 0.85rem 1.25rem;
+  }
 }

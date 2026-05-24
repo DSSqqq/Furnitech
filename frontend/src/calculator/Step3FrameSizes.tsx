@@ -5,10 +5,15 @@ import type { CalculatorProfileType, Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
-  FRAME_DEFAULT_HEIGHT_MM,
-  FRAME_DEFAULT_WIDTH_MM,
+  clampFrameDimDigits,
+  effectiveFrameDimMax,
+  FRAME_DIM_FALLBACK_MAX_MM,
+  FRAME_FACADE_COUNT_MAX,
+  frameDimDefaultsFromMaterial,
   isFrameStep2Ready,
   notifyFrameCalcSession,
+  readFrameDimsMm,
+  seedFrameDimsFromMaterial,
 } from './frameCalcSession'
 import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
 import { facadeSketchBoxStyle, materialTextureLayerStyle } from './sketchFrame'
@@ -59,11 +64,11 @@ export function Step3FrameSizes() {
 
   const [heightMm, setHeightMm] = useState(() => {
     const h = lsGet('calc_frame_height_mm')
-    return h != null && h !== '' ? h : String(FRAME_DEFAULT_HEIGHT_MM)
+    return h != null && h !== '' ? h : ''
   })
   const [widthMm, setWidthMm] = useState(() => {
     const w = lsGet('calc_frame_width_mm')
-    return w != null && w !== '' ? w : String(FRAME_DEFAULT_WIDTH_MM)
+    return w != null && w !== '' ? w : ''
   })
   const [qty, setQty] = useState(() => {
     const q = lsGet('calc_frame_qty')
@@ -87,9 +92,12 @@ export function Step3FrameSizes() {
   }, [nav, step])
 
   useEffect(() => {
+    const h = heightMm.trim()
+    const w = widthMm.trim()
+    if (!h || !w) return
     try {
-      localStorage.setItem('calc_frame_height_mm', heightMm)
-      localStorage.setItem('calc_frame_width_mm', widthMm)
+      localStorage.setItem('calc_frame_height_mm', h)
+      localStorage.setItem('calc_frame_width_mm', w)
       localStorage.setItem('calc_frame_qty', qty)
     } catch {
       /* ignore */
@@ -112,7 +120,19 @@ export function Step3FrameSizes() {
       return
     }
     fetchMaterial(colorId)
-      .then((m) => setColorMaterial(m))
+      .then((m) => {
+        setColorMaterial(m)
+        seedFrameDimsFromMaterial(m)
+        const saved = readFrameDimsMm()
+        if (saved.h != null && saved.w != null) {
+          setHeightMm(String(saved.h))
+          setWidthMm(String(saved.w))
+          return
+        }
+        const defaults = frameDimDefaultsFromMaterial(m)
+        setHeightMm(String(defaults.heightMm))
+        setWidthMm(String(defaults.widthMm))
+      })
       .catch((e) => setErr(String(e)))
   }, [colorId])
 
@@ -126,25 +146,56 @@ export function Step3FrameSizes() {
     const maxH = asNum(String((colorMaterial as any)?.max_length ?? '0')) ?? 0
     const minW = asNum(String((colorMaterial as any)?.min_width ?? '0')) ?? 0
     const maxW = asNum(String((colorMaterial as any)?.max_width ?? '0')) ?? 0
-    return { minH, maxH, minW, maxW }
+    return {
+      minH,
+      maxH,
+      minW,
+      maxW,
+      effectiveMaxH: effectiveFrameDimMax(maxH),
+      effectiveMaxW: effectiveFrameDimMax(maxW),
+    }
   }, [colorMaterial])
+
+  useEffect(() => {
+    const n = asIntOrNull(heightMm)
+    if (n == null) return
+    const max = limits.effectiveMaxH
+    if (n > max) setHeightMm(String(max))
+  }, [limits.effectiveMaxH, heightMm])
+
+  useEffect(() => {
+    const n = asIntOrNull(widthMm)
+    if (n == null) return
+    const max = limits.effectiveMaxW
+    if (n > max) setWidthMm(String(max))
+  }, [limits.effectiveMaxW, widthMm])
+
+  useEffect(() => {
+    const n = asIntOrNull(qty)
+    if (n == null) return
+    if (n > FRAME_FACADE_COUNT_MAX) setQty(String(FRAME_FACADE_COUNT_MAX))
+  }, [qty])
+
+  const materialDefaults = useMemo(() => frameDimDefaultsFromMaterial(colorMaterial), [colorMaterial])
 
   const heightN = asNum(heightMm)
   const widthN = asNum(widthMm)
+  const sketchHeightN = heightN ?? materialDefaults.heightMm
+  const sketchWidthN = widthN ?? materialDefaults.widthMm
 
   const sketchBoxStyle = useMemo(() => {
-    if (heightN == null || widthN == null || heightN <= 0 || widthN <= 0) return undefined
-    return facadeSketchBoxStyle(heightN, widthN)
-  }, [heightN, widthN])
+    if (sketchHeightN <= 0 || sketchWidthN <= 0) return undefined
+    return facadeSketchBoxStyle(sketchHeightN, sketchWidthN)
+  }, [sketchHeightN, sketchWidthN])
 
   const heightOk =
     heightN != null &&
-    (limits.minH <= 0 || heightN >= limits.minH) &&
-    (limits.maxH <= 0 || heightN <= limits.maxH)
+    heightN <= limits.effectiveMaxH &&
+    (limits.minH <= 0 || heightN >= limits.minH)
   const widthOk =
     widthN != null &&
-    (limits.minW <= 0 || widthN >= limits.minW) &&
-    (limits.maxW <= 0 || widthN <= limits.maxW)
+    widthN <= limits.effectiveMaxW &&
+    (limits.minW <= 0 || widthN >= limits.minW)
 
   const sketchFrameStyle = useMemo(() => materialTextureLayerStyle(colorMaterial), [colorMaterial])
 
@@ -166,13 +217,13 @@ export function Step3FrameSizes() {
               className={heightOk ? 'admin-input' : 'admin-input frame3-input--bad'}
               value={heightMm}
               inputMode="numeric"
-              onChange={(e) => setHeightMm(digitsOnly(e.target.value))}
+              maxLength={String(limits.effectiveMaxH).length}
+              onChange={(e) => setHeightMm(clampFrameDimDigits(e.target.value, limits.maxH))}
               onBlur={() => {
                 const n = asIntOrNull(heightMm)
                 if (n == null) return
                 const min = limits.minH > 0 ? Math.ceil(limits.minH) : 0
-                const max = limits.maxH > 0 ? Math.floor(limits.maxH) : Number.POSITIVE_INFINITY
-                const next = clamp(n, min, max === Number.POSITIVE_INFINITY ? n : max)
+                const next = clamp(n, min, limits.effectiveMaxH)
                 if (String(next) !== heightMm) setHeightMm(String(next))
               }}
             />
@@ -183,13 +234,13 @@ export function Step3FrameSizes() {
               className={widthOk ? 'admin-input' : 'admin-input frame3-input--bad'}
               value={widthMm}
               inputMode="numeric"
-              onChange={(e) => setWidthMm(digitsOnly(e.target.value))}
+              maxLength={String(limits.effectiveMaxW).length}
+              onChange={(e) => setWidthMm(clampFrameDimDigits(e.target.value, limits.maxW))}
               onBlur={() => {
                 const n = asIntOrNull(widthMm)
                 if (n == null) return
                 const min = limits.minW > 0 ? Math.ceil(limits.minW) : 0
-                const max = limits.maxW > 0 ? Math.floor(limits.maxW) : Number.POSITIVE_INFINITY
-                const next = clamp(n, min, max === Number.POSITIVE_INFINITY ? n : max)
+                const next = clamp(n, min, limits.effectiveMaxW)
                 if (String(next) !== widthMm) setWidthMm(String(next))
               }}
             />
@@ -202,11 +253,11 @@ export function Step3FrameSizes() {
             className="admin-input"
             value={qty}
             inputMode="numeric"
-            onChange={(e) => setQty(digitsOnly(e.target.value))}
+            maxLength={String(FRAME_FACADE_COUNT_MAX).length}
+            onChange={(e) => setQty(clampFrameDimDigits(e.target.value, FRAME_FACADE_COUNT_MAX))}
             onBlur={() => {
               const n = asIntOrNull(qty)
-              if (n == null) return
-              const next = Math.max(1, n)
+              const next = clamp(n ?? 1, 1, FRAME_FACADE_COUNT_MAX)
               if (String(next) !== qty) setQty(String(next))
             }}
           />
@@ -220,7 +271,7 @@ export function Step3FrameSizes() {
             Минимальные размеры: {limits.minH || '—'}×{limits.minW || '—'} мм.
           </div>
           <div className="frame3-limits-row">
-            Максимальные размеры: {limits.maxH || '—'}×{limits.maxW || '—'} мм.
+            Максимальные размеры: {limits.maxH || FRAME_DIM_FALLBACK_MAX_MM}×{limits.maxW || FRAME_DIM_FALLBACK_MAX_MM} мм.
           </div>
         </div>
         <CalcStepPriceTotals />
@@ -246,7 +297,7 @@ export function Step3FrameSizes() {
         <div className="frame2-sketch-inner frame3-sketch">
           <div
             className="frame3-drawing"
-            aria-label={`Чертёж фасада: высота ${heightN ?? '—'} мм, ширина ${widthN ?? '—'} мм`}
+            aria-label={`Чертёж фасада: высота ${sketchHeightN} мм, ширина ${sketchWidthN} мм`}
           >
             {/* Тот же эскиз, что в шаге 2; цвет/текстура рамки из выбранного материала (localStorage + API). */}
             <div className="sketch" style={sketchBoxStyle}>
@@ -273,7 +324,7 @@ export function Step3FrameSizes() {
                   <div className="sketch-row">
                     <div className="sketch-key">Размеры</div>
                     <div className="sketch-val">
-                      {(heightN ?? '—')}×{(widthN ?? '—')} мм
+                      {sketchHeightN}×{sketchWidthN} мм
                     </div>
                   </div>
                 </div>
@@ -282,7 +333,7 @@ export function Step3FrameSizes() {
 
             {/* Размеры в стиле чертежа: выносные линии + размерная линия со стрелками */}
             <div className="frame3-dim-drawing frame3-dim-drawing--top">
-              <div className="frame3-dim-drawing__value">{widthN ?? '—'} мм</div>
+              <div className="frame3-dim-drawing__value">{sketchWidthN} мм</div>
               <div className="frame3-dim-drawing__top-row">
                 <span className="frame3-dim-drawing__ext-v frame3-dim-drawing__ext-v--l" aria-hidden />
                 <div className="frame3-dim-drawing__h">
@@ -296,7 +347,7 @@ export function Step3FrameSizes() {
 
             <div className="frame3-dim-drawing frame3-dim-drawing--left">
               <div className="frame3-dim-drawing__left-col">
-                <div className="frame3-dim-drawing__value frame3-dim-drawing__value--side">{heightN ?? '—'} мм</div>
+                <div className="frame3-dim-drawing__value frame3-dim-drawing__value--side">{sketchHeightN} мм</div>
                 <div className="frame3-dim-drawing__v">
                   <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--n" />
                   <span className="frame3-dim-drawing__v-line" />

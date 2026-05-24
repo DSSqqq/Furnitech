@@ -639,6 +639,13 @@ class CalculatorProfileType(models.Model):
         null=True,
         blank=True,
     )
+    card_image_4 = models.ImageField(
+        "Картинка 4 (файл)",
+        upload_to="profile_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField("Активен", default=True)
     sort_order = models.PositiveIntegerField("Порядок", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -720,6 +727,13 @@ class CalculatorFillingType(models.Model):
         null=True,
         blank=True,
     )
+    card_image_4 = models.ImageField(
+        "Картинка 4 (файл)",
+        upload_to="filling_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField("Активен", default=True)
     sort_order = models.PositiveIntegerField("Порядок", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -793,6 +807,13 @@ class CalculatorHingeType(models.Model):
     )
     card_image_3 = models.ImageField(
         "Картинка 3 (файл)",
+        upload_to="hinge_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_image_4 = models.ImageField(
+        "Картинка 4 (файл)",
         upload_to="hinge_types/",
         max_length=300,
         null=True,

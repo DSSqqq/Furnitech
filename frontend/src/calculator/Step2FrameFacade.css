@@ -1,18 +1,23 @@
-.frame2 {
+.frame2,
+.frame3 {
   display: grid;
-  /* Как на скрине: слева контент, по центру воздух, справа эскиз. */
-  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 640px)) 1fr minmax(420px, 520px);
+  /* Форма → зазор 15% → эскиз по ширине чертежа → воздух справа. */
+  grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 640px)) minmax(4rem, 15%) max-content 1fr;
   gap: 1.5rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (max-width: 1024px) {
-  .frame2 {
+  .frame2,
+  .frame3 {
     grid-template-columns: 1fr;
   }
 
   .frame2-card,
-  .frame2-sketch {
+  .frame2-sketch,
+  .frame2 .frame3-left,
+  .frame3-left,
+  .frame3-right {
     grid-column: auto;
   }
 
@@ -30,8 +35,9 @@
 }
 
 @media (min-width: 1280px) {
-  .frame2 {
-    grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 700px)) 1fr minmax(460px, 560px);
+  .frame2,
+  .frame3 {
+    grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 700px)) minmax(4rem, 15%) max-content 1fr;
   }
 }
 
@@ -44,21 +50,28 @@
   overflow: visible;
   display: flex;
   grid-column: 3;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-self: stretch;
 }
 
-/* Как .frame3-sketch: эскиз по центру, чтобы .sketch-sheet не смещался относительно шага 3 */
 .frame2-sketch-inner {
   padding: 0;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-width: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.frame2-sketch-inner.frame3-sketch {
+  position: relative;
 }
 
 .sketch {
   /* Вписываем «лист» в высоту окна, чтобы не вылезал за экран. */
-  height: calc(min(68dvh, 520px) * var(--sketch-scale-y, 1));
+  --sketch-size-factor: 0.85;
+  height: calc(min(68dvh, 520px) * var(--sketch-scale-y, 1) * var(--sketch-size-factor));
   width: auto;
   max-width: 100%;
   aspect-ratio: 3 / 4.2;
@@ -146,14 +159,14 @@
 .sketch-title {
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: rgba(17, 24, 39, 0.78);
-  font-size: 0.92rem;
+  color: #000;
+  font-size: 0.82rem;
 }
 
 .sketch-sub {
   margin-top: 0.35rem;
-  color: rgba(17, 24, 39, 0.55);
-  font-size: 0.78rem;
+  color: #000;
+  font-size: 0.68rem;
 }
 
 .sketch-table {
@@ -168,21 +181,21 @@
 
 .sketch-row {
   display: grid;
-  grid-template-columns: 6.2rem 1fr;
-  gap: 0.65rem;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.25rem;
   align-items: center;
   text-align: left;
 }
 
 .sketch-key {
-  color: rgba(17, 24, 39, 0.55);
-  font-size: 0.8rem;
+  color: #000;
+  font-size: 0.7rem;
 }
 
 .sketch-val {
   font-weight: 600;
-  color: rgba(17, 24, 39, 0.82);
-  font-size: 0.82rem;
+  color: #000;
+  font-size: 0.72rem;
 }
 
 .sketch-val.sketch-val--texture-wrap {
@@ -903,8 +916,30 @@
   min-width: 0;
 }
 
-/* Форма как у .admin-input (высота), цвета как у .admin-secondary («Отмена»). */
-button.admin-secondary.frame2-material-tree-search-btn,
+/* «Поиск»: компактно как «Отмена» в .frame2-actions, на всю ширину колонки. */
+button.admin-secondary.frame2-material-tree-search-btn {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  padding: calc(0.1rem * var(--admin-refs-scale, 1)) calc(0.5rem * var(--admin-refs-scale, 1));
+  border-radius: calc(4px * var(--admin-refs-scale, 1));
+  border: 1px solid var(--ft-border-2);
+  background: transparent;
+  color: var(--ft-text);
+  font: inherit;
+  font-size: var(--mat-scroll-fs, inherit);
+  line-height: var(--mat-scroll-lh, 1.05);
+  letter-spacing: var(--mat-scroll-ls, 0.02em);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+/* Кнопка выбора файла — прежняя высота под .admin-input. */
 button.admin-secondary.frame2-file-btn {
   box-sizing: border-box;
   min-height: 2.5rem;
@@ -923,16 +958,11 @@ button.admin-secondary.frame2-file-btn {
   cursor: pointer;
 }
 
-button.admin-secondary.frame2-material-tree-search-btn {
-  width: 100%;
-}
-
 /* Как ширина кнопки «Поиск» в соседней колонке (~236px); не сжимать под короткий текст. */
 button.admin-secondary.frame2-file-btn {
   flex: 0 0 14.75rem;
   width: 14.75rem;
   flex-shrink: 0;
-  box-sizing: border-box;
 }
 
 button.admin-secondary.frame2-material-tree-search-btn:hover,
