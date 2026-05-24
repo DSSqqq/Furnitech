@@ -10,6 +10,7 @@ import {
   FRAME_DIM_FALLBACK_MAX_MM,
   FRAME_FACADE_COUNT_MAX,
   frameDimDefaultsFromMaterial,
+  frameSketchDisplayDims,
   isFrameStep2Ready,
   notifyFrameCalcSession,
   readFrameDimsMm,
@@ -176,12 +177,12 @@ export function Step3FrameSizes() {
     if (n > FRAME_FACADE_COUNT_MAX) setQty(String(FRAME_FACADE_COUNT_MAX))
   }, [qty])
 
-  const materialDefaults = useMemo(() => frameDimDefaultsFromMaterial(colorMaterial), [colorMaterial])
-
   const heightN = asNum(heightMm)
   const widthN = asNum(widthMm)
-  const sketchHeightN = heightN ?? materialDefaults.heightMm
-  const sketchWidthN = widthN ?? materialDefaults.widthMm
+  const { heightMm: sketchHeightN, widthMm: sketchWidthN } = useMemo(
+    () => frameSketchDisplayDims(heightN, widthN),
+    [heightN, widthN],
+  )
 
   const sketchBoxStyle = useMemo(() => {
     if (sketchHeightN <= 0 || sketchWidthN <= 0) return undefined

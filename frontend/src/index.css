@@ -101,22 +101,7 @@ body {
   color: var(--ft-text);
 }
 
-/* Десктоп-админка: без прокрутки document — только внутри колонок (панель внизу всегда в кадре). */
-@media (min-width: 1025px) {
-  html,
-  body,
-  #root {
-    height: 100%;
-    max-height: 100dvh;
-    overflow: hidden;
-  }
-  body {
-    min-height: 0;
-  }
-  #root {
-    min-height: 0;
-  }
-}
+/* Прокрутка документа и фиксированная ширина макета — desktop-layout.css */
 
 button {
   font-family: inherit;

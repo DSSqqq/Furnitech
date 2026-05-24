@@ -1,0 +1,117 @@
+/*
+ * Режим «только десктоп» (временно без mobile-брейкпоинтов).
+ * Согласовано с width=1280 в index.html: @media (max-width: 1024px) не срабатывает.
+ * Прокрутка документа по X/Y; на телефоне — pinch-zoom полноразмерной версии.
+ */
+
+:root {
+  --ft-layout-min-width: 1280px;
+}
+
+html {
+  min-width: var(--ft-layout-min-width);
+  overflow: auto;
+}
+
+body {
+  min-width: var(--ft-layout-min-width);
+  min-height: 100dvh;
+  height: auto;
+  max-height: none;
+  overflow: auto;
+}
+
+#root {
+  min-width: var(--ft-layout-min-width);
+  width: max(var(--ft-layout-min-width), 100%);
+  min-height: 100dvh;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.admin,
+.public-shell {
+  min-width: var(--ft-layout-min-width);
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  flex: none;
+}
+
+.public-shell__main {
+  overflow: visible;
+  flex: 1 1 auto;
+}
+
+.public-shell__main:has(.calc-panel-shell),
+.public-shell:has(.calc-panel-shell) {
+  display: block;
+  overflow: visible;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  flex: none;
+}
+
+@media (min-width: 1025px) {
+  .admin {
+    flex: none;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .admin-body {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+  }
+
+  .admin-aside,
+  .admin-main,
+  .admin-panel {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .admin-main-scroll {
+    overflow: visible;
+    max-height: none;
+  }
+
+  .public-shell__main:has(.calc-panel-shell),
+  .public-shell:has(.calc-panel-shell) {
+    display: block;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+  }
+
+  .calc-panel-shell .admin-orders-placeholder,
+  .calc-panel-shell .calc,
+  .calc-panel-shell .calc-body-with-totals,
+  .calc-panel-shell .calc-main-column {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    flex: none;
+  }
+
+  .calc-panel-shell .calc-routes-wrap,
+  .calc-panel-shell .calc-routes-wrap--step8 {
+    overflow: visible;
+    max-height: none;
+    flex: none;
+  }
+
+  .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-inner,
+  .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-step {
+    overflow: visible;
+    flex: none;
+    min-height: 0;
+  }
+}

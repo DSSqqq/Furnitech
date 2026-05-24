@@ -50,6 +50,17 @@ export function frameDimDefaultsFromMaterial(material: FrameDimMaterialLimits | 
   }
 }
 
+/** Габариты для эскиза: пустое поле или 0 → дефолт 500×200 по оси. */
+export function frameSketchDisplayDims(
+  height: number | null,
+  width: number | null,
+): { heightMm: number; widthMm: number } {
+  return {
+    heightMm: height != null && height > 0 ? height : FRAME_DEFAULT_HEIGHT_MM,
+    widthMm: width != null && width > 0 ? width : FRAME_DEFAULT_WIDTH_MM,
+  }
+}
+
 export function hasSavedFrameDims(): boolean {
   const { h, w } = readFrameDimsMm()
   return h != null && w != null

@@ -3,9 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
-// Должен импортироваться последним: содержит все @media-переопределения
-// для ширин ≤1024px / ≤768px / ≤560px, перебивает базовые стили каскадом.
-import './mobile.css'
+// mobile.css временно отключён — см. desktop-layout.css (фикс. ширина 1280, pinch-zoom на телефоне).
+// import './mobile.css'
+import './desktop-layout.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
