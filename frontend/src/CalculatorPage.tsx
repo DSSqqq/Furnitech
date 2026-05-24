@@ -37,19 +37,28 @@ const FACADE_LABEL: Record<FacadeType, string> = {
 }
 
 const CALC_ROUTE_TRANSITION_MS = 280
+/** Индекс вкладки «Шаг 6» в `.calc-steps-tabs` (0 = «Шаг 1»). */
+const CALC_STEP_6_TAB_INDEX = 5
 
 function syncCalcStepsTabsWidth(calcEl: HTMLElement, tabsEl: HTMLElement) {
   const tabEls = tabsEl.querySelectorAll<HTMLElement>('.calc-step-tab')
   if (tabEls.length === 0) {
     calcEl.style.removeProperty('--calc-steps-tabs-width')
+    calcEl.style.removeProperty('--calc-steps-panel-width')
     return
   }
   const tabsBox = tabsEl.getBoundingClientRect()
   const lastTab = tabEls[tabEls.length - 1]
   const lastBox = lastTab.getBoundingClientRect()
   const width = Math.ceil(lastBox.right - tabsBox.left)
+  const step6Tab = tabEls[CALC_STEP_6_TAB_INDEX] ?? lastTab
+  const step6Box = step6Tab.getBoundingClientRect()
+  const panelWidth = Math.ceil(step6Box.right - tabsBox.left)
   if (width > 0) {
     calcEl.style.setProperty('--calc-steps-tabs-width', `${width}px`)
+  }
+  if (panelWidth > 0) {
+    calcEl.style.setProperty('--calc-steps-panel-width', `${panelWidth}px`)
   }
 }
 
@@ -133,6 +142,7 @@ function CalculatorPageInner() {
       ro?.disconnect()
       window.removeEventListener('resize', sync)
       calcEl.style.removeProperty('--calc-steps-tabs-width')
+      calcEl.style.removeProperty('--calc-steps-panel-width')
     }
   }, [loc.pathname])
 

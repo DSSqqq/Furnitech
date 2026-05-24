@@ -1,6 +1,18 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-24 — на телефоне при входе **`initial-scale = innerWidth / 1280`** (видна вся ширина desktop-макета); ранее — sticky-папки, один scroll, viewport **1280**.
+**Последнее обновление:** 2026-05-24 — админ-калькулятор: фиксированная ширина панели шагов до правого края вкладки **«Шаг 6»**; ранее — mobile fit-zoom, sticky-папки, viewport **1280**.
+
+### Изменения 2026-05-24 (frontend — ширина панели админ-калькулятора)
+
+- **`CalculatorPage.tsx`:** **`syncCalcStepsTabsWidth`** дополнительно задаёт **`--calc-steps-panel-width`** — расстояние от левого края полосы вкладок до **правого края кнопки «Шаг 6»** (индекс **5**). Пересчёт при загрузке, **`resize`**, **`ResizeObserver`**, смене шага.
+- **`CalculatorPanelShell.css`:** для **`#admin-panel-calculator`** панели шагов 1–8 (**.calc-side-panel`**, **`.frame2-card`**, **`.frame3-left`**) и сетки **`frame2` / `frame3` / step8** используют **`--calc-steps-panel-width`** (fallback **420px**); контейнер калькулятора — на всю ширину вкладки, эскиз справа.
+- Публичный калькулятор не затронут — по-прежнему **`--calc-steps-tabs-width`** до «Итог».
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Админ-калькулятор | **`CalculatorPage.tsx`**, **`CalculatorPanelShell.css`**, **`docs/PROGRESS.md`**, **`docs/ARCHITECTURE.md`** |
 
 ### Изменения 2026-05-24 (frontend — mobile fit-zoom при входе)
 

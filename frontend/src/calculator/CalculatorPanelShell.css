@@ -449,4 +449,49 @@
   }
 }
 
+/* Админ-калькулятор: фиксированная ширина панели шагов до правого края вкладки «Шаг 6» */
+#admin-panel-calculator.admin-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#admin-panel-calculator.calc-panel-shell .admin-orders-placeholder,
+#admin-panel-calculator.calc-panel-shell .calc,
+#admin-panel-calculator.calc-panel-shell .calc-body-with-totals,
+#admin-panel-calculator.calc-panel-shell .calc-main-column,
+#admin-panel-calculator.calc-panel-shell .calc-routes-wrap,
+#admin-panel-calculator.calc-panel-shell .calc-routes-inner,
+#admin-panel-calculator.calc-panel-shell .calc-routes-step,
+#admin-panel-calculator.calc-panel-shell .calc-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#admin-panel-calculator.calc-panel-shell .calc-grid > .calc-side-panel,
+#admin-panel-calculator.calc-panel-shell .calc-grid > .calc-side-panel:not(.frame2-card),
+#admin-panel-calculator.calc-panel-shell .calc-routes-step .frame2-card,
+#admin-panel-calculator.calc-panel-shell .calc-routes-step .frame3-left {
+  width: var(--calc-steps-panel-width, 420px) !important;
+  max-width: var(--calc-steps-panel-width, 420px) !important;
+  min-width: var(--calc-steps-panel-width, 420px);
+  flex-shrink: 0;
+}
+
+#admin-panel-calculator.calc-panel-shell .frame2,
+#admin-panel-calculator.calc-panel-shell .frame3 {
+  width: 100%;
+  grid-template-columns:
+    minmax(0, var(--calc-steps-panel-width, 420px))
+    minmax(4rem, 15%)
+    max-content
+    1fr;
+}
+
+#admin-panel-calculator.calc-panel-shell .frame2.step8-result {
+  width: 100%;
+  grid-template-columns:
+    minmax(0, var(--calc-steps-panel-width, 420px))
+    minmax(0, 1fr);
+}
 
