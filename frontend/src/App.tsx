@@ -10,6 +10,7 @@ import {
   type PublicShellOutletContext,
 } from './PublicClientPages'
 import { RegisterPage } from './RegisterPage'
+import { ThemeToggle } from './ThemeToggle'
 import './App.css'
 
 type AuthState = { phase: 'loading' } | { phase: 'guest' } | { phase: 'authed'; user: Me }
@@ -117,6 +118,7 @@ function PublicShell() {
               <span className="public-shell__user-name" title={auth.user.username}>
                 {auth.user.email || auth.user.username}
               </span>
+              <ThemeToggle />
               <Link to="/materials" className="public-shell__link">
                 Админка
               </Link>
@@ -126,6 +128,7 @@ function PublicShell() {
               <span className="public-shell__user-name" title={auth.user.username}>
                 {auth.user.email || auth.user.username}
               </span>
+              <ThemeToggle />
               <button
                 type="button"
                 className="public-shell__logout"
@@ -139,6 +142,7 @@ function PublicShell() {
             </div>
           ) : (
             <>
+              <ThemeToggle />
               <Link to="/login" className="public-shell__link">
                 Вход
               </Link>

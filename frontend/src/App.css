@@ -112,7 +112,7 @@
   background: var(--ft-accent-bg-subtle);
   color: var(--ft-accent-2);
   border: 1px solid var(--ft-accent-border);
-  border-radius: 999px;
+  border-radius: 10px;
   padding: 0.35rem 0.65rem;
   font: inherit;
   font-size: 0.85rem;
@@ -129,7 +129,7 @@
   color: var(--ft-accent);
   text-decoration: none;
   border: 1px solid var(--ft-accent-border);
-  border-radius: 999px;
+  border-radius: 10px;
   padding: 0.35rem 0.7rem;
   background: var(--ft-accent-bg-subtle);
 }

@@ -43,6 +43,14 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
 
+/** Прозрачность текстуры наполнения в эскизе: ~18% видимости. */
+export const SKETCH_FILLING_TEXTURE_OPACITY = 0.18
+
+export type MaterialTextureLayerOptions = {
+  /** Перекрывает `tex_opacity` материала в эскизе. */
+  sketchOpacity?: number
+}
+
 /**
  * Унифицированный стиль текстуры материала (рамка/наполнение): учитывает параметры из базы:
  * offset/step/opacity/rotate/mirror.
@@ -50,7 +58,10 @@ function clamp(n: number, min: number, max: number) {
  * Возвращаем стиль именно для "texture layer" (внутреннего div), чтобы opacity не влияла
  * на пунктир/уголки чертежа у `.sketch-paper`.
  */
-export function materialTextureLayerStyle(material: SketchTextureMaterial | null | undefined): CSSProperties | undefined {
+export function materialTextureLayerStyle(
+  material: SketchTextureMaterial | null | undefined,
+  options?: MaterialTextureLayerOptions,
+): CSSProperties | undefined {
   if (!material) return undefined
 
   const color = (material.texture_color ?? '').trim()
@@ -62,7 +73,12 @@ export function materialTextureLayerStyle(material: SketchTextureMaterial | null
   // Это даёт предсказуемую визуализацию на всех шагах и не зависит от шагов тайлинга.
   // Параметры step/offset оставляем на будущее (если потребуется вернуть тайлинг).
   const opacityRaw = asNum(material.tex_opacity)
-  const opacity = opacityRaw == null ? 1 : clamp(opacityRaw, 0, 1)
+  const opacity =
+    options?.sketchOpacity != null
+      ? clamp(options.sketchOpacity, 0, 1)
+      : opacityRaw == null
+        ? 1
+        : clamp(opacityRaw, 0, 1)
   const mirror = Boolean(material.tex_mirror)
 
   // В режиме эскиза всегда заполняем прямоугольник без "дыр":
@@ -80,6 +96,13 @@ export function materialTextureLayerStyle(material: SketchTextureMaterial | null
     opacity,
     transform: transformParts.length ? transformParts.join(' ') : undefined,
   }
+}
+
+/** Текстура наполнения в эскизе — фиксированная низкая непрозрачность (см. SKETCH_FILLING_TEXTURE_OPACITY). */
+export function materialFillingTextureLayerStyle(
+  material: SketchTextureMaterial | null | undefined,
+): CSSProperties | undefined {
+  return materialTextureLayerStyle(material, { sketchOpacity: SKETCH_FILLING_TEXTURE_OPACITY })
 }
 
 function blendAspect(defaultAspect: number, targetAspect: number, strength: number) {

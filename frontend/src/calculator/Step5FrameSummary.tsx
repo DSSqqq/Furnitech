@@ -12,7 +12,7 @@ import {
 } from './frameCalcSession'
 import { FrameHingeMortisePanel } from './FrameHingeMortisePanel'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
-import { materialTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -32,10 +32,7 @@ function blendAspect(defaultAspect: number, targetAspect: number, strength: numb
   return defaultAspect + (targetAspect - defaultAspect) * k
 }
 
-function fillingPaperStyle(m: Material | null | undefined): CSSProperties {
-  if (!m) return {}
-  const c = (m.texture_color ?? '').trim()
-  if (c) return { backgroundColor: c }
+function fillingPaperStyle(_m: Material | null | undefined): CSSProperties {
   return {}
 }
 
@@ -233,7 +230,7 @@ export function Step5FrameSummary() {
                 <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
               </div>
               <div className="sketch-paper" style={fillingPaperStyle(fillingMaterial)}>
-                <div className="sketch-paper-texture" style={materialTextureLayerStyle(fillingMaterial as any)} />
+                <div className="sketch-paper-texture" style={materialFillingTextureLayerStyle(fillingMaterial as any)} />
               </div>
               <div className="sketch-sheet">
                 <div className="sketch-title">ЛИЦЕВАЯ СТОРОНА ФАСАДА</div>

@@ -34,7 +34,7 @@ import {
   type CalcCardImageFiles,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
-import { resolveMediaUrl, materialTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { resolveMediaUrl, materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -73,11 +73,8 @@ function textureThumb(m: MaterialTextureFields & { name: string }) {
   return <div className="tile-thumb" style={color ? { backgroundColor: color } : undefined} />
 }
 
-function fillingPaperStyle(m: Material | null | undefined): CSSProperties {
-  // legacy fallback (если нет параметров текстуры); базовый фон "бумаги" остаётся белым.
-  if (!m) return {}
-  const c = (m.texture_color ?? '').trim()
-  if (c) return { backgroundColor: c }
+function fillingPaperStyle(_m: Material | null | undefined): CSSProperties {
+  // Цвет/текстура наполнения — только на `.sketch-paper-texture` (SKETCH_FILLING_TEXTURE_OPACITY).
   return {}
 }
 
@@ -1017,7 +1014,7 @@ export function Step4FrameFilling() {
                 <div className="sketch-paper" style={fillingPaperStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as Material)}>
                   <div
                     className="sketch-paper-texture"
-                    style={materialTextureLayerStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as any)}
+                    style={materialFillingTextureLayerStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as any)}
                   />
                 </div>
                 <div className="sketch-sheet">
