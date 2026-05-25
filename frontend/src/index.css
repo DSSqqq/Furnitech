@@ -147,6 +147,8 @@
   --ft-canvas-dim-line: rgba(255, 255, 255, 0.8);
   --ft-canvas-dim-line-strong: rgba(255, 255, 255, 0.82);
   --ft-canvas-overlay-bg: rgba(255, 255, 255, 0.95);
+  --ft-canvas-hinge-label: rgba(24, 22, 19, 0.94);
+  --ft-canvas-hinge-label-shadow: rgba(255, 255, 255, 0.75);
   --ft-danger-text-strong: rgba(255, 107, 107, 0.98);
   --ft-danger-alt-bg: rgba(232, 106, 106, 0.08);
   --ft-danger-alt-bg-hover: rgba(232, 106, 106, 0.16);

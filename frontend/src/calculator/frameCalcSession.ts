@@ -174,11 +174,13 @@ export function hingePairPartnerIndex(i: number, count: number): number {
 }
 
 /**
- * true — ввод «от начала» стороны (лево/право: сверху; верх/низ: слева).
- * false — ввод «от конца» (лево/право: снизу; верх/низ: справа).
+ * true — ввод «от начала» стороны только для первой петли
+ * (лево/право: сверху; верх/низ: слева).
+ * false — ввод «от конца» для остальных петель
+ * (лево/право: снизу; верх/низ: справа).
  */
 export function hingeMeasuresFromEdgeStart(i: number, count: number): boolean {
-  return i <= hingePairPartnerIndex(i, count)
+  return count <= 1 || i === 0
 }
 
 /** Сырые числа из полей → абсолютные мм от начала стороны (строго по индексу петли). */
@@ -197,7 +199,7 @@ export function hingeUserInputsToAbsoluteMm(L: number, count: number, parsed: nu
   return abs
 }
 
-/** Абсолютные координаты → строки для полей ввода (от начала / от конца по правилу пар). Округление вверх до целого мм. */
+/** Абсолютные координаты → строки для полей ввода (№1 от начала, остальные от конца). Округление вверх до целого мм. */
 export function hingeAbsoluteToUserInputStrings(L: number, abs: number[], count: number): string[] {
   return abs.map((a, i) => {
     const v = hingeMeasuresFromEdgeStart(i, count) ? a : L - a

@@ -450,10 +450,10 @@
 .sketch-hinge-pin-label {
   font-size: 0.5rem;
   font-weight: 800;
-  color: var(--ft-btn-primary-text);
+  color: var(--ft-canvas-hinge-label);
   line-height: 1;
   letter-spacing: 0.03em;
-  text-shadow: 0 1px 3px var(--ft-canvas-text-shadow);
+  text-shadow: 0 1px 3px var(--ft-canvas-hinge-label-shadow);
   white-space: nowrap;
 }
 
@@ -582,13 +582,14 @@
  * правый конец штриха у края эскиза (с учётом --hinge-chain-sketch-gap у блока цепочки).
  */
 .hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__wit {
-  right: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
-  width: var(--hinge-chain-vtrack, 34px);
+  right: calc(-1 * (var(--hinge-chain-sketch-gap, 30px) + var(--hinge-chain-track-offset, 0px)));
+  width: calc(var(--hinge-chain-vtrack, 34px) + var(--hinge-chain-track-offset, 0px));
   height: 0;
   border-top: 1px dashed var(--hinge-dim-witness);
 }
 
 .hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__wit--start {
+  /* Трек начинается на уровне петли (trackTopPct) — top:0 = координата петли */
   top: 0;
 }
 
@@ -597,8 +598,8 @@
 }
 
 .hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__wit {
-  left: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
-  width: var(--hinge-chain-vtrack, 34px);
+  left: calc(-1 * (var(--hinge-chain-sketch-gap, 30px) + var(--hinge-chain-track-offset, 0px)));
+  width: calc(var(--hinge-chain-vtrack, 34px) + var(--hinge-chain-track-offset, 0px));
   height: 0;
   border-top: 1px dashed var(--hinge-dim-witness);
 }
@@ -613,9 +614,9 @@
 
 /* Горизонтальный участок: вертикальные выноски к кромке (аналог .frame3-dim-drawing__ext-v) */
 .hinge-chain-dim--h.hinge-chain-dim--top .hinge-chain-dim__wit {
-  bottom: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  bottom: calc(-1 * (var(--hinge-chain-sketch-gap, 30px) + var(--hinge-chain-track-offset, 0px)));
   width: 0;
-  height: var(--hinge-chain-vtrack, 34px);
+  height: calc(var(--hinge-chain-vtrack, 34px) + var(--hinge-chain-track-offset, 0px));
   border-left: 1px dashed var(--hinge-dim-witness);
 }
 
@@ -628,9 +629,9 @@
 }
 
 .hinge-chain-dim--h.hinge-chain-dim--bottom .hinge-chain-dim__wit {
-  top: calc(-1 * var(--hinge-chain-sketch-gap, 30px));
+  top: calc(-1 * (var(--hinge-chain-sketch-gap, 30px) + var(--hinge-chain-track-offset, 0px)));
   width: 0;
-  height: var(--hinge-chain-vtrack, 34px);
+  height: calc(var(--hinge-chain-vtrack, 34px) + var(--hinge-chain-track-offset, 0px));
   border-left: 1px dashed var(--hinge-dim-witness);
 }
 
@@ -645,37 +646,65 @@
 .hinge-chain-dim__body {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
-  /* stretch: размерная линия на всю высоту участка — выноски смыкаются с «самого начала» */
-  align-items: stretch;
-  padding-right: 2px;
 }
 
-.hinge-chain-dim--right .hinge-chain-dim__body {
-  grid-template-columns: auto minmax(0, 1fr);
-  padding-right: 0;
-  padding-left: 2px;
+.hinge-chain-dim--v .hinge-chain-dim__body {
+  display: block;
 }
 
-.hinge-chain-dim--right .hinge-chain-dim__val {
-  order: 2;
+.hinge-chain-dim--v .hinge-chain-dim__v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 12px;
 }
 
-.hinge-chain-dim--right .hinge-chain-dim__v {
-  order: 1;
+.hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__v {
+  right: auto;
+  left: 0;
 }
 
 .hinge-chain-dim__val {
+  position: absolute;
+  z-index: 1;
   writing-mode: horizontal-tb;
   text-align: center;
-  justify-self: center;
-  align-self: center;
   white-space: nowrap;
+  pointer-events: none;
 }
 
-/* Поворот задаётся inline в Step6 (вместе со сдвигом); здесь только базовая типографика */
+/* Вертикаль слева: подпись вплотную слева от размерной линии, по центру отрезка */
+.hinge-chain-dim--v.hinge-chain-dim--left .hinge-chain-dim__val {
+  top: 50%;
+  right: calc(100% + 2px);
+  left: auto;
+  transform: translate(var(--hinge-label-nudge-x, 0px), calc(-50% + var(--hinge-label-nudge-y, 0px))) rotate(-90deg);
+  transform-origin: center center;
+}
+
+/* Вертикаль справа */
+.hinge-chain-dim--v.hinge-chain-dim--right .hinge-chain-dim__val {
+  top: 50%;
+  left: calc(100% + 2px);
+  right: auto;
+  transform: translate(var(--hinge-label-nudge-x, 0px), calc(-50% + var(--hinge-label-nudge-y, 0px))) rotate(90deg);
+  transform-origin: center center;
+}
+
+/*
+ * Петли №2+ (от противоположного края, --hinge-chain-track-offset > 0):
+ * подпись у вертикальной размерной линии, а не у внешнего края дорожки выносок.
+ */
+.hinge-chain-dim--v.hinge-chain-dim--left.hinge-chain-dim--tracked .hinge-chain-dim__val {
+  right: calc(12px + 2px / 10);
+  left: auto;
+}
+
+.hinge-chain-dim--v.hinge-chain-dim--right.hinge-chain-dim--tracked .hinge-chain-dim__val {
+  left: calc(12px + 2px / 10);
+  right: auto;
+}
 
 .hinge-chain-dim__v {
   display: grid;
@@ -718,18 +747,36 @@
 }
 
 .hinge-chain-dim__body--h {
+  display: block;
+}
+
+.hinge-chain-dim__body--h .hinge-chain-dim__h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 2px 4px;
+  width: 100%;
+  min-width: 16px;
+  min-height: 0;
 }
 
 .hinge-chain-dim__val--h {
+  position: absolute;
+  left: 50%;
+  top: 0;
   writing-mode: horizontal-tb;
-  transform: none;
+  transform: translate(calc(-50% + var(--hinge-label-nudge-x, 0px)), calc(-100% - 3px + var(--hinge-label-nudge-y, 0px)));
   text-align: center;
+  white-space: nowrap;
+}
+
+.hinge-chain-dim--bottom .hinge-chain-dim__val--h {
+  top: auto;
+  bottom: 0;
+  transform: translate(calc(-50% + var(--hinge-label-nudge-x, 0px)), calc(100% + 3px + var(--hinge-label-nudge-y, 0px)));
 }
 
 .hinge-chain-dim__h {

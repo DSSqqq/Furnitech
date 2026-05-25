@@ -167,7 +167,8 @@ body {
 #admin-panel-textures.admin-body,
 #admin-panel-classes.admin-body,
 #admin-panel-calculations.admin-body,
-#material-search-modal.admin-body {
+#material-search-modal.admin-body,
+#texture-picker-modal.admin-body {
   grid-template-columns: minmax(var(--admin-refs-aside-min), var(--admin-refs-aside-max)) minmax(0, 1fr);
 }
 
@@ -180,7 +181,8 @@ body {
 #admin-panel-textures .admin-aside,
 #admin-panel-classes .admin-aside,
 #admin-panel-calculations .admin-aside,
-#material-search-modal .admin-aside {
+#material-search-modal .admin-aside,
+#texture-picker-modal .admin-aside {
   position: sticky;
   top: 1rem;
   align-self: start;
@@ -189,6 +191,33 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   z-index: 2;
+}
+
+/* Сопутствующие материалы: fixed-панель вплотную к нижнему краю экрана */
+#admin-panel-materials.admin-body:has(.admin-extras-dock) {
+  padding-bottom: 0;
+}
+
+#admin-panel-materials .admin-main-col:has(.admin-extras-dock) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: min(40vh, 360px);
+}
+
+#admin-panel-materials .admin-main-col:has(.admin-extras-dock) > .admin-main {
+  flex: 1 1 auto;
+}
+
+#admin-panel-materials .admin-extras-dock {
+  position: fixed;
+  bottom: 0;
+  left: calc(1.5rem + var(--admin-refs-aside-max) + 1rem);
+  right: 1.5rem;
+  z-index: 5;
+  max-height: min(40vh, 360px);
+  overscroll-behavior: contain;
+  box-sizing: border-box;
 }
 
 /* «Расчёты»: снять overflow:hidden у контейнера — иначе sticky у папок не работает */

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { API_ORIGIN, apiUrl } from './apiBase'
-import { fetchTextureCategoryTree, fetchTextureItems } from './api'
+import { fetchTextureCategoryTree, fetchTextureItemsPage } from './api'
 import type { TextureCategory, TextureItem } from './types'
+import './AdminApp.css'
 
 const DEV_MEDIA_ORIGIN = 'http://127.0.0.1:8000'
 
@@ -14,6 +15,8 @@ export function resolveTextureImageUrl(pathOrUrl: string | null | undefined): st
 }
 
 type Picked = { id: number; name: string; image: string | null }
+
+const TEX_LIST_COLUMNS = ['Превью', 'Наименование'] as const
 
 function collectIdsWithChildren(tree: TextureCategory[]): Set<number> {
   const out = new Set<number>()
@@ -44,7 +47,19 @@ function findPathToId(tree: TextureCategory[], id: number): number[] | null {
   return walk(tree, [])
 }
 
-function TreeRow({
+function findCategoryNode(nodes: TextureCategory[], id: number): TextureCategory | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const kids = n.children ?? []
+    if (kids.length > 0) {
+      const f = findCategoryNode(kids, id)
+      if (f) return f
+    }
+  }
+  return null
+}
+
+function PickerTextureTreeRow({
   c,
   depth,
   selectedId,
@@ -63,12 +78,17 @@ function TreeRow({
   const hasKids = (c.children?.length ?? 0) > 0
   const isExpanded = hasKids ? expandedIds.has(c.id) : false
   return (
-    <li className="tree-item">
-      <div className="tree-line" style={{ paddingLeft: 8 + depth * 12 }}>
+    <li className="folder-explorer-tree-item">
+      <div
+        className={
+          isSel ? 'folder-explorer-tree-line folder-explorer-tree-line--active' : 'folder-explorer-tree-line'
+        }
+        style={{ paddingLeft: 6 + depth * 14 }}
+      >
         {hasKids ? (
           <button
             type="button"
-            className="tree-expander"
+            className="folder-explorer-tree-expander"
             aria-label={isExpanded ? 'Свернуть папку' : 'Развернуть папку'}
             aria-expanded={isExpanded}
             onClick={(e) => {
@@ -79,21 +99,27 @@ function TreeRow({
             <span aria-hidden>{isExpanded ? '▾' : '▸'}</span>
           </button>
         ) : (
-          <span className="tree-expander tree-expander--spacer" aria-hidden />
+          <span
+            className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer"
+            aria-hidden
+          />
         )}
         <button
           type="button"
-          className={isSel ? 'tree-link tree-link-active' : 'tree-link'}
+          className="folder-explorer-tree-link"
           onClick={() => onSelect(c.id)}
           title={c.path}
         >
-          {c.name}
+          <span className="folder-explorer-icon" aria-hidden>
+            📁
+          </span>
+          <span className="folder-explorer-tree-name">{c.name}</span>
         </button>
       </div>
       {hasKids && isExpanded && (
-        <ul className="tree-children">
+        <ul className="folder-explorer-tree-children">
           {(c.children ?? []).map((ch) => (
-            <TreeRow
+            <PickerTextureTreeRow
               key={ch.id}
               c={ch}
               depth={depth + 1}
@@ -118,15 +144,33 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
   const [tree, setTree] = useState<TextureCategory[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+  const [texturesRootTreeExpanded, setTexturesRootTreeExpanded] = useState(true)
   const [items, setItems] = useState<TextureItem[]>([])
   const [itemsLoading, setItemsLoading] = useState(false)
+  const [itemsHasMore, setItemsHasMore] = useState(false)
+  const [itemsPage, setItemsPage] = useState(1)
   const [highlightId, setHighlightId] = useState<number | null>(null)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
 
   useLayoutEffect(() => {
     closeBtnRef.current?.focus()
+  }, [])
+
+  const reloadItems = useCallback((categoryId: number | null, page = 1, append = false) => {
+    setErr(null)
+    setItemsLoading(true)
+    const params = categoryId == null ? undefined : { category: categoryId, subtree: true }
+    return fetchTextureItemsPage(params, page)
+      .then((r) => {
+        const rows = r.results ?? []
+        setItems((prev) => (append ? [...prev, ...rows] : rows))
+        setItemsPage(page)
+        setItemsHasMore(Boolean(r.next))
+      })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setItemsLoading(false))
   }, [])
 
   useEffect(() => {
@@ -140,16 +184,20 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
   }, [])
 
   useEffect(() => {
-    if (selectedFolderId == null) {
-      setItems([])
-      return
-    }
-    setItemsLoading(true)
-    fetchTextureItems({ category: selectedFolderId })
-      .then((r) => setItems(r.results))
-      .catch((e) => setErr(String(e)))
-      .finally(() => setItemsLoading(false))
-  }, [selectedFolderId])
+    void reloadItems(selected, 1, false)
+    setHighlightId(null)
+  }, [selected, reloadItems])
+
+  useEffect(() => {
+    if (selected == null) return
+    const path = findPathToId(tree, selected)
+    if (!path || path.length < 2) return
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of path.slice(0, -1)) next.add(id)
+      return next
+    })
+  }, [selected, tree])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -171,26 +219,29 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
     })
   }, [])
 
-  useEffect(() => {
-    if (selectedFolderId == null) return
-    const path = findPathToId(tree, selectedFolderId)
-    if (!path || path.length < 2) return
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      for (const id of path.slice(0, -1)) next.add(id)
-      return next
-    })
-  }, [selectedFolderId, tree])
+  const loadMoreItems = useCallback(() => {
+    if (itemsLoading || !itemsHasMore) return
+    void reloadItems(selected, itemsPage + 1, true)
+  }, [itemsHasMore, itemsLoading, itemsPage, reloadItems, selected])
 
-  const canPick = highlightId != null
+  const texturesHeading = useMemo(() => {
+    if (selected == null) return 'Текстуры: база текстур'
+    const node = findCategoryNode(tree, selected)
+    return `Текстуры в папке: ${node?.name?.trim() || '—'}`
+  }, [selected, tree])
+
   const pickedItem = useMemo(
     () => (highlightId == null ? null : items.find((x) => x.id === highlightId) ?? null),
-    [highlightId, items]
+    [highlightId, items],
   )
 
   const runPick = () => {
     if (!pickedItem) return
     onPick({ id: pickedItem.id, name: pickedItem.name, image: pickedItem.image })
+  }
+
+  const pickTexture = (it: TextureItem) => {
+    onPick({ id: it.id, name: it.name, image: it.image })
   }
 
   return createPortal(
@@ -203,7 +254,11 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="admin-modal admin-modal--explorer" role="document" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="admin-modal admin-modal--explorer texture-picker-modal"
+        role="document"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="admin-modal-head-row">
           <h4 id="texture-picker-title" className="admin-modal-title">
             Выбор текстуры из базы
@@ -212,75 +267,191 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
             Закрыть
           </button>
         </div>
-        {err && <div className="admin-error admin-error--compact">{err}</div>}
+
         {loading ? (
           <p className="admin-muted">Загрузка папок…</p>
         ) : (
-          <div className="texture-picker-split">
-            <aside className="texture-picker-aside" aria-label="Папки текстур">
-              <h5 className="texture-picker-subh">Папки</h5>
-              <ul className="tree-root">
-                {tree.map((c) => (
-                  <TreeRow
-                    key={c.id}
-                    c={c}
-                    depth={0}
-                    selectedId={selectedFolderId}
-                    expandedIds={expandedIds}
-                    onToggleExpanded={toggleExpanded}
-                    onSelect={setSelectedFolderId}
-                  />
-                ))}
-              </ul>
-            </aside>
-            <section className="texture-picker-main" aria-label="Текстуры в папке">
-              <h5 className="texture-picker-subh">Текстуры</h5>
-              {selectedFolderId == null ? (
-                <p className="admin-muted">Выберите папку слева.</p>
-              ) : itemsLoading ? (
-                <p className="admin-muted">Загрузка…</p>
-              ) : items.length === 0 ? (
-                <p className="admin-muted">В папке нет текстур.</p>
-              ) : (
-                <ul className="texture-picker-grid">
-                  {items.map((it) => {
-                    const url = resolveTextureImageUrl(it.image)
-                    const active = highlightId === it.id
-                    return (
-                      <li key={it.id}>
+          <>
+            {err && <div className="admin-error admin-error--compact">{err}</div>}
+            <div className="admin-body texture-picker-modal-body" id="texture-picker-modal">
+              <aside className="admin-aside" aria-label="Папки текстур">
+                <div className="admin-heading-row">
+                  <h2 className="admin-h2">Папки текстур</h2>
+                </div>
+                <ul
+                  className="folder-explorer-tree-root admin-materials-tree-root"
+                  aria-label="Дерево папок"
+                >
+                  <li className="folder-explorer-tree-item folder-explorer-tree-item--materials-root">
+                    <div
+                      className={
+                        selected == null
+                          ? 'folder-explorer-tree-line folder-explorer-tree-line--active'
+                          : 'folder-explorer-tree-line'
+                      }
+                    >
+                      {tree.length > 0 ? (
                         <button
                           type="button"
-                          className={
-                            active ? 'texture-picker-tile texture-picker-tile--active' : 'texture-picker-tile'
+                          className="folder-explorer-tree-expander"
+                          aria-label={
+                            texturesRootTreeExpanded
+                              ? 'Свернуть список папок'
+                              : 'Развернуть список папок'
                           }
-                          onClick={() => setHighlightId(it.id)}
-                          onDoubleClick={() => onPick({ id: it.id, name: it.name, image: it.image })}
+                          aria-expanded={texturesRootTreeExpanded}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTexturesRootTreeExpanded((v) => !v)
+                          }}
                         >
-                          {url ? (
-                            <span className="texture-picker-thumb" style={{ backgroundImage: `url(${url})` }} />
-                          ) : (
-                            <span className="texture-picker-thumb texture-picker-thumb--empty">Нет файла</span>
-                          )}
-                          <span className="texture-picker-tile-name">{it.name}</span>
+                          <span aria-hidden>{texturesRootTreeExpanded ? '▾' : '▸'}</span>
                         </button>
-                      </li>
-                    )
-                  })}
+                      ) : (
+                        <span
+                          className="folder-explorer-tree-expander folder-explorer-tree-expander--spacer"
+                          aria-hidden
+                        />
+                      )}
+                      <button
+                        type="button"
+                        className="folder-explorer-tree-link"
+                        onClick={() => setSelected(null)}
+                        title="База текстур — все текстуры базы"
+                      >
+                        <span className="folder-explorer-icon" aria-hidden>
+                          🗂️
+                        </span>
+                        <span className="folder-explorer-tree-name">База текстур</span>
+                      </button>
+                    </div>
+                    {texturesRootTreeExpanded && tree.length > 0 ? (
+                      <ul className="folder-explorer-tree-children">
+                        {tree.map((c) => (
+                          <PickerTextureTreeRow
+                            key={c.id}
+                            c={c}
+                            depth={0}
+                            selectedId={selected}
+                            expandedIds={expandedIds}
+                            onToggleExpanded={toggleExpanded}
+                            onSelect={setSelected}
+                          />
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
                 </ul>
-              )}
-              <div className="texture-picker-actions">
-                <button type="button" className="admin-primary" disabled={!canPick} onClick={runPick}>
-                  Выбрать
-                </button>
-                <button type="button" className="admin-secondary" onClick={onClose}>
-                  Отмена
-                </button>
+              </aside>
+              <div className="admin-main-col">
+                <main className="admin-main">
+                  <div className="admin-main-scroll">
+                    <div className="admin-heading-row">
+                      <h2 className="admin-h2">{texturesHeading}</h2>
+                    </div>
+                    <div
+                      className="mat-list-table mat-list-table--textures"
+                      aria-label={
+                        selected == null
+                          ? 'Список всех текстур'
+                          : 'Список текстур в выбранной папке и вложенных'
+                      }
+                    >
+                      <div className="mat-list-item-inner mat-list-item-inner--legend" role="row">
+                        <div className="mat-list-legend" role="presentation">
+                          {TEX_LIST_COLUMNS.map((label) => (
+                            <span key={label} role="columnheader">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <ul className="mat-list">
+                        {items.map((it) => {
+                          const url = resolveTextureImageUrl(it.image)
+                          const rowActive = highlightId === it.id
+                          return (
+                            <li key={it.id} className="mat-list-item">
+                              <div className="mat-list-item-inner">
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  className={
+                                    rowActive
+                                      ? 'mat-list-row mat-list-row--texture mat-list-row--active'
+                                      : 'mat-list-row mat-list-row--texture'
+                                  }
+                                  aria-current={rowActive ? 'true' : undefined}
+                                  aria-label={`Текстура: ${it.name || 'текстура'}. Щелчок — выбрать для подтверждения, двойной щелчок — сразу применить.`}
+                                  onClick={() => setHighlightId(it.id)}
+                                  onDoubleClick={() => pickTexture(it)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      if (rowActive) pickTexture(it)
+                                      else setHighlightId(it.id)
+                                    }
+                                  }}
+                                >
+                                  <span className="mat-list-cell mat-list-cell-tex-prev">
+                                    {url ? (
+                                      <span
+                                        className="mat-list-tex-thumb"
+                                        style={{ backgroundImage: `url(${url})` }}
+                                      />
+                                    ) : (
+                                      <span className="mat-list-tex-thumb mat-list-tex-thumb--empty">
+                                        —
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="mat-list-cell mat-list-cell-name">{it.name}</span>
+                                </div>
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                    {itemsLoading ? <p className="admin-muted">Загрузка списка…</p> : null}
+                    {!itemsLoading && items.length === 0 ? (
+                      <p className="admin-muted admin-calculations-classes-empty">
+                        {selected == null
+                          ? 'Нет текстур в справочнике.'
+                          : 'В этой папке (и вложенных) пока нет текстур.'}
+                      </p>
+                    ) : null}
+                    {itemsHasMore ? (
+                      <button
+                        type="button"
+                        className="admin-secondary"
+                        disabled={itemsLoading}
+                        onClick={loadMoreItems}
+                      >
+                        {itemsLoading ? 'Загрузка…' : 'Загрузить ещё'}
+                      </button>
+                    ) : null}
+                  </div>
+                </main>
               </div>
-            </section>
-          </div>
+            </div>
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-primary"
+                disabled={highlightId == null}
+                onClick={runPick}
+              >
+                Выбрать
+              </button>
+              <button type="button" className="admin-secondary" onClick={onClose}>
+                Отмена
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }
