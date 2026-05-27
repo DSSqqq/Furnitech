@@ -41,6 +41,7 @@ import {
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -78,16 +79,6 @@ function firstFreeHandleSide(
   const list = orientation === 'vertical' ? v : h
   return list.find((s) => !isHandleSideBlockedByHinges(hingeSide, orientation, s)) ?? list[0]
 }
-
-/** Участок короче этого % длины стороны — чаще даёт наложение подписей. */
-const HANDLE_DIM_THIN_SPAN_PCT = 10
-const HANDLE_DIM_NUDGE_STEP_PX = 12
-const HANDLE_DIM_NARROW_SPAN_PCT = 6
-
-/** Как на шаге 6 — цепочки размеров петель на эскизе. */
-const HINGE_DIM_THIN_SPAN_PCT = 10
-const HINGE_DIM_NUDGE_STEP_PX = 12
-const HINGE_DIM_NARROW_SPAN_PCT = 6
 
 export function Step7FrameHandleHoles() {
   const nav = useNavigate()
@@ -356,62 +347,13 @@ export function Step7FrameHandleHoles() {
     return hingeEdgeLengthMm(hingeLayout.side, widthMm, heightMm)
   }, [hingeLayout, widthMm, heightMm])
 
-  /** Цепочки размеров по петлям — те же, что на шаге 6. */
-  const hingeChainDims = useMemo(() => {
-    if (hingeEdgeL == null || hingePositionsOk == null) return []
-    const L = hingeEdgeL
-    const nums = hingePositionsOk
-    const out: { key: string; t0: number; t1: number; valueMm: number }[] = []
-    let prev = 0
-    for (let k = 0; k < nums.length; k++) {
-      const t0 = (prev / L) * 100
-      const t1 = (nums[k] / L) * 100
-      const valueMm = nums[k] - prev
-      if (valueMm > 0.001) {
-        out.push({ key: `step6-hinge-dim-${k}`, t0, t1, valueMm })
-      }
-      prev = nums[k]
-    }
-    const tail = L - prev
-    if (tail > 0.001) {
-      out.push({
-        key: 'step6-hinge-dim-end',
-        t0: (prev / L) * 100,
-        t1: 100,
-        valueMm: tail,
-      })
-    }
-    return out
-  }, [hingeEdgeL, hingePositionsOk])
+  const showHingeOnSketch = mortiseHingeStep && hingeLayout != null && hingePositionsOk != null
 
-  const hingeChainDimsLayout = useMemo(() => {
-    if (!hingeLayout) return []
-    const side = hingeLayout.side
-    const vertical = side === 'left' || side === 'right'
-    let run = 0
-    return hingeChainDims.map((seg) => {
-      const span = seg.t1 - seg.t0
-      let nudgeX = 0
-      let nudgeY = 0
-      if (span < HINGE_DIM_THIN_SPAN_PCT) {
-        const off = run * HINGE_DIM_NUDGE_STEP_PX
-        if (vertical) {
-          nudgeY = -off
-          nudgeX = side === 'left' ? -off * 0.85 : off * 0.85
-        } else if (side === 'top') {
-          nudgeX = -off
-          nudgeY = -off * 0.65
-        } else {
-          nudgeX = off
-          nudgeY = off * 0.65
-        }
-        run += 1
-      } else {
-        run = 0
-      }
-      return { ...seg, nudgeX, nudgeY }
-    })
-  }, [hingeChainDims, hingeLayout])
+  const { layout: hingeChainDimsLayout } = useHingeChainSketchDims(
+    showHingeOnSketch ? hingeLayout?.side : null,
+    hingeEdgeL,
+    showHingeOnSketch ? hingePositionsOk : null,
+  )
 
   const handlePinCoords = useMemo(() => {
     if (widthMm == null || heightMm == null || handleCenters == null) return []
@@ -426,86 +368,20 @@ export function Step7FrameHandleHoles() {
     })
   }, [handleCenters, handleSide, heightMm, widthMm])
 
-  const mainDimSide = hingeLayout?.side ?? handleSide
-  /** Как шаг 5: только общие габариты сверху и слева, без цепочек и маркеров петель/ручки. */
   const noHandleOnSketch = holeCount === 0
   const mainDimPlacement = useMemo(() => {
-    if (noHandleOnSketch) {
-      return { widthPos: 'top' as const, heightPos: 'left' as const }
-    }
-    const widthPos: 'top' | 'bottom' =
-      mainDimSide === 'top' ? 'bottom' : mainDimSide === 'bottom' ? 'top' : 'top'
-    const heightPos: 'left' | 'right' =
-      mainDimSide === 'left' ? 'right' : mainDimSide === 'right' ? 'left' : 'left'
-    return { widthPos, heightPos }
-  }, [mainDimSide, noHandleOnSketch])
+    const chainSides: HingeMountSide[] = []
+    if (showHingeOnSketch && hingeLayout) chainSides.push(hingeLayout.side)
+    if (!noHandleOnSketch) chainSides.push(handleSide)
+    return sketchMainDimPlacement(chainSides)
+  }, [handleSide, hingeLayout, noHandleOnSketch, showHingeOnSketch])
 
-  const handleChainDims = useMemo(() => {
-    if (handleEdgeL == null || handleCenters == null) return []
-    const L = handleEdgeL
-    const nums = handleCenters
-    const out: { key: string; t0: number; t1: number; valueMm: number }[] = []
-    let prev = 0
-    for (let k = 0; k < nums.length; k++) {
-      const t0 = (prev / L) * 100
-      const t1 = (nums[k] / L) * 100
-      const valueMm = nums[k] - prev
-      if (valueMm > 0.001) {
-        out.push({ key: `handle-dim-${k}`, t0, t1, valueMm })
-      }
-      prev = nums[k]
-    }
-    const tail = L - prev
-    if (tail > 0.001) {
-      out.push({
-        key: 'handle-dim-end',
-        t0: (prev / L) * 100,
-        t1: 100,
-        valueMm: tail,
-      })
-    }
-    return out
-  }, [handleCenters, handleEdgeL])
-
-  const handleChainDimsLayout = useMemo(() => {
-    const vertical = handleSide === 'left' || handleSide === 'right'
-    let run = 0
-    return handleChainDims.map((seg) => {
-      const span = seg.t1 - seg.t0
-      let nudgeX = 0
-      let nudgeY = 0
-      if (span < HANDLE_DIM_THIN_SPAN_PCT) {
-        const off = run * HANDLE_DIM_NUDGE_STEP_PX
-        if (vertical) {
-          nudgeY = off
-          nudgeX = handleSide === 'left' ? off * 0.5 : -off * 0.5
-        } else if (handleSide === 'top') {
-          nudgeX = off
-          nudgeY = off * 0.5
-        } else {
-          nudgeX = -off
-          nudgeY = -off * 0.5
-        }
-        run += 1
-      } else {
-        run = 0
-      }
-      return { ...seg, nudgeX, nudgeY }
-    })
-  }, [handleChainDims, handleSide])
-
-  const formatDimMm = (v: number) => `${Math.round(v)} мм`
-
-  function verticalChainLabelStyle(lr: 'left' | 'right', nudgeX: number, nudgeY: number): CSSProperties {
-    const rot = lr === 'left' ? -90 : 90
-    if (nudgeX === 0 && nudgeY === 0) return { transform: `rotate(${rot}deg)` }
-    return { transform: `translate(${nudgeX}px, ${nudgeY}px) rotate(${rot}deg)` }
-  }
-
-  function horizontalChainLabelStyle(nudgeX: number, nudgeY: number): CSSProperties | undefined {
-    if (nudgeX === 0 && nudgeY === 0) return undefined
-    return { transform: `translate(${nudgeX}px, ${nudgeY}px)` }
-  }
+  const { layout: handleChainDimsLayout } = useHingeChainSketchDims(
+    noHandleOnSketch ? null : handleSide,
+    handleEdgeL,
+    noHandleOnSketch ? null : handleCenters,
+    'handle-dim',
+  )
 
   const sideOptions: { id: HingeMountSide; label: string }[] =
     orientation === 'vertical'
@@ -761,7 +637,10 @@ export function Step7FrameHandleHoles() {
               <div
                 className={[
                   'sketch',
-                  !noHandleOnSketch && hingePinCoords.length + handlePinCoords.length > 0 ? 'sketch--hinge-markers' : '',
+                  (showHingeOnSketch && hingePinCoords.length > 0) ||
+                  (!noHandleOnSketch && handlePinCoords.length > 0)
+                    ? 'sketch--hinge-markers'
+                    : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -809,8 +688,8 @@ export function Step7FrameHandleHoles() {
                   </div>
                 </div>
 
-                <div className="sketch-hinge-layer" aria-hidden={noHandleOnSketch || hingePinCoords.length === 0}>
-                  {!noHandleOnSketch
+                <div className="sketch-hinge-layer" aria-hidden={!showHingeOnSketch || hingePinCoords.length === 0}>
+                  {showHingeOnSketch
                     ? hingePinCoords.map((p) => {
                     const style: CSSProperties =
                       p.variant === 'top'
@@ -860,174 +739,12 @@ export function Step7FrameHandleHoles() {
                 </div>
               </div>
 
-              {!noHandleOnSketch && (hingeChainDimsLayout.length > 0 || handleChainDimsLayout.length > 0) ? (
-                <div className="frame3-hinge-dim-layer" aria-hidden>
-                  {hingeLayout
-                    ? hingeChainDimsLayout.map((seg) => {
-                    const vLabel = formatDimMm(seg.valueMm)
-                    const hingeDimSide = hingeLayout.side
-                    if (hingeDimSide === 'left' || hingeDimSide === 'right') {
-                      const spanPct = seg.t1 - seg.t0
-                      const narrow = spanPct < HINGE_DIM_NARROW_SPAN_PCT
-                      const labelStyle = verticalChainLabelStyle(hingeDimSide, seg.nudgeX, seg.nudgeY)
-                      const outer: CSSProperties =
-                        hingeDimSide === 'left'
-                          ? {
-                              left: 0,
-                              top: `${seg.t0}%`,
-                              height: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                              width: '3.1rem',
-                              transform: 'translateX(calc(-100% - var(--hinge-chain-sketch-gap, 30px)))',
-                            }
-                          : {
-                              right: 0,
-                              top: `${seg.t0}%`,
-                              height: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                              width: '3.1rem',
-                              transform: 'translateX(calc(100% + var(--hinge-chain-sketch-gap, 30px)))',
-                            }
-                      return (
-                        <div
-                          key={seg.key}
-                          className={[
-                            'hinge-chain-dim hinge-chain-dim--v',
-                            `hinge-chain-dim--${hingeDimSide}`,
-                            narrow ? 'hinge-chain-dim--narrow' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                          style={outer}
-                        >
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                          <div className="hinge-chain-dim__body">
-                            <div className="hinge-chain-dim__val" style={labelStyle}>
-                              {vLabel}
-                            </div>
-                            <div className="hinge-chain-dim__v">
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--n" />
-                              <span className="hinge-chain-dim__v-line" />
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--s" />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    const hLabelStyle = horizontalChainLabelStyle(seg.nudgeX, seg.nudgeY)
-                    const outer: CSSProperties =
-                      hingeDimSide === 'top'
-                        ? {
-                            top: 0,
-                            left: `${seg.t0}%`,
-                            width: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                            height: '2.35rem',
-                            transform: 'translateY(calc(-100% - var(--hinge-chain-sketch-gap, 30px)))',
-                          }
-                        : {
-                            bottom: 0,
-                            left: `${seg.t0}%`,
-                            width: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                            height: '2.35rem',
-                            transform: 'translateY(calc(100% + var(--hinge-chain-sketch-gap, 30px)))',
-                          }
-                    return (
-                      <div key={seg.key} className={`hinge-chain-dim hinge-chain-dim--h hinge-chain-dim--${hingeDimSide}`} style={outer}>
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                        <div className="hinge-chain-dim__body hinge-chain-dim__body--h">
-                          <div className="hinge-chain-dim__val hinge-chain-dim__val--h" style={hLabelStyle}>
-                            {vLabel}
-                          </div>
-                          <div className="hinge-chain-dim__h">
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--w" />
-                            <span className="hinge-chain-dim__h-line" />
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--e" />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
-                    : null}
-                  {handleChainDimsLayout.map((seg) => {
-                    const vLabel = formatDimMm(seg.valueMm)
-                    if (handleSide === 'left' || handleSide === 'right') {
-                      const spanPct = seg.t1 - seg.t0
-                      const narrow = spanPct < HANDLE_DIM_NARROW_SPAN_PCT
-                      const labelStyle = verticalChainLabelStyle(handleSide, seg.nudgeX, seg.nudgeY)
-                      const outer: CSSProperties =
-                        handleSide === 'left'
-                          ? {
-                              left: 0,
-                              top: `${seg.t0}%`,
-                              height: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                              width: '3.1rem',
-                              transform: 'translateX(calc(-100% - var(--hinge-chain-sketch-gap, 30px)))',
-                            }
-                          : {
-                              right: 0,
-                              top: `${seg.t0}%`,
-                              height: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                              width: '3.1rem',
-                              transform: 'translateX(calc(100% + var(--hinge-chain-sketch-gap, 30px)))',
-                            }
-                      return (
-                        <div
-                          key={seg.key}
-                          className={['hinge-chain-dim hinge-chain-dim--v', `hinge-chain-dim--${handleSide}`, narrow ? 'hinge-chain-dim--narrow' : '']
-                            .filter(Boolean)
-                            .join(' ')}
-                          style={outer}
-                        >
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                          <div className="hinge-chain-dim__body">
-                            <div className="hinge-chain-dim__val" style={labelStyle}>
-                              {vLabel}
-                            </div>
-                            <div className="hinge-chain-dim__v">
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--n" />
-                              <span className="hinge-chain-dim__v-line" />
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--s" />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    const hLabelStyle = horizontalChainLabelStyle(seg.nudgeX, seg.nudgeY)
-                    const outer: CSSProperties =
-                      handleSide === 'top'
-                        ? {
-                            top: 0,
-                            left: `${seg.t0}%`,
-                            width: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                            height: '2.35rem',
-                            transform: 'translateY(calc(-100% - var(--hinge-chain-sketch-gap, 30px)))',
-                          }
-                        : {
-                            bottom: 0,
-                            left: `${seg.t0}%`,
-                            width: `${Math.max(seg.t1 - seg.t0, 0.8)}%`,
-                            height: '2.35rem',
-                            transform: 'translateY(calc(100% + var(--hinge-chain-sketch-gap, 30px)))',
-                          }
-                    return (
-                      <div key={seg.key} className={`hinge-chain-dim hinge-chain-dim--h hinge-chain-dim--${handleSide}`} style={outer}>
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                        <div className="hinge-chain-dim__body hinge-chain-dim__body--h">
-                          <div className="hinge-chain-dim__val hinge-chain-dim__val--h" style={hLabelStyle}>
-                            {vLabel}
-                          </div>
-                          <div className="hinge-chain-dim__h">
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--w" />
-                            <span className="hinge-chain-dim__h-line" />
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--e" />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+              {showHingeOnSketch && hingeLayout ? (
+                <HingeChainDimLayer side={hingeLayout.side} segments={hingeChainDimsLayout} />
+              ) : null}
+
+              {!noHandleOnSketch ? (
+                <HingeChainDimLayer side={handleSide} segments={handleChainDimsLayout} />
               ) : null}
             </div>
 

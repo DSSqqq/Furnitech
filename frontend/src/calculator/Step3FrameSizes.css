@@ -217,43 +217,71 @@
   margin-right: var(--frame3-dim-sketch-gap-x);
 }
 
+/*
+ * Раньше тут была grid-разметка «значение | отрезок» (1fr + auto), из-за чего
+ * повёрнутая на ±90° цифра занимала всю широкую колонку (~54px), а её визуальная
+ * ширина — всего ~1em (~14px). Подпись «болталась» в середине колонки и до линии
+ * оставалось ~27px пустоты. Делаем абсолютное позиционирование — как у вертикальных
+ * подписей цепочки петель (`.hinge-chain-dim--v ... .hinge-chain-dim__val`),
+ * чтобы цифра вставала вплотную к v-линии с зазором ~8px (через --frame3-dim-label-gap).
+ */
 .frame3-dim-drawing__left-col {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  /* Строка на всю высоту эскиза — иначе height:100% у стрелок не срабатывает и линия «рвётся» */
-  grid-template-rows: minmax(0, 1fr);
-  align-items: stretch;
-  gap: var(--frame3-dim-label-gap, 8px);
-  padding-right: 2px;
   min-height: 0;
 }
 
 /* Как на чертеже: слева — чтение снизу вверх (-90°), справа — сверху вниз (+90°) */
 .frame3-dim-drawing__value--side {
+  position: absolute;
+  top: 50%;
   writing-mode: horizontal-tb;
   text-orientation: mixed;
-  transform: rotate(-90deg);
   text-align: center;
-  justify-self: center;
-  align-self: center;
+  white-space: nowrap;
+  transform-origin: center center;
+}
+
+/*
+ * Опора подписи — точка `right/left: ½ V-line + label-gap` от внутреннего края
+ * `__left-col`. `translate(±50%, -50%)` ставит ЦЕНТР подписи на эту точку,
+ * затем rotate ±90° поворачивает текст вокруг того же центра. В итоге визуальный
+ * край цифры оказывается у самой v-линии (как у петель).
+ */
+.frame3-dim-drawing--left .frame3-dim-drawing__value--side {
+  right: calc(2px + 4px + var(--frame3-dim-label-gap, 8px));
+  transform: translate(50%, -50%) rotate(-90deg);
 }
 
 .frame3-dim-drawing--right .frame3-dim-drawing__value--side {
-  transform: rotate(90deg);
+  left: calc(2px + 4px + var(--frame3-dim-label-gap, 8px));
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
+/*
+ * `__v` — вертикальный отрезок со стрелками на концах. Ставим абсолютно вплотную
+ * к краю контейнера, ближнему к эскизу. Ширина 8px = ширина стрелок; v-линия
+ * (1px border-left) центрируется внутри `justify-items: center`, поэтому центр
+ * отрезка отстоит на 4px от внешнего края (используется в формуле подписи выше).
+ */
 .frame3-dim-drawing__v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
   display: grid;
   grid-template-rows: auto minmax(12px, 1fr) auto;
   justify-items: center;
   align-content: stretch;
-  align-self: stretch;
-  width: auto;
-  min-width: 0;
-  height: auto;
   min-height: 48px;
+}
+
+.frame3-dim-drawing--left .frame3-dim-drawing__v {
+  right: 2px;
+}
+
+.frame3-dim-drawing--right .frame3-dim-drawing__v {
+  left: 2px;
 }
 
 .frame3-dim-drawing__v-line {
@@ -339,24 +367,11 @@
   margin-left: var(--frame3-dim-sketch-gap-x);
 }
 
-.frame3-dim-drawing--right .frame3-dim-drawing__left-col {
-  grid-template-columns: auto minmax(0, 1fr);
-  padding-right: 0;
-  padding-left: 2px;
-}
-
-.frame3-dim-drawing--right .frame3-dim-drawing__value--side {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: center;
-  align-self: center;
-}
-
-.frame3-dim-drawing--right .frame3-dim-drawing__v {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: center;
-}
+/*
+ * Бывшие grid-переопределения для --right (`grid-template-columns: auto minmax(0,1fr)`,
+ * `grid-column/row` у подписи и `__v`) удалены — теперь оба элемента позиционируются
+ * абсолютно, и переключение сторон делается через `left:`/`right:` выше.
+ */
 
 .frame3-dim-drawing--right .frame3-dim-drawing__ext-h {
   position: absolute;
@@ -765,20 +780,33 @@
   min-height: 0;
 }
 
+/*
+ * Подпись опирается на ЦЕНТР контейнера (где проходит отрезок .hinge-chain-dim__h),
+ * а не на его край — иначе к зазору `--hinge-chain-label-gap` прибавляется ещё
+ * половина высоты контейнера и подпись «уезжает» от линии (≈ 21px вместо 8px).
+ * Приём симметричен вертикальной цепочке (`.hinge-chain-dim--v ... .hinge-chain-dim__val`),
+ * где подпись смещается от центра трека через `translate(±50%, -50%)`.
+ */
 .hinge-chain-dim__val--h {
   position: absolute;
   left: 50%;
-  top: 0;
+  top: 50%;
   writing-mode: horizontal-tb;
-  transform: translate(calc(-50% + var(--hinge-label-nudge-x, 0px)), calc(-100% - var(--hinge-chain-label-gap, 8px) + var(--hinge-label-nudge-y, 0px)));
+  transform: translate(
+    calc(-50% + var(--hinge-label-nudge-x, 0px)),
+    calc(-50% - var(--hinge-chain-label-gap, 8px) + var(--hinge-label-nudge-y, 0px))
+  );
   text-align: center;
   white-space: nowrap;
 }
 
 .hinge-chain-dim--bottom .hinge-chain-dim__val--h {
-  top: auto;
-  bottom: 0;
-  transform: translate(calc(-50% + var(--hinge-label-nudge-x, 0px)), calc(100% + var(--hinge-chain-label-gap, 8px) + var(--hinge-label-nudge-y, 0px)));
+  top: 50%;
+  bottom: auto;
+  transform: translate(
+    calc(-50% + var(--hinge-label-nudge-x, 0px)),
+    calc(-50% + var(--hinge-chain-label-gap, 8px) + var(--hinge-label-nudge-y, 0px))
+  );
 }
 
 .hinge-chain-dim__h {

@@ -26,6 +26,7 @@ import {
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -66,14 +67,6 @@ function defaultHingeDistStrRow(L: number | null, count: number): string[] {
 }
 
 /** Зазор «размерная линия — эскиз» задаётся в CSS (`--hinge-chain-sketch-gap` на `.frame3-hinge-dim-layer`), как у верхнего габарита. */
-
-/** Участок короче этого % длины стороны — чаще даёт наложение подписей. */
-const HINGE_DIM_THIN_SPAN_PCT = 10
-
-const HINGE_DIM_NUDGE_STEP_PX = 12
-
-/** Узкий участок: стрелки не помещаются — вертикаль на всю высоту от выноски до выноски. */
-const HINGE_DIM_NARROW_SPAN_PCT = 6
 
 function parsePositions(distStr: string[]): number[] {
   return distStr.map((s) => Number(String(s).trim().replace(',', '.')))
@@ -287,13 +280,7 @@ export function Step6FrameHingeLayout() {
       : 'Петля №1 считается от верхнего края, остальные петли — от нижнего края. По умолчанию позиции равномерно вдоль кромки (по длине стороны из шага 3).'
 
   /** Чтобы не наслаивать общие габариты на цепочки петель: основной размер с противоположной стороны. */
-  const mainDimPlacement = useMemo(() => {
-    const widthPos: 'top' | 'bottom' =
-      side === 'top' ? 'bottom' : side === 'bottom' ? 'top' : 'top'
-    const heightPos: 'left' | 'right' =
-      side === 'left' ? 'right' : side === 'right' ? 'left' : 'left'
-    return { widthPos, heightPos }
-  }, [side])
+  const mainDimPlacement = useMemo(() => sketchMainDimPlacement([side]), [side])
 
   const pinCoords = useMemo(() => {
     if (widthMm == null || heightMm == null || edgeL == null || positionsAbs == null) return []
@@ -309,91 +296,9 @@ export function Step6FrameHingeLayout() {
     })
   }, [edgeL, heightMm, positionsAbs, side, widthMm])
 
-  /** Размеры петель: №1 от начального края, остальные — от противоположного края. */
-  const hingeChainDims = useMemo(() => {
-    if (edgeL == null || positionsAbs == null) return []
-    const nums = positionsAbs
-    if (validateHingePositions(side, nums)) return []
-    const L = edgeL
-    const out: {
-      key: string
-      hingeIndex: number
-      fromStart: boolean
-      /** Доля 0…100: верх трека (уровень петли для №2+; 0 для №1). */
-      trackTopPct: number
-      /** Доля 0…100: высота трека до противоположного края фасада. */
-      trackSpanPct: number
-      valueMm: number
-      trackOffsetPx: number
-    }[] = []
-    const trackStepPx = 26
-    const endHingeIndices: number[] = []
-    for (let k = 0; k < nums.length; k++) {
-      if (!hingeMeasuresFromEdgeStart(k, nums.length)) endHingeIndices.push(k)
-    }
-    const endCount = endHingeIndices.length
-    // Последняя петля (№n) — дорожка 0, как у №1; №2…№n−1 — ступеньки дальше от эскиза.
-    endHingeIndices.sort((a, b) => nums[a] - nums[b])
-    const endTrackRank = new Map(endHingeIndices.map((k, i) => [k, endCount - 1 - i]))
-    for (let k = 0; k < nums.length; k++) {
-      const fromStart = hingeMeasuresFromEdgeStart(k, nums.length)
-      const pos = nums[k]
-      const valueMm = fromStart ? pos : L - pos
-      if (valueMm > 0.001) {
-        const hingePct = (pos / L) * 100
-        const endTrackIndex = fromStart ? 0 : (endTrackRank.get(k) ?? 0)
-        const trackTopPct = fromStart ? 0 : hingePct
-        const trackSpanPct = fromStart ? hingePct : 100 - hingePct
-        out.push({
-          key: `hinge-dim-${k}`,
-          hingeIndex: k,
-          fromStart,
-          trackTopPct,
-          trackSpanPct,
-          valueMm,
-          trackOffsetPx: endTrackIndex * trackStepPx,
-        })
-      }
-    }
-    return out
-  }, [edgeL, positionsAbs, side])
-
-  /** Сдвиг только подписи: линии/выноски остаются на месте. Вертикаль: вверх + чуть в сторону от фасада. */
-  const hingeChainDimsLayout = useMemo(() => {
-    const vertical = side === 'left' || side === 'right'
-    let run = 0
-    return hingeChainDims.map((seg) => {
-      const span = seg.trackSpanPct
-      let nudgeX = 0
-      let nudgeY = 0
-      if (span < HINGE_DIM_THIN_SPAN_PCT) {
-        const off = run * HINGE_DIM_NUDGE_STEP_PX
-        if (vertical) {
-          nudgeY = -off
-          nudgeX = side === 'left' ? -off * 0.85 : off * 0.85
-        } else if (side === 'top') {
-          nudgeX = -off
-          nudgeY = -off * 0.65
-        } else {
-          nudgeX = off
-          nudgeY = off * 0.65
-        }
-        run += 1
-      } else {
-        run = 0
-      }
-      return { ...seg, nudgeX, nudgeY }
-    })
-  }, [hingeChainDims, side])
-
-  const formatDimMm = (v: number) => `${Math.round(v)} мм`
-
-  function hingeLabelNudgeStyle(nudgeX: number, nudgeY: number): CSSProperties {
-    return {
-      ['--hinge-label-nudge-x' as string]: `${nudgeX}px`,
-      ['--hinge-label-nudge-y' as string]: `${nudgeY}px`,
-    }
-  }
+  const positionsForSketch =
+    positionsAbs != null && validateHingePositions(side, positionsAbs) == null ? positionsAbs : null
+  const { layout: hingeChainDimsLayout } = useHingeChainSketchDims(side, edgeL, positionsForSketch)
 
   return (
     <div className="frame2">
@@ -588,104 +493,7 @@ export function Step6FrameHingeLayout() {
                 </div>
               </div>
 
-              {hingeChainDimsLayout.length > 0 ? (
-                <div className="frame3-hinge-dim-layer" aria-hidden>
-                  {hingeChainDimsLayout.map((seg) => {
-                    const vLabel = formatDimMm(seg.valueMm)
-                    if (side === 'left' || side === 'right') {
-                      const spanPct = seg.trackSpanPct
-                      const narrow = spanPct < HINGE_DIM_NARROW_SPAN_PCT
-                      const labelStyle = hingeLabelNudgeStyle(seg.nudgeX, seg.nudgeY)
-                      const spanHeightPct = Math.max(spanPct, 0.8)
-                      const trackShift =
-                        side === 'left'
-                          ? `translateX(calc(-100% - var(--hinge-chain-sketch-gap, 30px) - ${seg.trackOffsetPx}px))`
-                          : `translateX(calc(100% + var(--hinge-chain-sketch-gap, 30px) + ${seg.trackOffsetPx}px))`
-                      const outer: CSSProperties =
-                        side === 'left'
-                          ? {
-                              left: 0,
-                              top: `${seg.trackTopPct}%`,
-                              height: `${spanHeightPct}%`,
-                              width: '1.35rem',
-                              ['--hinge-chain-track-offset' as any]: `${seg.trackOffsetPx}px`,
-                              transform: trackShift,
-                            }
-                          : {
-                              right: 0,
-                              top: `${seg.trackTopPct}%`,
-                              height: `${spanHeightPct}%`,
-                              width: '1.35rem',
-                              ['--hinge-chain-track-offset' as any]: `${seg.trackOffsetPx}px`,
-                              transform: trackShift,
-                            }
-                      return (
-                        <div
-                          key={seg.key}
-                          className={[
-                            'hinge-chain-dim hinge-chain-dim--v',
-                            `hinge-chain-dim--${side}`,
-                            seg.trackOffsetPx > 0 ? 'hinge-chain-dim--tracked' : '',
-                            narrow ? 'hinge-chain-dim--narrow' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                          style={outer}
-                        >
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                          <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                          <div className="hinge-chain-dim__body">
-                            <div className="hinge-chain-dim__val" style={labelStyle}>
-                              {vLabel}
-                            </div>
-                            <div className="hinge-chain-dim__v">
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--n" />
-                              <span className="hinge-chain-dim__v-line" />
-                              <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--s" />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    const hLabelStyle = hingeLabelNudgeStyle(seg.nudgeX, seg.nudgeY)
-                    const hSpanPct = Math.max(seg.trackSpanPct, 0.8)
-                    const outer: CSSProperties =
-                      side === 'top'
-                        ? {
-                            top: 0,
-                            left: `${seg.trackTopPct}%`,
-                            width: `${hSpanPct}%`,
-                            height: '1.65rem',
-                            ['--hinge-chain-track-offset' as any]: `${seg.trackOffsetPx}px`,
-                            transform: `translateY(calc(-100% - var(--hinge-chain-sketch-gap, 30px) - ${seg.trackOffsetPx}px))`,
-                          }
-                        : {
-                            bottom: 0,
-                            left: `${seg.trackTopPct}%`,
-                            width: `${hSpanPct}%`,
-                            height: '1.65rem',
-                            ['--hinge-chain-track-offset' as any]: `${seg.trackOffsetPx}px`,
-                            transform: `translateY(calc(100% + var(--hinge-chain-sketch-gap, 30px) + ${seg.trackOffsetPx}px))`,
-                          }
-                    return (
-                      <div key={seg.key} className={`hinge-chain-dim hinge-chain-dim--h hinge-chain-dim--${side}`} style={outer}>
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--start" />
-                        <span className="hinge-chain-dim__wit hinge-chain-dim__wit--end" />
-                        <div className="hinge-chain-dim__body hinge-chain-dim__body--h">
-                          <div className="hinge-chain-dim__val hinge-chain-dim__val--h" style={hLabelStyle}>
-                            {vLabel}
-                          </div>
-                          <div className="hinge-chain-dim__h">
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--w" />
-                            <span className="hinge-chain-dim__h-line" />
-                            <span className="frame3-dim-drawing__arrow frame3-dim-drawing__arrow--e" />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : null}
+              <HingeChainDimLayer side={side} segments={hingeChainDimsLayout} />
             </div>
 
             <div
