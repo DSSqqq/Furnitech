@@ -555,7 +555,12 @@ class CalculatorProfileViewSet(viewsets.ModelViewSet):
 
 
 class CalculatorProfileTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorProfileType.objects.all().prefetch_related(
+    queryset = CalculatorProfileType.objects.all().select_related(
+        "card_texture",
+        "card_texture_2",
+        "card_texture_3",
+        "card_texture_4",
+    ).prefetch_related(
         "colors__color_material__uom", "colors__color_material__texture_item"
     )
     serializer_class = CalculatorProfileTypeSerializer
@@ -564,7 +569,12 @@ class CalculatorProfileTypeViewSet(viewsets.ModelViewSet):
 
 
 class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorFillingType.objects.all().prefetch_related(
+    queryset = CalculatorFillingType.objects.all().select_related(
+        "card_texture",
+        "card_texture_2",
+        "card_texture_3",
+        "card_texture_4",
+    ).prefetch_related(
         "materials__material__uom", "materials__material__texture_item"
     )
     serializer_class = CalculatorFillingTypeSerializer
@@ -573,7 +583,12 @@ class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
 
 
 class CalculatorHingeTypeViewSet(viewsets.ModelViewSet):
-    queryset = CalculatorHingeType.objects.all().prefetch_related(
+    queryset = CalculatorHingeType.objects.all().select_related(
+        "card_texture",
+        "card_texture_2",
+        "card_texture_3",
+        "card_texture_4",
+    ).prefetch_related(
         "materials__material__uom", "materials__material__texture_item"
     )
     serializer_class = CalculatorHingeTypeSerializer
@@ -608,22 +623,35 @@ class CalculatorHandleHoleDiameterViewSet(viewsets.ModelViewSet):
 
 
 class FacadeOrderViewSet(viewsets.ModelViewSet):
-    """Заказы калькулятора: создаёт клиент (multipart PDF + snapshot); список — свои; сотрудник — все; PATCH статуса и DELETE — только staff."""
+    """Заказы калькулятора: клиент видит свои; админский раздел заказов видит все; PATCH статусов — staff/manager."""
 
     queryset = FacadeOrder.objects.all().select_related("user").order_by("-created_at")
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @staticmethod
+    def _is_manager(u) -> bool:
+        try:
+            return u.groups.filter(name="Менеджеры").exists()
+        except Exception:  # noqa: BLE001
+            return False
+
     def get_permissions(self):
-        if self.action in ("partial_update", "update", "destroy"):
+        # Менеджеры могут менять статусы (PATCH), но удаление — только staff.
+        if self.action in ("partial_update", "update"):
+            return [IsAuthenticated()]
+        if self.action in ("destroy",):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = super().get_queryset()
         u = self.request.user
-        if u.is_staff or u.is_superuser:
+        can_manage_orders = u.is_staff or u.is_superuser or self._is_manager(u)
+        if self.action in ("partial_update", "update", "destroy") and can_manage_orders:
+            return qs
+        if can_manage_orders and self.request.query_params.get("scope") == "admin":
             return qs
         return qs.filter(user=u)
 
@@ -638,6 +666,9 @@ class FacadeOrderViewSet(viewsets.ModelViewSet):
         return ctx
 
     def partial_update(self, request, *args, **kwargs):
+        u = request.user
+        if not (u.is_staff or u.is_superuser or self._is_manager(u) or u.has_perm("materials.change_facadeorder")):
+            return Response({"detail": "Недостаточно прав."}, status=403)
         instance = self.get_object()
         ser = FacadeOrderStaffUpdateSerializer(
             instance,

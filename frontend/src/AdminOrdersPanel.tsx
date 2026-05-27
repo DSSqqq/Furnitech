@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { FacadeOrder, FacadeOrderStatus } from './api'
-import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderStatus } from './api'
+import type { FacadeOrder, FacadeOrderPaymentStatus, FacadeOrderStatus } from './api'
+import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderPaymentStatus, patchFacadeOrderStatus } from './api'
 import { FtSelect, type FtSelectOption } from './FtSelect'
-import { HintButton } from './HintButton'
 
 const STATUS_OPTIONS: FtSelectOption[] = [
   { value: 'not_confirmed', label: 'Не подтверждён' },
@@ -12,6 +11,42 @@ const STATUS_OPTIONS: FtSelectOption[] = [
   { value: 'ready', label: 'Готов к выдаче' },
   { value: 'completed', label: 'Завершён' },
 ]
+
+const PAYMENT_STATUS_OPTIONS: FtSelectOption[] = [
+  { value: 'unpaid', label: 'Не оплачен' },
+  { value: 'partial', label: 'Частично оплачен' },
+  { value: 'paid', label: 'Оплачен' },
+]
+
+function orderStatusClass(status: FacadeOrderStatus): string {
+  switch (status) {
+    case 'not_confirmed':
+      return 'admin-orders-status-ft--status-not-confirmed'
+    case 'confirmed':
+      return 'admin-orders-status-ft--status-confirmed'
+    case 'in_production':
+      return 'admin-orders-status-ft--status-in-production'
+    case 'ready':
+      return 'admin-orders-status-ft--status-ready'
+    case 'completed':
+      return 'admin-orders-status-ft--status-completed'
+    default:
+      return ''
+  }
+}
+
+function orderPaymentStatusClass(paymentStatus: FacadeOrderPaymentStatus): string {
+  switch (paymentStatus) {
+    case 'unpaid':
+      return 'admin-orders-status-ft--pay-unpaid'
+    case 'partial':
+      return 'admin-orders-status-ft--pay-partial'
+    case 'paid':
+      return 'admin-orders-status-ft--pay-paid'
+    default:
+      return ''
+  }
+}
 
 function formatDt(iso: string): string {
   try {
@@ -29,7 +64,11 @@ function formatDt(iso: string): string {
   }
 }
 
-export function AdminOrdersPanel() {
+type AdminOrdersPanelProps = {
+  canDelete?: boolean
+}
+
+export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
   const [rows, setRows] = useState<FacadeOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -40,7 +79,7 @@ export function AdminOrdersPanel() {
   const load = useCallback(() => {
     setErr(null)
     setLoading(true)
-    return fetchFacadeOrders()
+    return fetchFacadeOrders({ scope: 'admin' })
       .then((data) => setRows(data.results ?? []))
       .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false))
@@ -53,6 +92,16 @@ export function AdminOrdersPanel() {
   const onStatusChange = (id: number, status: FacadeOrderStatus) => {
     setStatusPending(id)
     patchFacadeOrderStatus(id, status)
+      .then((updated) => {
+        setRows((prev) => prev.map((r) => (r.id === id ? updated : r)))
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => setStatusPending(null))
+  }
+
+  const onPaymentStatusChange = (id: number, payment_status: FacadeOrderPaymentStatus) => {
+    setStatusPending(id)
+    patchFacadeOrderPaymentStatus(id, payment_status)
       .then((updated) => {
         setRows((prev) => prev.map((r) => (r.id === id ? updated : r)))
       })
@@ -83,7 +132,6 @@ export function AdminOrdersPanel() {
           <button type="button" className="admin-secondary admin-secondary--sm" onClick={() => void load()}>
             Обновить
           </button>
-          <HintButton text="Заказы создаются, когда клиент на сайте на шаге «Итог» нажимает «Отправить». Статус меняйте по мере работы: созвон, подтверждение, сборка, готовность к выдаче, после выдачи — «Завершён»." />
         </div>
       </div>
       {err ? <div className="admin-error admin-error--compact">{err}</div> : null}
@@ -101,6 +149,7 @@ export function AdminOrdersPanel() {
                 <th scope="col">Клиент</th>
                 <th scope="col">Контакты в заявке</th>
                 <th scope="col">Статус</th>
+                <th scope="col">Статус оплаты</th>
                 <th scope="col">PDF</th>
                 <th scope="col" className="admin-orders-actions-th">
                   Действия
@@ -125,12 +174,22 @@ export function AdminOrdersPanel() {
                   </td>
                   <td className="admin-orders-status-cell" data-label="Статус">
                     <FtSelect
-                      className="admin-orders-status-ft"
+                      className={`admin-orders-status-ft ${orderStatusClass(o.status)}`}
                       value={o.status}
                       options={STATUS_OPTIONS}
                       disabled={statusPending === o.id}
                       onChange={(v) => onStatusChange(o.id, v as FacadeOrderStatus)}
                       aria-label={`Статус заказа ${o.order_number}`}
+                    />
+                  </td>
+                  <td className="admin-orders-status-cell" data-label="Статус оплаты">
+                    <FtSelect
+                      className={`admin-orders-status-ft ${orderPaymentStatusClass(o.payment_status)}`}
+                      value={o.payment_status}
+                      options={PAYMENT_STATUS_OPTIONS}
+                      disabled={statusPending === o.id}
+                      onChange={(v) => onPaymentStatusChange(o.id, v as FacadeOrderPaymentStatus)}
+                      aria-label={`Статус оплаты заказа ${o.order_number}`}
                     />
                   </td>
                   <td data-label="PDF">
@@ -148,14 +207,18 @@ export function AdminOrdersPanel() {
                     )}
                   </td>
                   <td className="admin-orders-actions-cell" data-label="Действия">
-                    <button
-                      type="button"
-                      className="admin-secondary admin-secondary--sm admin-danger"
-                      disabled={statusPending === o.id || deletePending}
-                      onClick={() => setOrderToDelete(o)}
-                    >
-                      Удалить
-                    </button>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        className="admin-secondary admin-secondary--sm admin-danger"
+                        disabled={statusPending === o.id || deletePending}
+                        onClick={() => setOrderToDelete(o)}
+                      >
+                        Удалить
+                      </button>
+                    ) : (
+                      <span className="admin-muted">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -625,10 +625,26 @@ class CalculatorProfileType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_1",
+        verbose_name="Картинка 1 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_2 = models.ImageField(
         "Картинка 2 (файл)",
         upload_to="profile_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_2 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_2",
+        verbose_name="Картинка 2 из базы текстур",
         null=True,
         blank=True,
     )
@@ -639,10 +655,26 @@ class CalculatorProfileType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture_3 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_3",
+        verbose_name="Картинка 3 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_4 = models.ImageField(
         "Картинка 4 (файл)",
         upload_to="profile_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_4 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_4",
+        verbose_name="Картинка 4 из базы текстур",
         null=True,
         blank=True,
     )
@@ -713,10 +745,26 @@ class CalculatorFillingType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="filling_type_card_1",
+        verbose_name="Картинка 1 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_2 = models.ImageField(
         "Картинка 2 (файл)",
         upload_to="filling_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_2 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="filling_type_card_2",
+        verbose_name="Картинка 2 из базы текстур",
         null=True,
         blank=True,
     )
@@ -727,10 +775,26 @@ class CalculatorFillingType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture_3 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="filling_type_card_3",
+        verbose_name="Картинка 3 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_4 = models.ImageField(
         "Картинка 4 (файл)",
         upload_to="filling_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_4 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="filling_type_card_4",
+        verbose_name="Картинка 4 из базы текстур",
         null=True,
         blank=True,
     )
@@ -798,10 +862,26 @@ class CalculatorHingeType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="hinge_type_card_1",
+        verbose_name="Картинка 1 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_2 = models.ImageField(
         "Картинка 2 (файл)",
         upload_to="hinge_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_2 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="hinge_type_card_2",
+        verbose_name="Картинка 2 из базы текстур",
         null=True,
         blank=True,
     )
@@ -812,10 +892,26 @@ class CalculatorHingeType(models.Model):
         null=True,
         blank=True,
     )
+    card_texture_3 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="hinge_type_card_3",
+        verbose_name="Картинка 3 из базы текстур",
+        null=True,
+        blank=True,
+    )
     card_image_4 = models.ImageField(
         "Картинка 4 (файл)",
         upload_to="hinge_types/",
         max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_4 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="hinge_type_card_4",
+        verbose_name="Картинка 4 из базы текстур",
         null=True,
         blank=True,
     )
@@ -900,6 +996,11 @@ class FacadeOrder(models.Model):
         READY = "ready", "Готов к выдаче"
         COMPLETED = "completed", "Завершён"
 
+    class PaymentStatus(models.TextChoices):
+        UNPAID = "unpaid", "Не оплачен"
+        PARTIAL = "partial", "Частично оплачен"
+        PAID = "paid", "Оплачен"
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -911,6 +1012,13 @@ class FacadeOrder(models.Model):
         max_length=32,
         choices=Status.choices,
         default=Status.NOT_CONFIRMED,
+        db_index=True,
+    )
+    payment_status = models.CharField(
+        "Статус оплаты",
+        max_length=32,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID,
         db_index=True,
     )
     contact_name = models.CharField("Имя в заявке", max_length=255, blank=True)

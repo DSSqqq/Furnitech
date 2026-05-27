@@ -15,8 +15,8 @@ import './App.css'
 
 type AuthState = { phase: 'loading' } | { phase: 'guest' } | { phase: 'authed'; user: Me }
 
-function safePostLoginTarget(rawFrom: string | undefined, isStaff: boolean): string {
-  const fallback = isStaff ? '/materials' : '/'
+function safePostLoginTarget(rawFrom: string | undefined, access: 'admin' | 'manager' | 'public'): string {
+  const fallback = access === 'admin' ? '/materials' : access === 'manager' ? '/orders' : '/'
   if (rawFrom == null || rawFrom === '') return fallback
   const trimmed = rawFrom.trim()
   if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return fallback
@@ -26,20 +26,24 @@ function safePostLoginTarget(rawFrom: string | undefined, isStaff: boolean): str
   if (isPublicCalculatorRoute(pathname) || pathname.replace(/\/$/, '') === '/my-orders') {
     return noHash || '/'
   }
-    if (isStaff) {
-      if (
-        pathname.startsWith('/materials') ||
-        pathname.startsWith('/textures') ||
-        pathname.startsWith('/calculator') ||
-        pathname.startsWith('/classes') ||
-        pathname.startsWith('/uom') ||
-        pathname.startsWith('/calculations') ||
-        pathname.startsWith('/orders') ||
-        pathname.startsWith('/users')
-      ) {
-        return noHash
-      }
+  if (access === 'admin') {
+    if (
+      pathname.startsWith('/materials') ||
+      pathname.startsWith('/textures') ||
+      pathname.startsWith('/calculator') ||
+      pathname.startsWith('/classes') ||
+      pathname.startsWith('/uom') ||
+      pathname.startsWith('/calculations') ||
+      pathname.startsWith('/orders') ||
+      pathname.startsWith('/users')
+    ) {
+      return noHash
     }
+  } else if (access === 'manager') {
+    if (pathname.startsWith('/orders') || pathname.startsWith('/calculator')) {
+      return noHash
+    }
+  }
   return fallback
 }
 
@@ -52,16 +56,24 @@ function LoginRoute({ auth, onAfterLogin }: { auth: AuthState; onAfterLogin: () 
     return <p className="app-loading">Проверка сессии…</p>
   }
   if (auth.phase === 'authed') {
-    const staff = auth.user.is_staff || auth.user.is_superuser
-    return <Navigate to={safePostLoginTarget(rawFrom, staff)} replace />
+    const access: 'admin' | 'manager' | 'public' = auth.user.is_superuser || auth.user.is_staff
+      ? 'admin'
+      : auth.user.is_manager
+        ? 'manager'
+        : 'public'
+    return <Navigate to={safePostLoginTarget(rawFrom, access)} replace />
   }
 
   return (
     <LoginPage
       onSuccess={() => {
         void onAfterLogin().then((me) => {
-          const staff = Boolean(me && (me.is_staff || me.is_superuser))
-          nav(safePostLoginTarget(rawFrom, staff), { replace: true })
+          const access: 'admin' | 'manager' | 'public' = me && (me.is_superuser || me.is_staff)
+            ? 'admin'
+            : me && me.is_manager
+              ? 'manager'
+              : 'public'
+          nav(safePostLoginTarget(rawFrom, access), { replace: true })
         })
       }}
     />
@@ -76,7 +88,7 @@ function AdminRoute({ auth, children }: { auth: AuthState; children: (user: Me) 
   if (auth.phase === 'guest') {
     return <Navigate to="/login" replace state={{ from: `${loc.pathname}${loc.search}` }} />
   }
-  if (!auth.user.is_staff && !auth.user.is_superuser) {
+  if (!auth.user.is_staff && !auth.user.is_superuser && !auth.user.is_manager) {
     return <Navigate to="/" replace />
   }
   return <>{children(auth.user)}</>
@@ -113,15 +125,30 @@ function PublicShell() {
         </Link>
         <nav className="public-shell__nav" aria-label="Служебные ссылки">
           {auth.phase === 'loading' ? null : auth.phase === 'authed' &&
-            (auth.user.is_staff || auth.user.is_superuser) ? (
+            (auth.user.is_staff || auth.user.is_superuser || auth.user.is_manager) ? (
             <div className="public-shell__user">
               <span className="public-shell__user-name" title={auth.user.username}>
                 {auth.user.email || auth.user.username}
               </span>
               <ThemeToggle />
-              <Link to="/materials" className="public-shell__link">
-                Админка
+              <Link
+                to={auth.user.is_manager && !auth.user.is_staff && !auth.user.is_superuser ? '/orders' : '/materials'}
+                className="public-shell__link"
+              >
+                {auth.user.is_manager && !auth.user.is_staff && !auth.user.is_superuser
+                  ? 'Войти как менеджер'
+                  : 'Войти как администратор'}
               </Link>
+              <button
+                type="button"
+                className="public-shell__logout"
+                onClick={() => {
+                  clearTokens()
+                  window.location.replace('/')
+                }}
+              >
+                Выйти
+              </button>
             </div>
           ) : auth.phase === 'authed' ? (
             <div className="public-shell__user">

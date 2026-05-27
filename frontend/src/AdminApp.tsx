@@ -25,7 +25,7 @@ import {
   fetchMaterialsFiltered,
   fetchUom,
   importMaterialsTable,
-  patchAdminUserStaff,
+  patchAdminUserRole,
   updateCategory,
   updateMaterial,
   type AdminUserRow,
@@ -344,6 +344,7 @@ const MAT_LIST_COLUMNS = [
 
 const ADMIN_USER_ROLE_OPTIONS: FtSelectOption[] = [
   { value: 'user', label: 'Пользователь' },
+  { value: 'manager', label: 'Менеджер' },
   { value: 'admin', label: 'Админ' },
 ]
 
@@ -362,6 +363,8 @@ function formatListBasePrice(m: Material) {
 export function AdminApp({ user, onLogout }: AdminProps) {
   const nav = useNavigate()
   const loc = useLocation()
+  const isAdmin = user.is_superuser || user.is_staff
+  const isManager = Boolean(user.is_manager) && !isAdmin
   const section: 'materials' | 'textures' | 'orders' | 'calculator' | 'classes' | 'calculations' | 'users' | 'uom' = (() => {
     const p = (loc.pathname || '/materials').toLowerCase()
     if (p.startsWith('/calculator')) return 'calculator'
@@ -373,6 +376,13 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     if (p.startsWith('/uom')) return 'uom'
     return 'materials'
   })()
+
+  useEffect(() => {
+    if (!isManager) return
+    if (section !== 'orders' && section !== 'calculator') {
+      nav('/orders', { replace: true })
+    }
+  }, [isManager, nav, section])
   const [tree, setTree] = useState<MaterialCategory[]>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
@@ -1018,10 +1028,10 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     }
   }, [section])
 
-  const setStaffFlag = useCallback((id: number, next: boolean) => {
+  const setUserRole = useCallback((id: number, role: 'user' | 'manager' | 'admin') => {
     setAdminUsersErr(null)
     setStaffTogglePending(id)
-    patchAdminUserStaff(id, next)
+    patchAdminUserRole(id, role)
       .then((row) => {
         setAdminUsers((prev) => prev.map((u) => (u.id === row.id ? row : u)))
       })
@@ -1068,12 +1078,16 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               {user.email || user.username}
             </span>
             <ThemeToggle />
+            <button type="button" className="admin-logout" onClick={() => nav('/')}>
+              В пользовательский интерфейс
+            </button>
             <button type="button" className="admin-logout" onClick={onLogout}>
               Выйти
             </button>
           </div>
         </div>
         <nav className="admin-section-tabs" role="navigation" aria-label="Разделы админки">
+          {isManager ? null : (
           <div className="admin-section-tab-dropdown" ref={refsDropdownRef}>
             <button
               type="button"
@@ -1195,6 +1209,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               </div>
             ) : null}
           </div>
+          )}
           <button
             type="button"
             role="tab"
@@ -1206,17 +1221,19 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           >
             Заказы
           </button>
-          <button
-            type="button"
-            role="tab"
-            className={section === 'users' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
-            aria-selected={section === 'users'}
-            aria-controls="admin-panel-users"
-            id="admin-tab-users"
-            onClick={() => nav('/users')}
-          >
-            Пользователи
-          </button>
+          {isManager ? null : (
+            <button
+              type="button"
+              role="tab"
+              className={section === 'users' ? 'admin-section-tab admin-section-tab--active' : 'admin-section-tab'}
+              aria-selected={section === 'users'}
+              aria-controls="admin-panel-users"
+              id="admin-tab-users"
+              onClick={() => nav('/users')}
+            >
+              Пользователи
+            </button>
+          )}
           <button
             type="button"
             role="tab"
@@ -1234,7 +1251,26 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       </header>
       {err && section === 'materials' && <div className="admin-error">{err}</div>}
       {loading && section === 'materials' && <p className="admin-muted admin-initial-state">Загрузка…</p>}
-      {section === 'materials' ? (
+      {isManager ? (
+        section === 'calculator' ? (
+          <div
+            className="admin-body calc-panel-shell"
+            id="admin-panel-calculator"
+            role="tabpanel"
+            aria-labelledby="admin-tab-calculator"
+          >
+            <div className="admin-orders-placeholder">
+              <CalculatorPage variant="admin" />
+            </div>
+          </div>
+        ) : (
+          <div className="admin-body" id="admin-panel-orders" role="tabpanel" aria-labelledby="admin-tab-orders">
+            <div className="admin-orders-placeholder admin-orders-placeholder--filled">
+              <AdminOrdersPanel canDelete={false} />
+            </div>
+          </div>
+        )
+      ) : section === 'materials' ? (
         <div
           ref={materialsPanelRef}
           className="admin-body"
@@ -1669,8 +1705,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                           ) : (
                             <FtSelect
                               className="admin-users-role-ft"
-                              value={u.is_staff ? 'admin' : 'user'}
-                              onChange={(v) => setStaffFlag(u.id, v === 'admin')}
+                              value={u.is_staff ? 'admin' : u.is_manager ? 'manager' : 'user'}
+                              onChange={(v) => setUserRole(u.id, v as 'user' | 'manager' | 'admin')}
                               options={ADMIN_USER_ROLE_OPTIONS}
                               disabled={staffTogglePending === u.id}
                               aria-label={`Роль для ${u.username}`}

@@ -1,6 +1,51 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-27 — PDF шага 8: бланк заказа как производственная форма + эскиз Step7 с размерами.
+**Последнее обновление:** 2026-05-27 — роль «Менеджер», статус оплаты заказов, текстуры карточек калькулятора, чёрная нумерация отверстий ручки на эскизе.
+
+### Изменения 2026-05-27 (backend + frontend — менеджеры, оплата заказов, текстуры карточек)
+
+#### Роль «Менеджер»
+
+- Миграция **`0049_managers_group`**: группа Django **`Менеджеры`** с правами **`view_facadeorder`**, **`change_facadeorder`**.
+- **`GET /api/auth/me/`** и список пользователей админки: поле **`is_manager`** (членство в группе).
+- **`PATCH /api/admin/users/{id}/staff/`** (совместимо со старым телом): вместо только **`is_staff`** — роль **`role`**: **`user`** | **`manager`** | **`admin`**. Менеджер: **`is_staff=false`**, в группе «Менеджеры»; админ: **`is_staff=true`**, без группы.
+- **`FacadeOrderViewSet`**: менеджер может **PATCH** **`status`** и **`payment_status`**; **DELETE** — только staff/superuser. Список всех заказов в админке — **`GET /api/facade-orders/?scope=admin`** (staff, superuser или менеджер); без **`scope=admin`** клиент и менеджер вне админ-списка видят только свои заказы.
+- **SPA:** **`AdminRoute`** пускает менеджера; после логина редирект на **`/orders`**; вкладки справочников и «Пользователи» скрыты; доступны **«Заказы»** и **«Калькулятор»**; удаление заказов отключено (**`AdminOrdersPanel canDelete={false}`**). В публичной шапке — ссылка «Войти как менеджер» и выход.
+
+#### Статус оплаты заказа
+
+- Миграция **`0048_facadeorder_payment_status`**: **`FacadeOrder.payment_status`** — **`unpaid`** | **`partial`** | **`paid`** (по умолчанию не оплачен).
+- API: в ответе **`payment_status`**, **`payment_status_display`**; staff/manager PATCH — вместе со **`status`** (**`FacadeOrderStaffUpdateSerializer`**).
+- Админка **«Заказы»**: колонка «Статус оплаты», цветные **`FtSelect`** (классы **`admin-orders-status-ft--pay-*`** в **`AdminApp.css`**).
+
+#### Картинки карточек калькулятора из базы текстур
+
+- Миграция **`0050_calculator_card_textures`**: у **`CalculatorProfileType`**, **`CalculatorFillingType`**, **`CalculatorHingeType`** — поля **`card_texture` … `card_texture_4`** (FK **`TextureItem`**), параллельно файлам **`card_image` … `card_image_4`**.
+- Сериализаторы: **`card_texture_image` … `card_texture_4_image`** (абсолютный URL); при сохранении загруженного файла текстура слота сбрасывается (**`apply_calculator_card_image_texture_exclusivity`**).
+- ViewSet’ы типов: **`select_related`** на текстуры карточек.
+- Фронт: **`calculatorCardTiles.tsx`** — приоритет превью текстуры над файлом; **`appendCalcCardTexturesToFormData`**; шаги **2 / 4 / 5** и формы типов в **`AdminApp`** — выбор из базы текстур на каждый из 4 слотов.
+
+#### Эскиз (шаг 7)
+
+- **`.sketch-handle-pin-label`**: цвет подписей **№1…№n** — **`--ft-canvas-hinge-label`** (чёрный, как у петель), вместо **`--ft-btn-primary-text`**.
+
+#### Проверка после деплоя
+
+- **`python manage.py migrate`** (миграции **0048–0050**).
+- Войти менеджером → только заказы + калькулятор; PATCH статуса и оплаты; без удаления.
+- В админке типов профиля/наполнения/петель — привязка текстуры к слоту карточки, отображение в плитках калькулятора.
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Backend | **`models.py`**, **`serializers.py`**, **`views.py`**, **`auth_views.py`**, **`user_admin_views.py`**, **`admin.py`**, **`migrations/0048_*`**, **`0049_*`**, **`0050_*`** |
+| API / auth SPA | **`api.ts`**, **`auth.ts`**, **`types.ts`** |
+| Админка | **`AdminApp.tsx`**, **`AdminApp.css`**, **`AdminOrdersPanel.tsx`**, **`App.tsx`** |
+| Калькулятор | **`calculatorCardTiles.tsx`**, **`Step2FrameFacade.tsx`**, **`Step4FrameFilling.tsx`**, **`FrameHingeCatalog.tsx`**, **`Step3FrameSizes.css`** |
+| Документация | **`docs/PROGRESS.md`**, **`docs/ARCHITECTURE.md`** |
+
+**Последнее обновление (ранее):** 2026-05-27 — PDF шага 8: бланк заказа как производственная форма + эскиз Step7 с размерами.
 
 ### Изменения 2026-05-27 (frontend — PDF шага 8: бланк заказа и эскиз с размерами)
 

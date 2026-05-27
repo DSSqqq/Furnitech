@@ -641,12 +641,35 @@ class CalculatorProfileSerializer(serializers.ModelSerializer):
         return profile
 
 
+def calculator_card_texture_image_url(obj, field_name: str, request) -> str | None:
+    texture = getattr(obj, field_name, None)
+    if texture and texture.image:
+        return absolute_media_url(request, texture.image.url)
+    return None
+
+
+def apply_calculator_card_image_texture_exclusivity(validated_data: dict) -> None:
+    pairs = (
+        ("card_image", "card_texture"),
+        ("card_image_2", "card_texture_2"),
+        ("card_image_3", "card_texture_3"),
+        ("card_image_4", "card_texture_4"),
+    )
+    for image_field, texture_field in pairs:
+        if validated_data.get(image_field):
+            validated_data[texture_field] = None
+
+
 class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
     colors = serializers.SerializerMethodField(read_only=True)
     card_image = serializers.ImageField(required=False, allow_null=True)
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
     card_image_4 = serializers.ImageField(required=False, allow_null=True)
+    card_texture_image = serializers.SerializerMethodField()
+    card_texture_2_image = serializers.SerializerMethodField()
+    card_texture_3_image = serializers.SerializerMethodField()
+    card_texture_4_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CalculatorProfileType
@@ -655,9 +678,17 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_texture",
+            "card_texture_image",
             "card_image_2",
+            "card_texture_2",
+            "card_texture_2_image",
             "card_image_3",
+            "card_texture_3",
+            "card_texture_3_image",
             "card_image_4",
+            "card_texture_4",
+            "card_texture_4_image",
             "is_active",
             "sort_order",
             "colors",
@@ -665,6 +696,18 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_card_texture_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture", self.context.get("request"))
+
+    def get_card_texture_2_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_2", self.context.get("request"))
+
+    def get_card_texture_3_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_3", self.context.get("request"))
+
+    def get_card_texture_4_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_4", self.context.get("request"))
 
     def get_colors(self, obj: CalculatorProfileType) -> list:
         if not obj.pk:
@@ -702,6 +745,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         colors = MaterialSerializer._list_from_request_key(self.initial_data, "colors")
         if colors is None:
             colors = []
@@ -710,6 +754,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
         return profile_type
 
     def update(self, instance, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         colors = MaterialSerializer._list_from_request_key(self.initial_data, "colors")
         profile_type = super().update(instance, validated_data)
         if colors is not None:
@@ -723,6 +768,10 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
     card_image_4 = serializers.ImageField(required=False, allow_null=True)
+    card_texture_image = serializers.SerializerMethodField()
+    card_texture_2_image = serializers.SerializerMethodField()
+    card_texture_3_image = serializers.SerializerMethodField()
+    card_texture_4_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CalculatorFillingType
@@ -731,9 +780,17 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_texture",
+            "card_texture_image",
             "card_image_2",
+            "card_texture_2",
+            "card_texture_2_image",
             "card_image_3",
+            "card_texture_3",
+            "card_texture_3_image",
             "card_image_4",
+            "card_texture_4",
+            "card_texture_4_image",
             "is_active",
             "sort_order",
             "materials",
@@ -741,6 +798,18 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_card_texture_image(self, obj: CalculatorFillingType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture", self.context.get("request"))
+
+    def get_card_texture_2_image(self, obj: CalculatorFillingType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_2", self.context.get("request"))
+
+    def get_card_texture_3_image(self, obj: CalculatorFillingType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_3", self.context.get("request"))
+
+    def get_card_texture_4_image(self, obj: CalculatorFillingType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_4", self.context.get("request"))
 
     def get_materials(self, obj: CalculatorFillingType) -> list:
         if not obj.pk:
@@ -772,6 +841,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
         if materials is None:
             materials = []
@@ -780,6 +850,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
         return filling_type
 
     def update(self, instance, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
         filling_type = super().update(instance, validated_data)
         if materials is not None:
@@ -793,6 +864,10 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
     card_image_4 = serializers.ImageField(required=False, allow_null=True)
+    card_texture_image = serializers.SerializerMethodField()
+    card_texture_2_image = serializers.SerializerMethodField()
+    card_texture_3_image = serializers.SerializerMethodField()
+    card_texture_4_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CalculatorHingeType
@@ -801,9 +876,17 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
             "name",
             "image_url",
             "card_image",
+            "card_texture",
+            "card_texture_image",
             "card_image_2",
+            "card_texture_2",
+            "card_texture_2_image",
             "card_image_3",
+            "card_texture_3",
+            "card_texture_3_image",
             "card_image_4",
+            "card_texture_4",
+            "card_texture_4_image",
             "is_active",
             "sort_order",
             "materials",
@@ -811,6 +894,18 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def get_card_texture_image(self, obj: CalculatorHingeType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture", self.context.get("request"))
+
+    def get_card_texture_2_image(self, obj: CalculatorHingeType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_2", self.context.get("request"))
+
+    def get_card_texture_3_image(self, obj: CalculatorHingeType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_3", self.context.get("request"))
+
+    def get_card_texture_4_image(self, obj: CalculatorHingeType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_4", self.context.get("request"))
 
     def get_materials(self, obj: CalculatorHingeType) -> list:
         if not obj.pk:
@@ -842,6 +937,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
         if materials is None:
             materials = []
@@ -850,6 +946,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
         return hinge_type
 
     def update(self, instance, validated_data):
+        apply_calculator_card_image_texture_exclusivity(validated_data)
         materials = MaterialSerializer._list_from_request_key(self.initial_data, "materials")
         hinge_type = super().update(instance, validated_data)
         if materials is not None:
@@ -888,6 +985,10 @@ class FacadeOrderSerializer(serializers.ModelSerializer):
     client_email = serializers.SerializerMethodField()
     pdf_url = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    payment_status_display = serializers.CharField(
+        source="get_payment_status_display",
+        read_only=True,
+    )
 
     class Meta:
         model = FacadeOrder
@@ -896,6 +997,8 @@ class FacadeOrderSerializer(serializers.ModelSerializer):
             "order_number",
             "status",
             "status_display",
+            "payment_status",
+            "payment_status_display",
             "client_username",
             "client_email",
             "contact_name",
@@ -963,10 +1066,16 @@ class FacadeOrderCreateSerializer(serializers.ModelSerializer):
 class FacadeOrderStaffUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FacadeOrder
-        fields = ("status",)
+        fields = ("status", "payment_status")
 
     def validate_status(self, value: str) -> str:
         valid = {c.value for c in FacadeOrder.Status}
         if value not in valid:
             raise serializers.ValidationError("Недопустимый статус.")
+        return value
+
+    def validate_payment_status(self, value: str) -> str:
+        valid = {c.value for c in FacadeOrder.PaymentStatus}
+        if value not in valid:
+            raise serializers.ValidationError("Недопустимый статус оплаты.")
         return value

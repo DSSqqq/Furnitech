@@ -27,6 +27,7 @@ export type Me = {
   email: string
   is_superuser: boolean
   is_staff: boolean
+  is_manager: boolean
 }
 
 export async function refreshAccessToken(): Promise<boolean> {

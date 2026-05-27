@@ -3,6 +3,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
+def _is_manager(u) -> bool:
+    try:
+        return u.groups.filter(name="Менеджеры").exists()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -15,5 +22,6 @@ class MeView(APIView):
                 "email": u.email,
                 "is_superuser": u.is_superuser,
                 "is_staff": u.is_staff,
+                "is_manager": _is_manager(u),
             }
         )

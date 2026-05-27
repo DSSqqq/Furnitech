@@ -214,9 +214,17 @@ export type CalculatorProfileType = {
   image_url: string
   /** Загруженный файл (URL с бэкенда, обычно /media/...) */
   card_image?: string | null
+  card_texture?: number | null
+  card_texture_image?: string | null
   card_image_2?: string | null
+  card_texture_2?: number | null
+  card_texture_2_image?: string | null
   card_image_3?: string | null
+  card_texture_3?: number | null
+  card_texture_3_image?: string | null
   card_image_4?: string | null
+  card_texture_4?: number | null
+  card_texture_4_image?: string | null
   is_active: boolean
   sort_order: number
   colors: CalculatorProfileTypeColorDto[]
@@ -247,9 +255,17 @@ export type CalculatorFillingType = {
   name: string
   image_url: string
   card_image?: string | null
+  card_texture?: number | null
+  card_texture_image?: string | null
   card_image_2?: string | null
+  card_texture_2?: number | null
+  card_texture_2_image?: string | null
   card_image_3?: string | null
+  card_texture_3?: number | null
+  card_texture_3_image?: string | null
   card_image_4?: string | null
+  card_texture_4?: number | null
+  card_texture_4_image?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorFillingTypeMaterialDto[]
@@ -264,9 +280,17 @@ export type CalculatorHingeType = {
   name: string
   image_url: string
   card_image?: string | null
+  card_texture?: number | null
+  card_texture_image?: string | null
   card_image_2?: string | null
+  card_texture_2?: number | null
+  card_texture_2_image?: string | null
   card_image_3?: string | null
+  card_texture_3?: number | null
+  card_texture_3_image?: string | null
   card_image_4?: string | null
+  card_texture_4?: number | null
+  card_texture_4_image?: string | null
   is_active: boolean
   sort_order: number
   materials: CalculatorHingeTypeMaterialDto[]

@@ -12,6 +12,7 @@ import {
   updateCalculatorFillingType,
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
+import { TexturePickerModal } from '../TexturePickerModal'
 import type { CalculatorFillingType, Material, MaterialCategory, MaterialClass } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
@@ -27,11 +28,15 @@ import {
   CalculatorCardTileStriped,
   ProfileCardImageTileRow,
   appendCalcCardImagesToFormData,
+  appendCalcCardTexturesToFormData,
   calcCardImageGridSlots,
   calcCardImageTileUrls,
   calcCardImageUrlsFromEntity,
   emptyCalcCardImageFiles,
+  emptyCalcCardTextureIds,
   type CalcCardImageFiles,
+  type CalcCardImageUrls,
+  type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
 import { resolveMediaUrl, materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
@@ -118,6 +123,8 @@ export function Step4FrameFilling() {
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
+  const [createCardTextures, setCreateCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
+  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
   const fillingCardInputRef0 = useRef<HTMLInputElement>(null)
   const fillingCardInputRef1 = useRef<HTMLInputElement>(null)
   const fillingCardInputRef2 = useRef<HTMLInputElement>(null)
@@ -128,6 +135,8 @@ export function Step4FrameFilling() {
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
   const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
+  const [editCardTextures, setEditCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
+  const [editCardTextureUrls, setEditCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
   const editFillingCardInputRef0 = useRef<HTMLInputElement>(null)
   const editFillingCardInputRef1 = useRef<HTMLInputElement>(null)
   const editFillingCardInputRef2 = useRef<HTMLInputElement>(null)
@@ -142,6 +151,7 @@ export function Step4FrameFilling() {
     mclasses: MaterialClass[]
   }>(null)
   const materialSearchTargetRef = useRef<'create' | 'edit' | null>(null)
+  const [texturePickerTarget, setTexturePickerTarget] = useState<null | { mode: 'create' | 'edit'; slot: number }>(null)
 
   const [gearMenuFillingTypeId, setGearMenuFillingTypeId] = useState<number | null>(null)
   const [fillingTypeDeleteModal, setFillingTypeDeleteModal] = useState<CalculatorFillingType | null>(null)
@@ -393,8 +403,20 @@ export function Step4FrameFilling() {
         editCardFiles,
         [editBlob0, editBlob1, editBlob2, editBlob3],
         editFillingSlotExistingResolved,
+        editCardTextureUrls,
       ),
-    [editBlob0, editBlob1, editBlob2, editBlob3, editCardFiles, editFillingSlotExistingResolved],
+    [editBlob0, editBlob1, editBlob2, editBlob3, editCardFiles, editCardTextureUrls, editFillingSlotExistingResolved],
+  )
+
+  const createCardTileUrls = useMemo(
+    () =>
+      calcCardImageTileUrls(
+        createCardFiles,
+        [createPreview0, createPreview1, createPreview2, createPreview3],
+        ['', '', '', ''],
+        createCardTextureUrls,
+      ),
+    [createCardFiles, createPreview0, createPreview1, createPreview2, createPreview3, createCardTextureUrls],
   )
 
   const closeEditFilling = () => {
@@ -402,6 +424,8 @@ export function Step4FrameFilling() {
     setEditFillingId(null)
     setEditFillingName('')
     setEditCardFiles(emptyCalcCardImageFiles())
+    setEditCardTextures(emptyCalcCardTextureIds())
+    setEditCardTextureUrls(['', '', '', ''])
     for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
       if (r.current) r.current.value = ''
     }
@@ -416,6 +440,8 @@ export function Step4FrameFilling() {
     setEditFillingId(t.id)
     setEditFillingName(t.name)
     setEditCardFiles(emptyCalcCardImageFiles())
+    setEditCardTextures(emptyCalcCardTextureIds())
+    setEditCardTextureUrls(['', '', '', ''])
     for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
       if (r.current) r.current.value = ''
     }
@@ -441,24 +467,14 @@ export function Step4FrameFilling() {
     setErr(null)
     try {
       const materials = Object.keys(editFillingMatIds).map((id) => ({ material_id: Number(id) }))
-      let updated: CalculatorFillingType
-      const hasNewCardImages = editCardFiles.some(Boolean)
-      if (hasNewCardImages) {
-        const fd = new FormData()
-        fd.append('name', name)
-        fd.append('is_active', String(t.is_active))
-        fd.append('sort_order', String(t.sort_order))
-        fd.append('materials', JSON.stringify(materials))
-        appendCalcCardImagesToFormData(fd, editCardFiles)
-        updated = await updateCalculatorFillingType(editFillingId, fd)
-      } else {
-        updated = await updateCalculatorFillingType(editFillingId, {
-          name,
-          is_active: t.is_active,
-          sort_order: t.sort_order,
-          materials,
-        })
-      }
+      const fd = new FormData()
+      fd.append('name', name)
+      fd.append('is_active', String(t.is_active))
+      fd.append('sort_order', String(t.sort_order))
+      fd.append('materials', JSON.stringify(materials))
+      appendCalcCardImagesToFormData(fd, editCardFiles)
+      appendCalcCardTexturesToFormData(fd, editCardTextures)
+      const updated = await updateCalculatorFillingType(editFillingId, fd)
       setFillingTypes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
       closeEditFilling()
     } catch (e) {
@@ -481,12 +497,15 @@ export function Step4FrameFilling() {
       fd.append('sort_order', String(fillingTypes.length))
       fd.append('materials', JSON.stringify(materials))
       appendCalcCardImagesToFormData(fd, createCardFiles)
+      appendCalcCardTexturesToFormData(fd, createCardTextures)
       const created = await createCalculatorFillingType(fd)
       setFillingTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
       setCreateOpen(false)
       setCreateName('')
       setCreateCardFiles(emptyCalcCardImageFiles())
+      setCreateCardTextures(emptyCalcCardTextureIds())
+      setCreateCardTextureUrls(['', '', '', ''])
       for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
         if (r.current) r.current.value = ''
       }
@@ -535,6 +554,8 @@ export function Step4FrameFilling() {
       setEditFillingId(null)
       setEditFillingName('')
       setEditCardFiles(emptyCalcCardImageFiles())
+      setEditCardTextures(emptyCalcCardTextureIds())
+      setEditCardTextureUrls(['', '', '', ''])
       for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
         if (r.current) r.current.value = ''
       }
@@ -681,6 +702,8 @@ export function Step4FrameFilling() {
                       setCreateOpen(false)
                       setCreateName('')
                       setCreateCardFiles(emptyCalcCardImageFiles())
+                      setCreateCardTextures(emptyCalcCardTextureIds())
+                      setCreateCardTextureUrls(['', '', '', ''])
                       for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
                         if (r.current) r.current.value = ''
                       }
@@ -729,13 +752,24 @@ export function Step4FrameFilling() {
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
+                          setCreateCardTextures((prev) => {
+                            const next: CalcCardTextureIds = [...prev]
+                            next[slot] = null
+                            return next
+                          })
+                          setCreateCardTextureUrls((prev) => {
+                            const next: CalcCardImageUrls = [...prev]
+                            next[slot] = ''
+                            return next
+                          })
                         }}
                       />
                     ))}
                   </div>
                   <ProfileCardImageTileRow
-                    urls={[createPreview0, createPreview1, createPreview2, createPreview3]}
+                    urls={createCardTileUrls}
                     inputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]}
+                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
                     groupAriaLabel="Фото карточки наполнения, до четырёх"
                   />
                 </div>
@@ -850,6 +884,16 @@ export function Step4FrameFilling() {
                             next[slot] = e.target.files?.[0] ?? null
                             return next
                           })
+                          setEditCardTextures((prev) => {
+                            const next: CalcCardTextureIds = [...prev]
+                            next[slot] = null
+                            return next
+                          })
+                          setEditCardTextureUrls((prev) => {
+                            const next: CalcCardImageUrls = [...prev]
+                            next[slot] = ''
+                            return next
+                          })
                         }}
                       />
                     ))}
@@ -857,6 +901,7 @@ export function Step4FrameFilling() {
                   <ProfileCardImageTileRow
                     urls={editFillingCardTileUrls}
                     inputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]}
+                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
                     groupAriaLabel="Фото карточки наполнения, до четырёх"
                   />
                 </div>
@@ -1177,6 +1222,34 @@ export function Step4FrameFilling() {
           mclasses={materialSearchOverlay.mclasses}
           onClose={closeMaterialSearch}
           onPick={handleMaterialPickedFromTree}
+        />
+      )}
+
+      {texturePickerTarget && (
+        <TexturePickerModal
+          onClose={() => setTexturePickerTarget(null)}
+          onPick={(item) => {
+            const { mode, slot } = texturePickerTarget
+            const applyIds = mode === 'create' ? setCreateCardTextures : setEditCardTextures
+            const applyUrls = mode === 'create' ? setCreateCardTextureUrls : setEditCardTextureUrls
+            const applyFiles = mode === 'create' ? setCreateCardFiles : setEditCardFiles
+            applyIds((prev) => {
+              const next: CalcCardTextureIds = [...prev]
+              next[slot] = item.id
+              return next
+            })
+            applyUrls((prev) => {
+              const next: CalcCardImageUrls = [...prev]
+              next[slot] = item.image ?? ''
+              return next
+            })
+            applyFiles((prev) => {
+              const next: CalcCardImageFiles = [...prev]
+              next[slot] = null
+              return next
+            })
+            setTexturePickerTarget(null)
+          }}
         />
       )}
 

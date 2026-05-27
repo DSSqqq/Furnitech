@@ -1,12 +1,14 @@
 """Регистрация клиентов и управление доступом в веб-админку (сотрудники SPA, is_staff)."""
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import IntegrityError
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 User = get_user_model()
+MANAGERS_GROUP_NAME = "Менеджеры"
 
 
 def _requests_staff_or_superuser_elevation(data) -> bool:
@@ -66,12 +68,18 @@ class RegisterView(APIView):
 
 
 def _user_row(u: User) -> dict:
+    is_manager = False
+    try:
+        is_manager = u.groups.filter(name=MANAGERS_GROUP_NAME).exists()
+    except Exception:  # noqa: BLE001
+        is_manager = False
     return {
         "id": u.pk,
         "username": u.username,
         "email": u.email or "",
         "is_staff": u.is_staff,
         "is_superuser": u.is_superuser,
+        "is_manager": is_manager,
     }
 
 
@@ -106,14 +114,37 @@ class AdminUserStaffView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        raw = request.data.get("is_staff")
-        if not isinstance(raw, bool):
+        role = request.data.get("role")
+        raw_is_staff = request.data.get("is_staff")
+
+        # backward-compatible: {"is_staff": true/false}
+        if role is None:
+            if not isinstance(raw_is_staff, bool):
+                return Response(
+                    {"detail": "Передайте булево поле is_staff или строковое поле role (user/manager/admin)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            role = "admin" if raw_is_staff else "user"
+
+        if role not in ("user", "manager", "admin"):
             return Response(
-                {"detail": "Передайте булево поле is_staff."},
+                {"detail": "Некорректная роль. Допустимо: user, manager, admin."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        target.is_staff = raw
+        # ensure group exists (created by migration, but be defensive)
+        managers_group, _ = Group.objects.get_or_create(name=MANAGERS_GROUP_NAME)
+
+        if role == "admin":
+            target.is_staff = True
+            target.groups.remove(managers_group)
+        elif role == "manager":
+            target.is_staff = False
+            target.groups.add(managers_group)
+        else:  # user
+            target.is_staff = False
+            target.groups.remove(managers_group)
+
         target.save(update_fields=["is_staff"])
         return Response(_user_row(target))
 

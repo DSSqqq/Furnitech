@@ -669,6 +669,10 @@ export function createCalculatorProfileType(
     | {
         name: string
         image_url?: string
+        card_texture?: number | null
+        card_texture_2?: number | null
+        card_texture_3?: number | null
+        card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
         colors?: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
@@ -685,6 +689,10 @@ export function updateCalculatorProfileType(
   data: Partial<{
     name: string
     image_url: string
+    card_texture: number | null
+    card_texture_2: number | null
+    card_texture_3: number | null
+    card_texture_4: number | null
     is_active: boolean
     sort_order: number
     colors: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
@@ -712,6 +720,10 @@ export function createCalculatorFillingType(
     | {
         name: string
         image_url?: string
+        card_texture?: number | null
+        card_texture_2?: number | null
+        card_texture_3?: number | null
+        card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
         materials?: { material_id: number }[]
@@ -728,6 +740,10 @@ export function updateCalculatorFillingType(
   data: Partial<{
     name: string
     image_url: string
+    card_texture: number | null
+    card_texture_2: number | null
+    card_texture_3: number | null
+    card_texture_4: number | null
     is_active: boolean
     sort_order: number
     materials: { material_id: number }[]
@@ -794,6 +810,10 @@ export function createCalculatorHingeType(
     | {
         name: string
         image_url?: string
+        card_texture?: number | null
+        card_texture_2?: number | null
+        card_texture_3?: number | null
+        card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
         materials?: { material_id: number }[]
@@ -810,6 +830,10 @@ export function updateCalculatorHingeType(
   data: Partial<{
     name: string
     image_url: string
+    card_texture: number | null
+    card_texture_2: number | null
+    card_texture_3: number | null
+    card_texture_4: number | null
     is_active: boolean
     sort_order: number
     materials: { material_id: number }[]
@@ -833,6 +857,7 @@ export type AdminUserRow = {
   email: string
   is_staff: boolean
   is_superuser: boolean
+  is_manager: boolean
 }
 
 export function fetchAdminUsers() {
@@ -843,6 +868,13 @@ export function patchAdminUserStaff(id: number, is_staff: boolean) {
   return apiFetch(`/api/auth/admin-users/${id}/`, {
     method: 'PATCH',
     body: JSON.stringify({ is_staff }),
+  }).then((r) => json<AdminUserRow>(r))
+}
+
+export function patchAdminUserRole(id: number, role: 'user' | 'manager' | 'admin') {
+  return apiFetch(`/api/auth/admin-users/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
   }).then((r) => json<AdminUserRow>(r))
 }
 
@@ -859,11 +891,15 @@ export type FacadeOrderStatus =
   | 'ready'
   | 'completed'
 
+export type FacadeOrderPaymentStatus = 'unpaid' | 'partial' | 'paid'
+
 export type FacadeOrder = {
   id: number
   order_number: string
   status: FacadeOrderStatus
   status_display: string
+  payment_status: FacadeOrderPaymentStatus
+  payment_status_display: string
   client_username: string
   client_email: string
   contact_name: string
@@ -876,8 +912,9 @@ export type FacadeOrder = {
   updated_at: string
 }
 
-export function fetchFacadeOrders() {
-  return apiFetch('/api/facade-orders/').then((r) => json<{ results: FacadeOrder[] }>(r))
+export function fetchFacadeOrders(options?: { scope?: 'admin' }) {
+  const url = options?.scope === 'admin' ? '/api/facade-orders/?scope=admin' : '/api/facade-orders/'
+  return apiFetch(url).then((r) => json<{ results: FacadeOrder[] }>(r))
 }
 
 export function createFacadeOrder(formData: FormData) {
@@ -888,9 +925,20 @@ export function createFacadeOrder(formData: FormData) {
 }
 
 export function patchFacadeOrderStatus(id: number, status: FacadeOrderStatus) {
+  return patchFacadeOrder(id, { status })
+}
+
+export function patchFacadeOrderPaymentStatus(id: number, payment_status: FacadeOrderPaymentStatus) {
+  return patchFacadeOrder(id, { payment_status })
+}
+
+export function patchFacadeOrder(
+  id: number,
+  patch: Partial<{ status: FacadeOrderStatus; payment_status: FacadeOrderPaymentStatus }>,
+) {
   return apiFetch(`/api/facade-orders/${id}/`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(patch),
   }).then((r) => json<FacadeOrder>(r))
 }
 

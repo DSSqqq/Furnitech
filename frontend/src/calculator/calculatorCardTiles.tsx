@@ -6,6 +6,7 @@ export const CALC_CARD_IMAGE_SLOT_COUNT = 4 as const
 export type CalcCardImageFiles = [File | null, File | null, File | null, File | null]
 
 export type CalcCardImageUrls = [string, string, string, string]
+export type CalcCardTextureIds = [number | null, number | null, number | null, number | null]
 
 export const CALC_CARD_IMAGE_FIELD_NAMES = [
   'card_image',
@@ -18,9 +19,26 @@ export function emptyCalcCardImageFiles(): CalcCardImageFiles {
   return [null, null, null, null]
 }
 
+export function emptyCalcCardTextureIds(): CalcCardTextureIds {
+  return [null, null, null, null]
+}
+
 export function appendCalcCardImagesToFormData(fd: FormData, files: CalcCardImageFiles) {
   files.forEach((file, i) => {
     if (file) fd.append(CALC_CARD_IMAGE_FIELD_NAMES[i], file)
+  })
+}
+
+export const CALC_CARD_TEXTURE_FIELD_NAMES = [
+  'card_texture',
+  'card_texture_2',
+  'card_texture_3',
+  'card_texture_4',
+] as const
+
+export function appendCalcCardTexturesToFormData(fd: FormData, textures: CalcCardTextureIds) {
+  textures.forEach((id, i) => {
+    if (id != null) fd.append(CALC_CARD_TEXTURE_FIELD_NAMES[i], String(id))
   })
 }
 
@@ -30,14 +48,22 @@ export type CalcCardImageEntity = {
   card_image_2?: string | null
   card_image_3?: string | null
   card_image_4?: string | null
+  card_texture?: number | null
+  card_texture_2?: number | null
+  card_texture_3?: number | null
+  card_texture_4?: number | null
+  card_texture_image?: string | null
+  card_texture_2_image?: string | null
+  card_texture_3_image?: string | null
+  card_texture_4_image?: string | null
 }
 
 export function calcCardImageUrlsFromEntity(entity: CalcCardImageEntity): CalcCardImageUrls {
   const slots = [
-    ((entity.card_image ?? '') || (entity.image_url ?? '')).trim(),
-    (entity.card_image_2 ?? '').trim(),
-    (entity.card_image_3 ?? '').trim(),
-    (entity.card_image_4 ?? '').trim(),
+    ((entity.card_texture_image ?? '') || (entity.card_image ?? '') || (entity.image_url ?? '')).trim(),
+    ((entity.card_texture_2_image ?? '') || (entity.card_image_2 ?? '')).trim(),
+    ((entity.card_texture_3_image ?? '') || (entity.card_image_3 ?? '')).trim(),
+    ((entity.card_texture_4_image ?? '') || (entity.card_image_4 ?? '')).trim(),
   ]
   return slots.map((s) => (s ? resolveMediaUrl(s) : '')) as CalcCardImageUrls
 }
@@ -46,9 +72,10 @@ export function calcCardImageTileUrls(
   files: CalcCardImageFiles,
   filePreviewUrls: CalcCardImageUrls,
   existingUrls: CalcCardImageUrls,
+  texturePreviewUrls: CalcCardImageUrls = ['', '', '', ''],
 ): CalcCardImageUrls {
   return files.map((file, i) =>
-    file ? filePreviewUrls[i] : existingUrls[i] || '',
+    file ? filePreviewUrls[i] : texturePreviewUrls[i] || existingUrls[i] || '',
   ) as CalcCardImageUrls
 }
 
@@ -127,15 +154,17 @@ export function CalculatorCardTileStriped({
 export function ProfileCardImageTileRow({
   urls,
   inputRefs,
+  onPickSlot,
   groupAriaLabel = 'Фото карточки, до четырёх',
 }: {
   urls: CalcCardImageUrls
-  inputRefs: readonly [
+  inputRefs?: readonly [
     RefObject<HTMLInputElement | null>,
     RefObject<HTMLInputElement | null>,
     RefObject<HTMLInputElement | null>,
     RefObject<HTMLInputElement | null>,
   ]
+  onPickSlot?: (slot: number) => void
   groupAriaLabel?: string
 }) {
   return (
@@ -150,11 +179,11 @@ export function ProfileCardImageTileRow({
           ]
             .filter(Boolean)
             .join(' ')}
-          onClick={() => inputRefs[slot].current?.click()}
+          onClick={() => (onPickSlot ? onPickSlot(slot) : inputRefs?.[slot].current?.click())}
           aria-label={
             urls[slot]
-              ? `Фото ${slot + 1}: нажмите, чтобы заменить файл`
-              : `Фото ${slot + 1}: нажмите, чтобы выбрать файл`
+              ? `Фото ${slot + 1}: нажмите, чтобы заменить изображение`
+              : `Фото ${slot + 1}: нажмите, чтобы выбрать изображение`
           }
         >
           {urls[slot] ? (
