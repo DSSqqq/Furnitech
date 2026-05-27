@@ -934,17 +934,24 @@ class FacadeOrderCreateSerializer(serializers.ModelSerializer):
             "pdf_file",
         )
 
+    def validate_snapshot(self, value):
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return {}
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError("Некорректный snapshot.") from exc
+            if not isinstance(parsed, dict):
+                raise serializers.ValidationError("Snapshot должен быть объектом JSON.")
+            return parsed
+        return value
+
     def validate(self, attrs):
         req = self.context["request"]
         if not req.user.is_authenticated:
             raise serializers.ValidationError("Требуется вход.")
-        if req.user.is_staff or req.user.is_superuser:
-            raise serializers.ValidationError(
-                {
-                    "detail": "Оформление заказа доступно клиентским учётным записям. "
-                    "Отправьте заявку с сайта под логином клиента или воспользуйтесь почтой из админского калькулятора."
-                }
-            )
         return attrs
 
     def create(self, validated_data):

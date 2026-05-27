@@ -275,12 +275,20 @@
 
 .calc-panel-shell .admin-input,
 .calc-panel-shell .frame3-input,
-.calc-panel-shell .ft-select--compact .ft-select-trigger {
+.calc-panel-shell .ft-select-trigger {
   font-size: var(--mat-scroll-fs);
   line-height: var(--mat-scroll-lh);
   letter-spacing: var(--mat-scroll-ls);
   border-radius: var(--admin-refs-control-radius);
   padding: calc(0.08rem * var(--admin-refs-scale)) calc(0.35rem * var(--admin-refs-scale));
+  min-height: 0;
+}
+
+/* FtSelect в боковой панели шагов — та же «форма», что у .admin-input; справа — место под chevron. */
+.calc-panel-shell .ft-select-trigger {
+  padding-right: calc(1.35rem * var(--admin-refs-scale));
+  background-position: right calc(0.28rem * var(--admin-refs-scale)) center;
+  background-size: calc(0.78rem * var(--admin-refs-scale)) calc(0.78rem * var(--admin-refs-scale));
 }
 
 .calc-panel-shell .calc-totals-card {

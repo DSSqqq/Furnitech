@@ -129,6 +129,7 @@ export function Step8FrameResult() {
   const [contactComment, setContactComment] = useState('')
   const [sendHint, setSendHint] = useState<string | null>(null)
   const [authWallModalOpen, setAuthWallModalOpen] = useState(false)
+  const [orderSentModalOpen, setOrderSentModalOpen] = useState(false)
   const [submitBusy, setSubmitBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   /** На публичном сайте сотрудник может отправить почту без обязательных полей клиента. */
@@ -164,6 +165,15 @@ export function Step8FrameResult() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [authWallModalOpen])
+
+  useEffect(() => {
+    if (!orderSentModalOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOrderSentModalOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [orderSentModalOpen])
 
   useEffect(() => {
     void preloadFramePdfFont()
@@ -345,6 +355,21 @@ export function Step8FrameResult() {
     return lines.join('\n')
   }
 
+  async function submitFacadeOrder(): Promise<void> {
+    const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
+    const fd = new FormData()
+    fd.append(
+      'pdf_file',
+      new File([blob], 'furnitech-raschet.pdf', { type: 'application/pdf' }),
+    )
+    fd.append('contact_name', contactName.trim())
+    fd.append('contact_phone', contactPhone.trim())
+    fd.append('contact_email', contactEmail.trim())
+    fd.append('contact_comment', contactComment.trim())
+    fd.append('snapshot', JSON.stringify(buildOrderSnapshot()))
+    await createFacadeOrder(fd)
+  }
+
   async function onSubmitManager(e: FormEvent) {
     e.preventDefault()
     setSendHint(null)
@@ -359,49 +384,17 @@ export function Step8FrameResult() {
       setAuthWallModalOpen(true)
       return
     }
-    if (me.is_staff || me.is_superuser) {
-      const subject = encodeURIComponent('Заявка по калькулятору фасада')
-      const body = encodeURIComponent(
-        [
-          `Имя: ${contactName.trim() || '—'}`,
-          `Телефон: ${contactPhone.trim() || '—'}`,
-          `Email: ${contactEmail.trim() || '—'}`,
-          '',
-          contactComment.trim() || '—',
-          '',
-          '---',
-          buildPlainSummary(),
-        ].join('\n'),
-      )
-      const mail = contactEmail.trim()
-      const href = mail.includes('@')
-        ? `mailto:${mail}?subject=${subject}&body=${body}`
-        : `mailto:?subject=${subject}&body=${body}`
-      window.location.href = href
-      setSendHint('Если почтовый клиент не открылся, скопируйте текст заявки вручную.')
-      return
-    }
 
-    if (!clientContactComplete) {
+    const isStaff = me.is_staff || me.is_superuser
+    if (readOnly && !isStaff && !clientContactComplete) {
       setSendHint('Укажите имя, телефон и email — без них заявку нельзя отправить менеджеру.')
       return
     }
 
     setSubmitBusy(true)
     try {
-      const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
-      const fd = new FormData()
-      fd.append(
-        'pdf_file',
-        new File([blob], 'furnitech-raschet.pdf', { type: 'application/pdf' }),
-      )
-      fd.append('contact_name', contactName.trim())
-      fd.append('contact_phone', contactPhone.trim())
-      fd.append('contact_email', contactEmail.trim())
-      fd.append('contact_comment', contactComment.trim())
-      fd.append('snapshot', JSON.stringify(buildOrderSnapshot()))
-      await createFacadeOrder(fd)
-      nav('/my-orders', { replace: true })
+      await submitFacadeOrder()
+      setOrderSentModalOpen(true)
     } catch (err) {
       setSendHint(err instanceof Error ? err.message : String(err))
     } finally {
@@ -520,6 +513,10 @@ export function Step8FrameResult() {
     clearFrameCalculatorStorage()
     notifyFrameCalcSession()
     nav(home, { replace: true })
+  }
+
+  function closeOrderSentModal() {
+    setOrderSentModalOpen(false)
   }
 
   function closeAuthWallModal() {
@@ -735,6 +732,36 @@ export function Step8FrameResult() {
         </div>
       </section>
     </div>
+    {orderSentModalOpen
+      ? createPortal(
+          <div
+            className="step8-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="step8-order-sent-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeOrderSentModal()
+            }}
+          >
+            <div className="step8-modal step8-modal--success" role="document" onClick={(e) => e.stopPropagation()}>
+              <h4 id="step8-order-sent-title" className="step8-modal__title">
+                Заказ отправлен
+              </h4>
+              {readOnly && !staffOnSession ? (
+                <p className="step8-modal__text">
+                  Заказ сохранён. Его можно посмотреть во вкладке «Мои заказы».
+                </p>
+              ) : null}
+              <div className="step8-modal__actions">
+                <button type="button" className="admin-primary" onClick={closeOrderSentModal}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
     {authWallModalOpen
       ? createPortal(
           <div

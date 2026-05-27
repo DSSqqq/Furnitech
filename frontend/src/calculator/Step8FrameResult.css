@@ -282,6 +282,52 @@
   min-width: 12rem;
 }
 
+/* Центрированное сообщение об успешной отправке (публичный калькulator) */
+.step8-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--ft-overlay-backdrop, rgba(0, 0, 0, 0.55));
+  backdrop-filter: blur(2px);
+}
+
+.step8-modal {
+  width: 100%;
+  max-width: 22rem;
+  padding: 1.5rem 1.4rem 1.2rem;
+  border-radius: var(--ft-radius-md, 12px);
+  border: 1px solid var(--ft-border);
+  background: linear-gradient(180deg, var(--ft-panel-gradient-start), var(--ft-card-gradient-end));
+  box-shadow: var(--ft-shadow-2);
+  text-align: center;
+}
+
+.step8-modal__title {
+  margin: 0;
+  font-family: var(--ft-font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ft-accent-2);
+}
+
+.step8-modal__text {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ft-muted);
+  line-height: 1.45;
+}
+
+.step8-modal--success .step8-modal__actions {
+  margin-top: 1.15rem;
+  display: flex;
+  justify-content: center;
+}
+
 @media print {
   .public-shell__header,
   .calc-head,
