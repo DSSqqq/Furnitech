@@ -14,7 +14,7 @@ export function readStoredTheme(): Theme {
   } catch {
     /* ignore */
   }
-  return 'dark'
+  return 'light'
 }
 
 export function applyTheme(theme: Theme): void {
