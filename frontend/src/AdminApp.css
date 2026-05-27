@@ -265,6 +265,12 @@
 
 .admin-orders-status-cell {
   min-width: 13rem;
+  vertical-align: middle;
+}
+
+.admin-orders-pdf-cell {
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .admin-orders-status-ft.ft-select {
@@ -275,12 +281,24 @@
 .admin-orders-status-ft .ft-select-trigger {
   border-radius: 10px;
   font-weight: 600;
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 /* Скругление кнопок в заказах — как у .admin-logout (10px). */
 .admin-orders-toolbar .admin-secondary,
 .admin-orders-actions-cell .admin-secondary {
   border-radius: 10px;
+}
+
+.admin-orders-actions-cell .admin-secondary.admin-secondary--sm {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.35;
 }
 
 .admin-orders-status-ft--status-not-confirmed .ft-select-trigger {
@@ -330,6 +348,56 @@
   background: rgba(32, 201, 151, 0.12);
   border-color: rgba(32, 201, 151, 0.35);
   color: #8ef0cf;
+}
+
+/* Светлая тема: тёмный текст на светлом фоне (базовые цвета — для тёмной). */
+[data-theme='light'] .admin-orders-status-ft--status-not-confirmed .ft-select-trigger {
+  background: rgba(220, 53, 69, 0.14);
+  border-color: rgba(220, 53, 69, 0.45);
+  color: #9b1c2c;
+}
+
+[data-theme='light'] .admin-orders-status-ft--status-confirmed .ft-select-trigger {
+  background: rgba(255, 193, 7, 0.22);
+  border-color: rgba(180, 130, 0, 0.45);
+  color: #7a5a00;
+}
+
+[data-theme='light'] .admin-orders-status-ft--status-in-production .ft-select-trigger {
+  background: rgba(13, 110, 253, 0.12);
+  border-color: rgba(13, 110, 253, 0.4);
+  color: #084298;
+}
+
+[data-theme='light'] .admin-orders-status-ft--status-ready .ft-select-trigger {
+  background: rgba(25, 135, 84, 0.14);
+  border-color: rgba(25, 135, 84, 0.45);
+  color: #0f5132;
+}
+
+[data-theme='light'] .admin-orders-status-ft--status-completed .ft-select-trigger {
+  background: rgba(108, 117, 125, 0.14);
+  border-color: rgba(108, 117, 125, 0.4);
+  color: #495057;
+  opacity: 1;
+}
+
+[data-theme='light'] .admin-orders-status-ft--pay-unpaid .ft-select-trigger {
+  background: rgba(220, 53, 69, 0.14);
+  border-color: rgba(220, 53, 69, 0.45);
+  color: #9b1c2c;
+}
+
+[data-theme='light'] .admin-orders-status-ft--pay-partial .ft-select-trigger {
+  background: rgba(255, 193, 7, 0.22);
+  border-color: rgba(180, 130, 0, 0.45);
+  color: #7a5a00;
+}
+
+[data-theme='light'] .admin-orders-status-ft--pay-paid .ft-select-trigger {
+  background: rgba(25, 135, 84, 0.14);
+  border-color: rgba(25, 135, 84, 0.45);
+  color: #0f5132;
 }
 
 .admin-orders-pdf-link {

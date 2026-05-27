@@ -192,7 +192,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
                       aria-label={`Статус оплаты заказа ${o.order_number}`}
                     />
                   </td>
-                  <td data-label="PDF">
+                  <td className="admin-orders-pdf-cell" data-label="PDF">
                     {o.pdf_url ? (
                       <a
                         className="admin-orders-pdf-link"

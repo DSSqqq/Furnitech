@@ -49,7 +49,6 @@ import {
   normalizeDecimalForInput,
 } from './floatInput'
 import { FtSelect, type FtSelectOption } from './FtSelect'
-import { HintButton } from './HintButton'
 import { sortUomForSelect } from './uomSelectOrder'
 import { materialExtrasInitRelated, MaterialExtrasPanel, type RelatedItemState } from './MaterialExtrasPanel'
 import { CalculatorPage } from './CalculatorPage'
@@ -1662,7 +1661,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           <div className="admin-orders-placeholder admin-users-page">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Пользователи</h2>
-              <HintButton text="В колонке «Роль» — «Пользователь» или «Админ». «Удалить» убирает учётную запись (нельзя удалить себя или суперпользователя)." />
             </div>
             {adminUsersErr && <div className="admin-error admin-error--compact">{adminUsersErr}</div>}
             {adminUsersLoading ? (
