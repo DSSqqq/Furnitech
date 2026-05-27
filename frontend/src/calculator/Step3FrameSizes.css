@@ -93,10 +93,17 @@
   display: inline-block;
   line-height: 0;
   vertical-align: top;
-  /* Общие токены для габаритов (.frame3-dim-drawing) и цепочек петелей (.frame3-hinge-dim-layer) */
-  --frame3-dim-sketch-gap-y: 30px;
-  --frame3-dim-sketch-gap-x: 28px;
+  /*
+   * Главные габариты (.frame3-dim-drawing — ширина/высота) — зазор «размерная линия ↔ эскиз»
+   * сделан вдвое меньше, чем у цепочек петель/ручек. Цепочки сохраняют исходный зазор
+   * через отдельный токен --frame3-chain-sketch-gap (см. ниже): иначе одно изменение
+   * тянуло бы за собой и петли, и ручки — что заказчик запретил.
+   */
+  --frame3-dim-sketch-gap-y: 15px;
+  --frame3-dim-sketch-gap-x: 14px;
   --frame3-dim-vtrack: 34px;
+  /* Зазор «цепочка петель/ручек ↔ эскиз» — независим от --frame3-dim-sketch-gap-* */
+  --frame3-chain-sketch-gap: 30px;
   /* Зазор между размерной линией и её подписью (наружу от эскиза) — общий для всех чертёжных подписей */
   --frame3-dim-label-gap: 8px;
 }
@@ -384,9 +391,12 @@
 
 @media (max-width: 1024px) {
   .frame3-drawing {
-    --frame3-dim-sketch-gap-y: 26px;
-    --frame3-dim-sketch-gap-x: 22px;
+    /* Габариты — половина от исходных 26/22 (как и на десктопе −50%) */
+    --frame3-dim-sketch-gap-y: 13px;
+    --frame3-dim-sketch-gap-x: 11px;
     --frame3-dim-vtrack: 30px;
+    /* Цепочки — без изменений (исходные 26px) */
+    --frame3-chain-sketch-gap: 26px;
   }
 
   .frame3-dim-drawing--left {
@@ -573,8 +583,12 @@
   inset: 0;
   pointer-events: none;
   z-index: 14;
-  /* Зазор до эскиза как у верхнего габарита; vtrack как у выносок .frame3-dim-drawing__ext-* */
-  --hinge-chain-sketch-gap: var(--frame3-dim-sketch-gap-y);
+  /*
+   * Зазор цепочек намеренно отвязан от --frame3-dim-sketch-gap-y: главные габариты
+   * на эскизе сделаны на 50% ближе, а цепочки петель/ручек должны остаться прежними.
+   * vtrack общий — длина пунктирной выноски не меняется.
+   */
+  --hinge-chain-sketch-gap: var(--frame3-chain-sketch-gap, 30px);
   --hinge-chain-vtrack: var(--frame3-dim-vtrack);
   /* Зазор «подпись ↔ размерная линия» — единый с габаритами (.frame3-dim-drawing) */
   --hinge-chain-label-gap: var(--frame3-dim-label-gap, 8px);

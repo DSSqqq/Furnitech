@@ -420,11 +420,15 @@
     padding: 0;
   }
 
-  /* Цепочки и габариты эскиза: помещаются в более узкий контейнер. */
+  /*
+   * Цепочки и габариты эскиза: помещаются в более узкий контейнер.
+   * Габариты — на 50% ближе к эскизу (22→11, 18→9), цепочки — без изменений (22px).
+   */
   .frame3-drawing {
-    --frame3-dim-sketch-gap-y: 22px;
-    --frame3-dim-sketch-gap-x: 18px;
+    --frame3-dim-sketch-gap-y: 11px;
+    --frame3-dim-sketch-gap-x: 9px;
     --frame3-dim-vtrack: 22px;
+    --frame3-chain-sketch-gap: 22px;
   }
 
   .frame3-dim-drawing--left,

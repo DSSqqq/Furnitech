@@ -357,9 +357,12 @@ body {
 }
 
 .frame3-drawing {
-  --frame3-dim-sketch-gap-y: 30px;
-  --frame3-dim-sketch-gap-x: 28px;
+  /* Главные габариты — на 50% ближе к эскизу, чем были (30→15, 28→14). */
+  --frame3-dim-sketch-gap-y: 15px;
+  --frame3-dim-sketch-gap-x: 14px;
   --frame3-dim-vtrack: 34px;
+  /* Цепочки петель/ручек оставляем на прежнем зазоре (30px). */
+  --frame3-chain-sketch-gap: 30px;
 }
 
 .frame3-dim-drawing--left,
