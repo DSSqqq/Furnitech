@@ -51,6 +51,20 @@ export type MaterialTextureLayerOptions = {
   sketchOpacity?: number
 }
 
+/** Непрозрачность слоя текстуры (как в `materialTextureLayerStyle`). */
+export function sketchMaterialOpacity(
+  material: SketchTextureMaterial | null | undefined,
+  options?: MaterialTextureLayerOptions,
+): number {
+  if (!material) return 1
+  const opacityRaw = asNum(material.tex_opacity)
+  return options?.sketchOpacity != null
+    ? clamp(options.sketchOpacity, 0, 1)
+    : opacityRaw == null
+      ? 1
+      : clamp(opacityRaw, 0, 1)
+}
+
 /**
  * Унифицированный стиль текстуры материала (рамка/наполнение): учитывает параметры из базы:
  * offset/step/opacity/rotate/mirror.
@@ -72,13 +86,7 @@ export function materialTextureLayerStyle(
   // В режиме эскиза используем "растянуть по области" (как просили): cover + no-repeat + center.
   // Это даёт предсказуемую визуализацию на всех шагах и не зависит от шагов тайлинга.
   // Параметры step/offset оставляем на будущее (если потребуется вернуть тайлинг).
-  const opacityRaw = asNum(material.tex_opacity)
-  const opacity =
-    options?.sketchOpacity != null
-      ? clamp(options.sketchOpacity, 0, 1)
-      : opacityRaw == null
-        ? 1
-        : clamp(opacityRaw, 0, 1)
+  const opacity = sketchMaterialOpacity(material, options)
   const mirror = Boolean(material.tex_mirror)
 
   // В режиме эскиза всегда заполняем прямоугольник без "дыр":
