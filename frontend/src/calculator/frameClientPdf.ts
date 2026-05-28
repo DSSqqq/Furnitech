@@ -308,17 +308,6 @@ function formatMoney(n: number, currency: string): string {
   return `${n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 3 })} ${currency}`
 }
 
-/** Гарантирует, что после контента ещё помещается `neededMm` мм. Иначе — `addPage()` и возвращает Y = `topY`. */
-function ensureSpaceOrNewPage(doc: jsPDF, currentY: number, neededMm: number, topY: number): number {
-  const pageH = doc.internal.pageSize.getHeight()
-  const bottomMargin = 14
-  if (currentY + neededMm > pageH - bottomMargin) {
-    doc.addPage()
-    return topY
-  }
-  return currentY
-}
-
 /**
  * Страница 1: «Бланк на изготовление алюминиевых фасадов» — авто-заполнение полей
  * заказчика/заказа из калькулятора, профиль/наполнение/габариты, петли/ручка,
@@ -327,9 +316,18 @@ function ensureSpaceOrNewPage(doc: jsPDF, currentY: number, neededMm: number, to
 async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfInput): Promise<void> {
   await ensureNotoSans(doc)
   const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
   const margin = 14
   const contentW = pageW - 2 * margin
-  const labelColW = 56
+  /** Нижний блок: сноска + две строки подписей — всегда на том же листе. */
+  const sigLine1Y = pageH - margin - 12
+  const sigLine2Y = pageH - margin - 5
+  const footnoteY = sigLine1Y - 5
+  const labelColW = 46
+  const valueColW = 68
+  const formTableW = labelColW + valueColW
+  const formTableFontSize = 8
+  const formTableCellPad = 1.2
   const topY = 14
 
   doc.setFontSize(9)
@@ -353,16 +351,18 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
   setRegularFont(doc)
 
   let y = topY + 18
+  const formBlockStartY = y
 
   const drawSectionTable = (rows: Array<[string, string]>, opts?: { startY?: number }) => {
     autoTable(doc, {
       startY: opts?.startY ?? y,
       body: rows,
       theme: 'grid',
+      tableWidth: formTableW,
       styles: {
         font: activePdfFont,
-        fontSize: 9.5,
-        cellPadding: 1.8,
+        fontSize: formTableFontSize,
+        cellPadding: formTableCellPad,
         textColor: [25, 25, 25],
         lineColor: [60, 60, 60],
         lineWidth: 0.2,
@@ -376,9 +376,9 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
           fontStyle: 'normal',
           textColor: [60, 60, 60],
         },
-        1: { cellWidth: contentW - labelColW, fontStyle: 'normal' },
+        1: { cellWidth: valueColW, fontStyle: 'normal' },
       },
-      margin: { left: margin, right: margin },
+      margin: { left: margin, right: pageW - margin - formTableW },
     })
     y = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 3
   }
@@ -392,29 +392,11 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
     ['Дата готовности', ''],
   ])
 
-  const profileImg = data.colorMaterial?.texture_image
-    ? await loadImageDataUrl(data.colorMaterial.texture_image)
-    : null
-  const profileTableStartY = y
   drawSectionTable([
     ['Тип профиля', data.frameTypeName || '—'],
     ['Цвет профиля', materialTextureLabel(data.colorMaterial)],
     ['Наполнение', sketchFillingLine(data.fillingTypeName, data.fillingMaterial)],
   ])
-
-  if (profileImg) {
-    try {
-      const previewSize = 14
-      const previewX = pageW - margin - previewSize - 2
-      const previewY = profileTableStartY + 1.5
-      doc.addImage(profileImg, imgFmt(profileImg), previewX, previewY, previewSize, previewSize, undefined, 'FAST')
-      doc.setDrawColor(100, 100, 100)
-      doc.setLineWidth(0.15)
-      doc.rect(previewX, previewY, previewSize, previewSize, 'S')
-    } catch {
-      /* preview не обязательный — ignore */
-    }
-  }
 
   drawSectionTable([
     ['Высота фасада, мм', String(data.heightMm)],
@@ -449,23 +431,46 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
     drawSectionTable([['Комментарий', '']])
   }
 
-  y = ensureSpaceOrNewPage(doc, y, 28, topY)
-  setBoldFont(doc)
-  doc.setFontSize(10)
-  doc.setTextColor(35, 35, 35)
-  doc.text('Стоимость изготовления (фасады)*', margin, y + 4)
+  const formBlockEndY = y
+  const sketchGap = 8
+  const sketchX = margin + formTableW + sketchGap
+  const sketchY = formBlockStartY
+  const sketchW = pageW - margin - sketchX
+  const sketchH = Math.max(48, formBlockEndY - formBlockStartY)
   setRegularFont(doc)
-  y += 7
+  doc.setFontSize(7)
+  doc.setTextColor(110, 110, 110)
+  doc.text('Эскиз (примерный)', sketchX + sketchW / 2, sketchY - 1.5, { align: 'center' })
+  await drawFacadeSketchInArea(
+    doc,
+    data,
+    { x: sketchX, y: sketchY, w: sketchW, h: sketchH },
+    {
+      showDimensionChains: false,
+      showInfoOverlay: true,
+      showMainDimensions: true,
+      sizeFactor: 1,
+    },
+  )
 
-  if (data.currencyMismatch) {
-    doc.setFontSize(8.5)
+  y = Math.max(y, sketchY + sketchH) + 4
+  const costTitleY = Math.min(y + 2, footnoteY - 18)
+  setBoldFont(doc)
+  doc.setFontSize(9)
+  doc.setTextColor(35, 35, 35)
+  doc.text('Стоимость изготовления (фасады)*', margin, costTitleY)
+  setRegularFont(doc)
+  let costY = costTitleY + 5
+
+  if (data.currencyMismatch && costY < footnoteY - 10) {
+    doc.setFontSize(8)
     doc.setTextColor(120, 80, 0)
-    doc.text('Внимание: в конфигурации разные валюты — суммы ориентировочные.', margin, y)
-    y += 4
+    doc.text('Внимание: в конфигурации разные валюты — суммы ориентировочные.', margin, costY)
+    costY += 3.5
   }
 
   autoTable(doc, {
-    startY: y,
+    startY: costY,
     head: [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Итого']],
     body: [
       [
@@ -477,40 +482,38 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
       ],
     ],
     theme: 'grid',
-    styles: { font: activePdfFont, fontSize: 9, cellPadding: 1.6, lineColor: [60, 60, 60], lineWidth: 0.2 },
+    styles: { font: activePdfFont, fontSize: 8, cellPadding: 1.2, lineColor: [60, 60, 60], lineWidth: 0.2 },
     headStyles: {
       fillColor: [230, 230, 230],
       textColor: [20, 20, 20],
       fontStyle: 'normal',
       font: activePdfFont,
+      fontSize: 8,
     },
     margin: { left: margin, right: margin },
+    tableWidth: contentW,
   })
-  y = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? y) + 4
 
-  doc.setFontSize(8)
+  doc.setFontSize(7.5)
   doc.setTextColor(100, 100, 100)
   doc.text(
     '* Цена ориентировочная, без учёта доставки и монтажа. Уточняйте у менеджера.',
     margin,
-    y,
+    footnoteY,
     { maxWidth: contentW },
   )
-  y += 8
 
-  y = ensureSpaceOrNewPage(doc, y, 22, topY)
   doc.setDrawColor(80, 80, 80)
   doc.setLineWidth(0.2)
-  doc.setFontSize(9)
+  doc.setFontSize(8.5)
   doc.setTextColor(40, 40, 40)
   const sigGap = contentW / 2 - 6
-  doc.text('Оплату принял', margin, y)
-  doc.line(margin + 28, y + 0.6, margin + sigGap, y + 0.6)
-  doc.text('Дата', margin + sigGap + 6, y)
-  doc.line(margin + sigGap + 14, y + 0.6, pageW - margin, y + 0.6)
-  y += 8
-  doc.text('Товар получен, претензий к внешнему виду не имею', margin, y)
-  doc.line(margin + 78, y + 0.6, pageW - margin, y + 0.6)
+  doc.text('Оплату принял', margin, sigLine1Y)
+  doc.line(margin + 28, sigLine1Y + 0.6, margin + sigGap, sigLine1Y + 0.6)
+  doc.text('Дата', margin + sigGap + 6, sigLine1Y)
+  doc.line(margin + sigGap + 14, sigLine1Y + 0.6, pageW - margin, sigLine1Y + 0.6)
+  doc.text('Товар получен, претензий к внешнему виду не имею', margin, sigLine2Y)
+  doc.line(margin + 78, sigLine2Y + 0.6, pageW - margin, sigLine2Y + 0.6)
 }
 
 /** Эскиз страницы фасада: рисует «sketch-sheet»-карточку (как в Step7) поверх рамы. */
@@ -598,29 +601,27 @@ function drawSketchInfoOverlay(
   }
 }
 
-/** Страница фасада: эскиз −30%, габариты и цепочки как на шагах 6–7 (`computeHingeChainDims`), info-карточка поверх. */
-async function buildFacadePage(
+type PdfSketchArea = { x: number; y: number; w: number; h: number }
+
+type DrawFacadeSketchOpts = {
+  showDimensionChains?: boolean
+  showInfoOverlay?: boolean
+  showMainDimensions?: boolean
+  sizeFactor?: number
+  pageLegend?: { margin: number; pageH: number; pageW: number }
+}
+
+/** Эскиз фасада в заданном прямоугольнике (бланк справа или страница фасада). */
+async function drawFacadeSketchInArea(
   doc: jsPDF,
-  calcNo: string,
-  facadeIndex: number,
-  facadeTotal: number,
   data: FrameClientPdfInput,
+  area: PdfSketchArea,
+  opts: DrawFacadeSketchOpts = {},
 ): Promise<void> {
-  await ensureNotoSans(doc)
-  const pageW = doc.internal.pageSize.getWidth()
-  const pageH = doc.internal.pageSize.getHeight()
-  const margin = 14
-
-  doc.setFontSize(9)
-  doc.setTextColor(120, 120, 120)
-  doc.text(`Заказ № ${calcNo}`, margin, 12)
-  doc.text(`Стр. фасада ${facadeIndex} / ${facadeTotal}`, pageW - margin, 12, { align: 'right' })
-
-  setBoldFont(doc)
-  doc.setFontSize(12)
-  doc.setTextColor(20, 20, 20)
-  doc.text(`Фасад № ${facadeIndex} — эскиз и размеры`, pageW / 2, 22, { align: 'center' })
-  setRegularFont(doc)
+  const showDimensionChains = opts.showDimensionChains ?? true
+  const showInfoOverlay = opts.showInfoOverlay ?? true
+  const showMainDimensions = opts.showMainDimensions ?? true
+  const sizeFactor = opts.sizeFactor ?? PDF_SKETCH_SIZE_FACTOR
 
   const W = data.widthMm
   const H = data.heightMm
@@ -655,23 +656,31 @@ async function buildFacadePage(
   if (data.handleHoles && handleCenters) chainSides.push(data.handleHoles.side)
   const { widthPos, heightPos } = sketchMainDimPlacement(chainSides)
 
-  const inh = pdfInsetForChainSide(
-    data.hingeLayout && hingePos ? data.hingeLayout.side : null,
-    hingeSegs,
-  )
-  const inb = pdfInsetForChainSide(
-    data.handleHoles && handleCenters ? data.handleHoles.side : null,
-    handleSegs,
-  )
-  const insetL = margin + inh.l + inb.l + (heightPos === 'left' ? 10 : 0)
-  const insetR = margin + inh.r + inb.r + (heightPos === 'right' ? 10 : 0)
-  const insetT = 30 + inh.t + inb.t + (widthPos === 'top' ? 12 : 0)
-  const insetB = margin + inh.b + inb.b + (widthPos === 'bottom' ? 12 : 0) + 10
+  const inh = showDimensionChains
+    ? pdfInsetForChainSide(data.hingeLayout && hingePos ? data.hingeLayout.side : null, hingeSegs)
+    : { l: 0, r: 0, t: 0, b: 0 }
+  const inb = showDimensionChains
+    ? pdfInsetForChainSide(data.handleHoles && handleCenters ? data.handleHoles.side : null, handleSegs)
+    : { l: 0, r: 0, t: 0, b: 0 }
 
-  const drawAreaW = pageW - insetL - insetR
-  const drawAreaH = pageH - insetT - insetB
+  const padInner = showDimensionChains ? 0 : 4
+  const mainDimReserve = showMainDimensions ? 12 : 0
+  const leftExtra =
+    padInner + inh.l + inb.l + (showMainDimensions && heightPos === 'left' ? mainDimReserve : 0)
+  const rightExtra =
+    padInner + inh.r + inb.r + (showMainDimensions && heightPos === 'right' ? mainDimReserve : 0)
+  const topExtra =
+    padInner + inh.t + inb.t + (showMainDimensions && widthPos === 'top' ? mainDimReserve : 0)
+  const bottomExtra =
+    padInner + inh.b + inb.b + (showMainDimensions && widthPos === 'bottom' ? mainDimReserve : 0)
+
+  const drawAreaW = Math.max(8, area.w - leftExtra - rightExtra)
+  const drawAreaH = Math.max(8, area.h - topExtra - bottomExtra)
+  const insetL = area.x + leftExtra
+  const insetT = area.y + topExtra
+
   const aspectWh = facadePdfSketchAspect(W, H)
-  let dh = Math.min(drawAreaH, drawAreaW / aspectWh, 1e6) * PDF_SKETCH_SIZE_FACTOR
+  const dh = Math.min(drawAreaH, drawAreaW / aspectWh, 1e6) * sizeFactor
   const dw = aspectWh * dh
   const scaleX = dw / W
   const scaleY = dh / H
@@ -679,7 +688,6 @@ async function buildFacadePage(
   const oy = insetT + (drawAreaH - dh) / 2
 
   const profileFill = hexToRgb(data.colorMaterial?.texture_color ?? '#b08d57') ?? [176, 141, 87]
-  /** Наполнение в PDF — только заливка цветом (без текстуры, как требование к печати). */
   const glassFill = hexToRgb(data.fillingMaterial?.texture_color ?? '#d9d9d9') ?? [217, 217, 217]
 
   const profileImg = data.colorMaterial?.texture_image
@@ -711,7 +719,9 @@ async function buildFacadePage(
   doc.rect(ox, oy, dw, dh, 'S')
   doc.rect(ix, iy, idw, idh, 'S')
 
-  drawSketchInfoOverlay(doc, ox, oy, dw, dh, data)
+  if (showInfoOverlay) {
+    drawSketchInfoOverlay(doc, ox, oy, dw, dh, data)
+  }
 
   doc.setFontSize(6.5)
   doc.setTextColor(28, 28, 28)
@@ -736,11 +746,7 @@ async function buildFacadePage(
             ? px - 3.5 - doc.getTextWidth(`№${i + 1}`)
             : px - doc.getTextWidth(`№${i + 1}`) / 2
       const ly =
-        side === 'top'
-          ? py + 4
-          : side === 'bottom'
-            ? py - 3
-            : py + 1
+        side === 'top' ? py + 4 : side === 'bottom' ? py - 3 : py + 1
       doc.text(`№${i + 1}`, lx, ly)
     })
   }
@@ -772,126 +778,127 @@ async function buildFacadePage(
     })
   }
 
-  doc.setDrawColor(38, 38, 42)
-  doc.setLineWidth(0.2)
-  doc.setFontSize(7)
-  doc.setTextColor(32, 32, 36)
+  if (showDimensionChains) {
+    doc.setDrawColor(38, 38, 42)
+    doc.setLineWidth(0.2)
+    doc.setFontSize(7)
+    doc.setTextColor(32, 32, 36)
 
-  /** Как `HingeChainDimLayer` на шагах 6–7: один размер на точку, дорожки и nudge. */
-  const drawVertChain = (segments: HingeChainDimSegmentLayout[], edge: 'left' | 'right') => {
-    if (segments.length === 0) return
-    const flip = edge === 'left'
-    for (const seg of segments) {
-      const y1 = oy + (seg.trackTopPct / 100) * dh
-      const y2 = oy + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dh
-      const nudgeOut = (flip ? -seg.nudgeX : seg.nudgeX) * PDF_PX_TO_MM
-      const base = PDF_CHAIN_SKETCH_GAP_MM + pdfTrackOffsetMm(seg.trackOffsetPx) + Math.abs(nudgeOut)
-      const xDim = flip ? ox - base : ox + dw + base
-      doc.line(ox + (flip ? 0 : dw), y1, xDim, y1)
-      doc.line(ox + (flip ? 0 : dw), y2, xDim, y2)
-      doc.line(xDim, y1, xDim, y2)
-      const label = formatDimMmPdf(seg.valueMm)
-      const ly = (y1 + y2) / 2
-      const lx = flip ? xDim - 2 : xDim + 2
-      doc.text(label, lx, ly, { angle: 90, align: 'center' })
+    const drawVertChain = (segments: HingeChainDimSegmentLayout[], edge: 'left' | 'right') => {
+      if (segments.length === 0) return
+      const flip = edge === 'left'
+      for (const seg of segments) {
+        const y1 = oy + (seg.trackTopPct / 100) * dh
+        const y2 = oy + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dh
+        const nudgeOut = (flip ? -seg.nudgeX : seg.nudgeX) * PDF_PX_TO_MM
+        const base = PDF_CHAIN_SKETCH_GAP_MM + pdfTrackOffsetMm(seg.trackOffsetPx) + Math.abs(nudgeOut)
+        const xDim = flip ? ox - base : ox + dw + base
+        doc.line(ox + (flip ? 0 : dw), y1, xDim, y1)
+        doc.line(ox + (flip ? 0 : dw), y2, xDim, y2)
+        doc.line(xDim, y1, xDim, y2)
+        doc.text(formatDimMmPdf(seg.valueMm), flip ? xDim - 2 : xDim + 2, (y1 + y2) / 2, {
+          angle: 90,
+          align: 'center',
+        })
+      }
+    }
+
+    const drawHorizChain = (segments: HingeChainDimSegmentLayout[], edge: 'top' | 'bottom') => {
+      if (segments.length === 0) return
+      const flip = edge === 'top'
+      for (const seg of segments) {
+        const x1b = ox + (seg.trackTopPct / 100) * dw
+        const x2b = ox + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dw
+        const nudgeOut = (flip ? -seg.nudgeY : seg.nudgeY) * PDF_PX_TO_MM
+        const base = PDF_CHAIN_SKETCH_GAP_MM + pdfTrackOffsetMm(seg.trackOffsetPx) + Math.abs(nudgeOut)
+        const yDim = flip ? oy - base : oy + dh + base
+        doc.line(x1b, oy + (flip ? 0 : dh), x1b, yDim)
+        doc.line(x2b, oy + (flip ? 0 : dh), x2b, yDim)
+        doc.line(x1b, yDim, x2b, yDim)
+        doc.text(formatDimMmPdf(seg.valueMm), (x1b + x2b) / 2, flip ? yDim - 2.5 : yDim + 3.5, {
+          align: 'center',
+        })
+      }
+    }
+
+    if (data.hingeLayout && hingeSegs.length > 0) {
+      const es = data.hingeLayout.side
+      if (es === 'left' || es === 'right') drawVertChain(hingeSegs, es)
+      else drawHorizChain(hingeSegs, es)
+    }
+
+    if (data.handleHoles && handleSegs.length > 0) {
+      const es = data.handleHoles.side
+      if (es === 'left' || es === 'right') drawVertChain(handleSegs, es)
+      else drawHorizChain(handleSegs, es)
     }
   }
 
-  const drawHorizChain = (segments: HingeChainDimSegmentLayout[], edge: 'top' | 'bottom') => {
-    if (segments.length === 0) return
-    const flip = edge === 'top'
-    for (const seg of segments) {
-      const x1b = ox + (seg.trackTopPct / 100) * dw
-      const x2b = ox + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dw
-      const nudgeOut = (flip ? -seg.nudgeY : seg.nudgeY) * PDF_PX_TO_MM
-      const base = PDF_CHAIN_SKETCH_GAP_MM + pdfTrackOffsetMm(seg.trackOffsetPx) + Math.abs(nudgeOut)
-      const yDim = flip ? oy - base : oy + dh + base
-      doc.line(x1b, oy + (flip ? 0 : dh), x1b, yDim)
-      doc.line(x2b, oy + (flip ? 0 : dh), x2b, yDim)
-      doc.line(x1b, yDim, x2b, yDim)
-      doc.text(formatDimMmPdf(seg.valueMm), (x1b + x2b) / 2, flip ? yDim - 2.5 : yDim + 3.5, {
-        align: 'center',
-      })
+  if (showMainDimensions) {
+    doc.setDrawColor(22, 22, 26)
+    doc.setLineWidth(0.28)
+    doc.setFontSize(8)
+    doc.setTextColor(22, 22, 26)
+
+    if (widthPos === 'top') {
+      const yDim = oy - PDF_MAIN_DIM_GAP_MM
+      doc.line(ox, oy, ox, yDim)
+      doc.line(ox + dw, oy, ox + dw, yDim)
+      doc.line(ox, yDim, ox + dw, yDim)
+      doc.text(`${W} мм`, ox + dw / 2, yDim - 2, { align: 'center' })
+    } else {
+      const yDim = oy + dh + PDF_MAIN_DIM_GAP_MM
+      doc.line(ox, oy + dh, ox, yDim)
+      doc.line(ox + dw, oy + dh, ox + dw, yDim)
+      doc.line(ox, yDim, ox + dw, yDim)
+      doc.text(`${W} мм`, ox + dw / 2, yDim + 4, { align: 'center' })
+    }
+
+    if (heightPos === 'left') {
+      const xDim = ox - PDF_MAIN_DIM_GAP_MM
+      doc.line(ox, oy, xDim, oy)
+      doc.line(ox, oy + dh, xDim, oy + dh)
+      doc.line(xDim, oy, xDim, oy + dh)
+      doc.text(`${H} мм`, xDim - 2, oy + dh / 2, { angle: 90, align: 'center' })
+    } else {
+      const xDim = ox + dw + PDF_MAIN_DIM_GAP_MM
+      doc.line(ox + dw, oy, xDim, oy)
+      doc.line(ox + dw, oy + dh, xDim, oy + dh)
+      doc.line(xDim, oy, xDim, oy + dh)
+      doc.text(`${H} мм`, xDim + 2, oy + dh / 2, { angle: 90, align: 'center' })
     }
   }
 
-  if (data.hingeLayout && hingeSegs.length > 0) {
-    const es = data.hingeLayout.side
-    if (es === 'left' || es === 'right') drawVertChain(hingeSegs, es)
-    else drawHorizChain(hingeSegs, es)
+  if (opts.pageLegend) {
+    const { margin, pageH, pageW } = opts.pageLegend
+    doc.setFontSize(8)
+    doc.setTextColor(90, 90, 90)
+    const legend: string[] = [
+      `Внутреннее поле наполнения (условно): ${innerW} × ${innerH} мм (вылет рамы ${FRAME_INSET_MM} мм с каждой стороны).`,
+    ]
+    if (data.handleHoles && handleCenters) {
+      legend.push(
+        `Отверстия под ручку: Ø${data.handleHoles.diameterMm} мм${data.handleHoles.bushings ? ', втулки' : ''}.`,
+      )
+    }
+    doc.text(legend.join(' '), margin, pageH - margin - 4, { maxWidth: pageW - 2 * margin })
   }
-
-  if (data.handleHoles && handleSegs.length > 0) {
-    const es = data.handleHoles.side
-    if (es === 'left' || es === 'right') drawVertChain(handleSegs, es)
-    else drawHorizChain(handleSegs, es)
-  }
-
-  doc.setDrawColor(22, 22, 26)
-  doc.setLineWidth(0.28)
-  doc.setFontSize(8)
-  doc.setTextColor(22, 22, 26)
-
-  if (widthPos === 'top') {
-    const yDim = oy - PDF_MAIN_DIM_GAP_MM
-    doc.line(ox, oy, ox, yDim)
-    doc.line(ox + dw, oy, ox + dw, yDim)
-    doc.line(ox, yDim, ox + dw, yDim)
-    doc.text(`${W} мм`, ox + dw / 2, yDim - 2, { align: 'center' })
-  } else {
-    const yDim = oy + dh + PDF_MAIN_DIM_GAP_MM
-    doc.line(ox, oy + dh, ox, yDim)
-    doc.line(ox + dw, oy + dh, ox + dw, yDim)
-    doc.line(ox, yDim, ox + dw, yDim)
-    doc.text(`${W} мм`, ox + dw / 2, yDim + 4, { align: 'center' })
-  }
-
-  if (heightPos === 'left') {
-    const xDim = ox - PDF_MAIN_DIM_GAP_MM
-    doc.line(ox, oy, xDim, oy)
-    doc.line(ox, oy + dh, xDim, oy + dh)
-    doc.line(xDim, oy, xDim, oy + dh)
-    doc.text(`${H} мм`, xDim - 2, oy + dh / 2, { angle: 90, align: 'center' })
-  } else {
-    const xDim = ox + dw + PDF_MAIN_DIM_GAP_MM
-    doc.line(ox + dw, oy, xDim, oy)
-    doc.line(ox + dw, oy + dh, xDim, oy + dh)
-    doc.line(xDim, oy, xDim, oy + dh)
-    doc.text(`${H} мм`, xDim + 2, oy + dh / 2, { angle: 90, align: 'center' })
-  }
-
-  doc.setFontSize(8)
-  doc.setTextColor(90, 90, 90)
-  const legend: string[] = [
-    `Внутреннее поле наполнения (условно): ${innerW} × ${innerH} мм (вылет рамы ${FRAME_INSET_MM} мм с каждой стороны).`,
-  ]
-  if (data.handleHoles && handleCenters) {
-    legend.push(
-      `Отверстия под ручку: Ø${data.handleHoles.diameterMm} мм${data.handleHoles.bushings ? ', втулки' : ''}.`,
-    )
-  }
-  const foot = legend.join(' ')
-  doc.text(foot, margin, pageH - margin - 4, { maxWidth: pageW - 2 * margin })
 }
+
+const PDF_DOC_OPTS = { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const }
 
 /** Предзагрузка шрифта с CDN, чтобы при нажатии «PDF» меньше терять «user gesture» из‑за await fetch. */
 export async function preloadFramePdfFont(): Promise<void> {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const doc = new jsPDF(PDF_DOC_OPTS)
   await ensureNotoSans(doc)
 }
 
 /** Собирает PDF в память. Для показа во вкладке: синхронно открыть `about:blank`, затем после await назначить `win.location.href` на `URL.createObjectURL(blob)` — см. шаг 8 калькулятора. */
 export async function buildFrameClientPdfBlob(data: FrameClientPdfInput): Promise<{ blob: Blob; filename: string }> {
   const calcNo = String(1000 + Math.floor(Math.random() * 9000))
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
+  const doc = new jsPDF({ ...PDF_DOC_OPTS, compress: true })
 
   await buildBlankPage(doc, calcNo, data)
-
-  const n = Math.max(1, Math.floor(data.facadeCount))
-  for (let i = 1; i <= n; i++) {
-    doc.addPage()
-    await buildFacadePage(doc, calcNo, i, n, data)
-  }
 
   const safeName = `furnitech-zakaz-${calcNo}.pdf`
   const blob = doc.output('blob')
