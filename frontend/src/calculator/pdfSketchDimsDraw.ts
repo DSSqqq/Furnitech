@@ -8,7 +8,9 @@ import {
 /** Высота эскиза в UI (~px) → перевод CSS-зазоров в мм на PDF. */
 const REF_SKETCH_HEIGHT_PX = 250
 
+/** Габарит ширины: в UI зазор Y вдвое меньше цепочек (15px vs 30px). */
 const DIM_GAP_Y_PX = 15
+const MAIN_WIDTH_DIM_GAP_FRAC = 0.5
 const DIM_GAP_X_PX = 14
 const CHAIN_GAP_PX = 30
 /** Зазор подпись ↔ размерная линия (габариты H×W), как `--frame3-dim-label-gap` в UI. */
@@ -17,7 +19,6 @@ const MAIN_LABEL_GAP_PX = 8
 const CHAIN_LABEL_GAP_PX = 2
 /** Петли слева/справа — подпись вплотную к вертикальному отрезку. */
 const CHAIN_VERT_HINGE_LABEL_GAP_PX = 1
-const VTRACK_PX = 34
 const HINGE_TRACK_STEP_PX = 26
 
 export function pdfSketchMmPerPx(sketchHeightMm: number): number {
@@ -38,6 +39,10 @@ function pdfChainVertHingeLabelPadMm(sketchHeightMm: number): number {
 
 function pdfMainLabelPadMm(sketchHeightMm: number): number {
   return Math.max(0.65, px(sketchHeightMm, MAIN_LABEL_GAP_PX) * 0.9) + 0.5
+}
+
+function pdfMainWidthLabelPadMm(sketchHeightMm: number): number {
+  return Math.max(0.35, px(sketchHeightMm, MAIN_LABEL_GAP_PX) * 0.45)
 }
 
 function pdfTrackOffsetMm(trackOffsetPx: number, sketchHeightMm: number): number {
@@ -112,10 +117,10 @@ export function pdfDrawMainWidthDim(
   pos: 'top' | 'bottom',
   sketchHeightMm: number,
 ): void {
-  const gapY = px(sketchHeightMm, DIM_GAP_Y_PX)
+  const gapY = px(sketchHeightMm, DIM_GAP_Y_PX) * MAIN_WIDTH_DIM_GAP_FRAC
   const arrowMm = px(sketchHeightMm, 7)
   const yDim = pos === 'top' ? oy - gapY : oy + dh + gapY
-  const labelPad = pdfMainLabelPadMm(sketchHeightMm)
+  const labelPad = pdfMainWidthLabelPadMm(sketchHeightMm)
   const labelY = pos === 'top' ? yDim - labelPad : yDim + labelPad
   const edgeY = pos === 'top' ? oy : oy + dh
 
@@ -144,21 +149,16 @@ export function pdfDrawMainHeightDim(
   sketchHeightMm: number,
 ): void {
   const gapX = px(sketchHeightMm, DIM_GAP_X_PX)
-  const vtrack = px(sketchHeightMm, VTRACK_PX)
   const arrowMm = px(sketchHeightMm, 7)
   const xDim = pos === 'left' ? ox - gapX : ox + dw + gapX
   const vCenterX = pos === 'left' ? xDim + 2 + 2 : xDim - 2 - 2
   const labelPad = pdfMainLabelPadMm(sketchHeightMm)
   const labelX = pos === 'left' ? vCenterX - labelPad : vCenterX + labelPad
+  const edgeX = pos === 'left' ? ox : ox + dw
 
   setWitnessDashed(doc)
-  if (pos === 'left') {
-    doc.line(ox, oy, xDim - vtrack, oy)
-    doc.line(ox, oy + dh, xDim - vtrack, oy + dh)
-  } else {
-    doc.line(ox + dw, oy, xDim + vtrack, oy)
-    doc.line(ox + dw, oy + dh, xDim + vtrack, oy + dh)
-  }
+  doc.line(edgeX, oy, vCenterX, oy)
+  doc.line(edgeX, oy + dh, vCenterX, oy + dh)
 
   setDimSolid(doc)
   doc.line(vCenterX, oy, vCenterX, oy + dh)

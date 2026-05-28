@@ -490,10 +490,6 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
   const sketchY = formBlockStartY
   const sketchW = pageW - margin - sketchX
   const sketchH = Math.max(48, formBlockEndY - formBlockStartY)
-  setRegularFont(doc)
-  doc.setFontSize(7)
-  doc.setTextColor(110, 110, 110)
-  doc.text('Эскиз (примерный)', sketchX + sketchW / 2, sketchY - 1.5, { align: 'center' })
   await drawFacadeSketchInArea(
     doc,
     data,
