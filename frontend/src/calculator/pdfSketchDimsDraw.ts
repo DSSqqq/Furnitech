@@ -11,7 +11,12 @@ const REF_SKETCH_HEIGHT_PX = 250
 const DIM_GAP_Y_PX = 15
 const DIM_GAP_X_PX = 14
 const CHAIN_GAP_PX = 30
-const LABEL_GAP_PX = 8
+/** Зазор подпись ↔ размерная линия (габариты H×W), как `--frame3-dim-label-gap` в UI. */
+const MAIN_LABEL_GAP_PX = 8
+/** Петли/ручки (верх/низ) — плотнее к отрезку. */
+const CHAIN_LABEL_GAP_PX = 2
+/** Петли слева/справа — подпись вплотную к вертикальному отрезку. */
+const CHAIN_VERT_HINGE_LABEL_GAP_PX = 1
 const VTRACK_PX = 34
 const HINGE_TRACK_STEP_PX = 26
 
@@ -21,6 +26,18 @@ export function pdfSketchMmPerPx(sketchHeightMm: number): number {
 
 function px(sketchHeightMm: number, cssPx: number): number {
   return cssPx * pdfSketchMmPerPx(sketchHeightMm)
+}
+
+function pdfChainLabelPadMm(sketchHeightMm: number): number {
+  return Math.max(0.2, px(sketchHeightMm, CHAIN_LABEL_GAP_PX) * 0.32)
+}
+
+function pdfChainVertHingeLabelPadMm(sketchHeightMm: number): number {
+  return Math.max(0.1, px(sketchHeightMm, CHAIN_VERT_HINGE_LABEL_GAP_PX) * 0.2)
+}
+
+function pdfMainLabelPadMm(sketchHeightMm: number): number {
+  return Math.max(0.65, px(sketchHeightMm, MAIN_LABEL_GAP_PX) * 0.9) + 0.5
 }
 
 function pdfTrackOffsetMm(trackOffsetPx: number, sketchHeightMm: number): number {
@@ -38,6 +55,9 @@ function setWitnessDashed(doc: jsPDF): void {
   doc.setLineWidth(0.15)
   doc.setLineDashPattern([1.2, 1.2], 0)
 }
+
+/** Цепочки петель/ручек: дорожка и выноска на 50% ближе к эскизу (как укороченный пунктир в UI). */
+const CHAIN_DIM_OFFSET_FRAC = 0.5
 
 function pdfArrow(
   doc: jsPDF,
@@ -93,10 +113,10 @@ export function pdfDrawMainWidthDim(
   sketchHeightMm: number,
 ): void {
   const gapY = px(sketchHeightMm, DIM_GAP_Y_PX)
-  const labelGap = px(sketchHeightMm, LABEL_GAP_PX)
   const arrowMm = px(sketchHeightMm, 7)
   const yDim = pos === 'top' ? oy - gapY : oy + dh + gapY
-  const labelY = pos === 'top' ? yDim - labelGap - 2.5 : yDim + labelGap + 2.5
+  const labelPad = pdfMainLabelPadMm(sketchHeightMm)
+  const labelY = pos === 'top' ? yDim - labelPad : yDim + labelPad
   const edgeY = pos === 'top' ? oy : oy + dh
 
   setWitnessDashed(doc)
@@ -124,12 +144,12 @@ export function pdfDrawMainHeightDim(
   sketchHeightMm: number,
 ): void {
   const gapX = px(sketchHeightMm, DIM_GAP_X_PX)
-  const labelGap = px(sketchHeightMm, LABEL_GAP_PX)
   const vtrack = px(sketchHeightMm, VTRACK_PX)
   const arrowMm = px(sketchHeightMm, 7)
   const xDim = pos === 'left' ? ox - gapX : ox + dw + gapX
   const vCenterX = pos === 'left' ? xDim + 2 + 2 : xDim - 2 - 2
-  const labelX = pos === 'left' ? vCenterX - labelGap - 2 : vCenterX + labelGap + 2
+  const labelPad = pdfMainLabelPadMm(sketchHeightMm)
+  const labelX = pos === 'left' ? vCenterX - labelPad : vCenterX + labelPad
 
   setWitnessDashed(doc)
   if (pos === 'left') {
@@ -162,6 +182,7 @@ function pdfDrawVertChain(
   dw: number,
   dh: number,
   sketchHeightMm: number,
+  chainKind: 'hinge' | 'handle',
 ): void {
   if (segments.length === 0) return
   const flip = edge === 'left'
@@ -172,8 +193,9 @@ function pdfDrawVertChain(
     const y1 = oy + (seg.trackTopPct / 100) * dh
     const y2 = oy + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dh
     const nudgeOut = (flip ? -seg.nudgeX : seg.nudgeX) * mmPerPx
-    const base =
+    const baseFull =
       px(sketchHeightMm, CHAIN_GAP_PX) + pdfTrackOffsetMm(seg.trackOffsetPx, sketchHeightMm) + Math.abs(nudgeOut)
+    const base = baseFull * CHAIN_DIM_OFFSET_FRAC
     const narrow = seg.trackSpanPct < HINGE_DIM_NARROW_SPAN_PCT
     const xDim = flip ? ox - base : ox + dw + base
     const edgeX = flip ? ox : ox + dw
@@ -189,8 +211,9 @@ function pdfDrawVertChain(
       pdfArrow(doc, xDim, y2, 's', arrowMm)
     }
 
-    const labelGap = px(sketchHeightMm, LABEL_GAP_PX)
-    const lx = flip ? xDim - labelGap - 2 : xDim + labelGap + 2
+    const labelPad =
+      chainKind === 'hinge' ? pdfChainVertHingeLabelPadMm(sketchHeightMm) : pdfChainLabelPadMm(sketchHeightMm)
+    const lx = flip ? xDim - labelPad : xDim + labelPad
     doc.setFontSize(6.8)
     doc.setTextColor(32, 32, 36)
     doc.text(formatSketchDimMm(seg.valueMm), lx, (y1 + y2) / 2, {
@@ -219,8 +242,9 @@ function pdfDrawHorizChain(
     const x1 = ox + (seg.trackTopPct / 100) * dw
     const x2 = ox + ((seg.trackTopPct + seg.trackSpanPct) / 100) * dw
     const nudgeOut = (flip ? -seg.nudgeY : seg.nudgeY) * mmPerPx
-    const base =
+    const baseFull =
       px(sketchHeightMm, CHAIN_GAP_PX) + pdfTrackOffsetMm(seg.trackOffsetPx, sketchHeightMm) + Math.abs(nudgeOut)
+    const base = baseFull * CHAIN_DIM_OFFSET_FRAC
     const narrow = seg.trackSpanPct < HINGE_DIM_NARROW_SPAN_PCT
     const yDim = flip ? oy - base : oy + dh + base
     const edgeY = flip ? oy : oy + dh
@@ -236,8 +260,8 @@ function pdfDrawHorizChain(
       pdfArrow(doc, x2, yDim, 'e', arrowMm)
     }
 
-    const labelGap = px(sketchHeightMm, LABEL_GAP_PX)
-    const ly = flip ? yDim - labelGap - 2 : yDim + labelGap + 2
+    const labelPad = pdfChainLabelPadMm(sketchHeightMm)
+    const ly = flip ? yDim - labelPad : yDim + labelPad
     doc.setFontSize(6.8)
     doc.setTextColor(32, 32, 36)
     doc.text(formatSketchDimMm(seg.valueMm), (x1 + x2) / 2, ly, { align: 'center' })
@@ -253,7 +277,11 @@ export function pdfDrawHingeChainDims(
   dw: number,
   dh: number,
   sketchHeightMm: number,
+  chainKind: 'hinge' | 'handle' = 'hinge',
 ): void {
-  if (side === 'left' || side === 'right') pdfDrawVertChain(doc, segments, side, ox, oy, dw, dh, sketchHeightMm)
-  else pdfDrawHorizChain(doc, segments, side, ox, oy, dw, dh, sketchHeightMm)
+  if (side === 'left' || side === 'right') {
+    pdfDrawVertChain(doc, segments, side, ox, oy, dw, dh, sketchHeightMm, chainKind)
+  } else {
+    pdfDrawHorizChain(doc, segments, side, ox, oy, dw, dh, sketchHeightMm)
+  }
 }

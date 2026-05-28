@@ -834,10 +834,10 @@ async function drawFacadeSketchInArea(
   const dimScaleHm = Math.max(dh, 1)
   if (showDimensionChains) {
     if (data.hingeLayout && hingeSegs.length > 0) {
-      pdfDrawHingeChainDims(doc, hingeSegs, data.hingeLayout.side, ox, oy, dw, dh, dimScaleHm)
+      pdfDrawHingeChainDims(doc, hingeSegs, data.hingeLayout.side, ox, oy, dw, dh, dimScaleHm, 'hinge')
     }
     if (data.handleHoles && handleSegs.length > 0) {
-      pdfDrawHingeChainDims(doc, handleSegs, data.handleHoles.side, ox, oy, dw, dh, dimScaleHm)
+      pdfDrawHingeChainDims(doc, handleSegs, data.handleHoles.side, ox, oy, dw, dh, dimScaleHm, 'handle')
     }
   }
   if (showMainDimensions) {
