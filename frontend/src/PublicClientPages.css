@@ -145,6 +145,12 @@
 
 .public-orders-card__pdf {
   display: inline-flex;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--ft-accent, #e8a23e);
@@ -152,6 +158,11 @@
   text-underline-offset: 0.15em;
 }
 
-.public-orders-card__pdf:hover {
+.public-orders-card__pdf:hover:not(:disabled) {
   opacity: 0.92;
+}
+
+.public-orders-card__pdf:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }

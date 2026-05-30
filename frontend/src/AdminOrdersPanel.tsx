@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FacadeOrder, FacadeOrderPaymentStatus, FacadeOrderStatus } from './api'
 import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderPaymentStatus, patchFacadeOrderStatus } from './api'
+import { openFacadeOrderPdf } from './calculator/orderPdfFromSnapshot'
 import { FtSelect, type FtSelectOption } from './FtSelect'
 
 const STATUS_OPTIONS: FtSelectOption[] = [
@@ -75,6 +76,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
   const [statusPending, setStatusPending] = useState<number | null>(null)
   const [orderToDelete, setOrderToDelete] = useState<FacadeOrder | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+  const [pdfPendingId, setPdfPendingId] = useState<number | null>(null)
 
   const load = useCallback(() => {
     setErr(null)
@@ -107,6 +109,17 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
       })
       .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setStatusPending(null))
+  }
+
+  const onOpenOrderPdf = (order: FacadeOrder) => {
+    setPdfPendingId(order.id)
+    setErr(null)
+    openFacadeOrderPdf(order)
+      .catch((e) => {
+        if (e instanceof Error && e.message === 'popup_blocked') return
+        setErr(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => setPdfPendingId(null))
   }
 
   const confirmDeleteOrder = () => {
@@ -193,14 +206,23 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
                     />
                   </td>
                   <td className="admin-orders-pdf-cell" data-label="PDF">
-                    {o.pdf_url ? (
+                    {o.snapshot && Object.keys(o.snapshot).length > 0 ? (
+                      <button
+                        type="button"
+                        className="admin-orders-pdf-link"
+                        disabled={pdfPendingId === o.id}
+                        onClick={() => onOpenOrderPdf(o)}
+                      >
+                        {pdfPendingId === o.id ? 'Формируем…' : 'Открыть PDF'}
+                      </button>
+                    ) : o.pdf_url ? (
                       <a
                         className="admin-orders-pdf-link"
                         href={o.pdf_url}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        Открыть PDF
+                        PDF (архив)
                       </a>
                     ) : (
                       '—'

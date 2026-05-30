@@ -60,6 +60,8 @@ export type FrameClientPdfInput = {
   /** Строка «Раскладка петель» на первой странице — только если на шаге 5 выбраны присадки под петли. */
   includeHingeLayoutRow: boolean
   handleHoles: HandleHolesPersisted | null
+  /** Номер заказа в бланке («Заказ №»); без поля — случайный номер для предпросмотра. */
+  orderNumber?: string
 }
 
 /** Оценочная толщина видимой рамки на чертеже (мм): подписи как отступ от края фасада до «стекла». */
@@ -928,12 +930,15 @@ export async function preloadFramePdfFont(): Promise<void> {
 
 /** Собирает PDF в память. Для показа во вкладке: синхронно открыть `about:blank`, затем после await назначить `win.location.href` на `URL.createObjectURL(blob)` — см. шаг 8 калькулятора. */
 export async function buildFrameClientPdfBlob(data: FrameClientPdfInput): Promise<{ blob: Blob; filename: string }> {
-  const calcNo = String(1000 + Math.floor(Math.random() * 9000))
+  const orderLabel = data.orderNumber?.trim()
+  const calcNo = orderLabel || String(1000 + Math.floor(Math.random() * 9000))
   const doc = new jsPDF({ ...PDF_DOC_OPTS, compress: true })
 
   await buildBlankPage(doc, calcNo, data)
 
-  const safeName = `furnitech-zakaz-${calcNo}.pdf`
+  const safeName = orderLabel
+    ? `furnitech-${orderLabel.replace(/[^\w-]+/g, '_')}.pdf`
+    : `furnitech-zakaz-${calcNo}.pdf`
   const blob = doc.output('blob')
   return { blob, filename: safeName }
 }

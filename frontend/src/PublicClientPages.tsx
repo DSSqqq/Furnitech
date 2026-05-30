@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import type { FacadeOrder, FacadeOrderStatus } from './api'
 import { fetchFacadeOrders } from './api'
+import { openFacadeOrderPdf } from './calculator/orderPdfFromSnapshot'
 import type { Me } from './auth'
 import { HintButton } from './HintButton'
 import './PublicClientPages.css'
@@ -76,6 +77,7 @@ export function ClientMyOrdersPage() {
   const [orders, setOrders] = useState<FacadeOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [pdfPendingId, setPdfPendingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (auth.phase !== 'authed') return
@@ -132,14 +134,31 @@ export function ClientMyOrdersPage() {
                   </div>
                 </div>
                 <p className="public-orders-card__date">{formatOrderDt(o.created_at)}</p>
-                {o.pdf_url ? (
+                {o.snapshot && Object.keys(o.snapshot).length > 0 ? (
+                  <button
+                    type="button"
+                    className="public-orders-card__pdf"
+                    disabled={pdfPendingId === o.id}
+                    onClick={() => {
+                      setPdfPendingId(o.id)
+                      openFacadeOrderPdf(o)
+                        .catch((e) => {
+                          if (e instanceof Error && e.message === 'popup_blocked') return
+                          setErr(e instanceof Error ? e.message : String(e))
+                        })
+                        .finally(() => setPdfPendingId(null))
+                    }}
+                  >
+                    {pdfPendingId === o.id ? 'Формируем PDF…' : 'Открыть PDF расчёта'}
+                  </button>
+                ) : o.pdf_url ? (
                   <a
                     className="public-orders-card__pdf"
                     href={o.pdf_url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Открыть PDF расчёта
+                    PDF (архив)
                   </a>
                 ) : (
                   <span className="public-page__muted">PDF недоступен</span>
