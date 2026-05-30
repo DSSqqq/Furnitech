@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { fetchCalculationFormulas, fetchMaterial } from '../api'
+import { fetchCalculationFormulas, fetchMaterial, fetchMaterialClasses } from '../api'
 import { BASE_CURRENCY } from '../currencies'
 import type { CalculationFormula, Material } from '../types'
 import {
@@ -12,11 +12,15 @@ import { formatNumberForUi } from '../floatInput'
 import {
   FRAME_DEFAULT_HEIGHT_MM,
   FRAME_DEFAULT_WIDTH_MM,
+  hingesPerFacadeForPrice,
+  parseFramePriceSessionFromConfigKey,
   readCalculatorPriceConfigKey,
+  shouldBillProductionHinges,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { useFillingTypeName } from './useFillingTypeName'
+import { CalcPriceBreakdownView } from './CalcPriceBreakdownView'
 import { matchFormulaTotalForFrame } from './calculationFormula'
 
 function asPositiveInt(s: string | null, fallback: number): number {
@@ -57,7 +61,17 @@ function uomPricingLabel(m: Material | null): string {
   return m?.uom?.short_name || m?.uom?.name || 'шт'
 }
 
-function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceTotalsPlacement }) {
+function CalcPriceTotalsActive({
+  placement = 'aside',
+  includeFillingInPrice = true,
+  includeHingesInPrice = true,
+}: {
+  placement?: CalcPriceTotalsPlacement
+  /** На шаге 3 наполнение ещё не выбирают — не подтягивать id из localStorage. */
+  includeFillingInPrice?: boolean
+  /** Петли производства — с шага 5 (количество с шага 6). */
+  includeHingesInPrice?: boolean
+}) {
   const cfgKey = useSyncExternalStore(
     subscribeFrameCalcSession,
     readCalculatorPriceConfigKey,
@@ -67,32 +81,55 @@ function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceT
   const fillingTypeName = useFillingTypeName(cfgKey)
 
   const parsed = useMemo(() => {
+    const session = parseFramePriceSessionFromConfigKey(cfgKey)
     const parts = cfgKey.split('|')
-    const colorIdRaw = parts[0]?.trim() ?? ''
-    const colorId = colorIdRaw ? Number(colorIdRaw) : null
     const h = asPositiveMm(parts[1] ?? null, FRAME_DEFAULT_HEIGHT_MM)
     const w = asPositiveMm(parts[2] ?? null, FRAME_DEFAULT_WIDTH_MM)
     const qty = asPositiveInt(parts[3] ?? null, 1)
-    const fillIdRaw = parts[4]?.trim() ?? ''
-    const fillMatId = fillIdRaw ? Number(fillIdRaw) : null
     return {
-      colorId: colorId && Number.isFinite(colorId) && colorId > 0 ? colorId : null,
+      colorId: session.colorId,
       heightMm: h,
       widthMm: w,
       facadeCount: qty,
-      fillMatId: fillMatId && Number.isFinite(fillMatId) && fillMatId > 0 ? fillMatId : null,
+      fillMatId: session.fillMatId,
+      mortiseMode: session.mortiseMode,
+      hingeSource: session.hingeSource,
+      hingeMatId: session.hingeMatId,
+      billHinges:
+        includeHingesInPrice &&
+        shouldBillProductionHinges(session),
+      hingesPerFacade: hingesPerFacadeForPrice(),
     }
-  }, [cfgKey])
+  }, [cfgKey, includeHingesInPrice])
 
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [hingeMaterial, setHingeMaterial] = useState<Material | null>(null)
   const [formulas, setFormulas] = useState<CalculationFormula[]>([])
+  const [classCodesById, setClassCodesById] = useState<Map<number, string>>(() => new Map())
   const [loading, setLoading] = useState(false)
   const [fetchErr, setFetchErr] = useState<string | null>(null)
 
   useEffect(() => {
     let cancel = false
-    fetchCalculationFormulas()
+    fetchMaterialClasses()
+      .then((r) => {
+        if (cancel) return
+        const m = new Map<number, string>()
+        for (const c of r.results ?? []) m.set(c.id, c.code)
+        setClassCodesById(m)
+      })
+      .catch(() => {
+        if (!cancel) setClassCodesById(new Map())
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancel = false
+    fetchCalculationFormulas({ active: true })
       .then((r) => {
         if (!cancel) setFormulas(r.results ?? [])
       })
@@ -116,17 +153,26 @@ function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceT
         } else {
           setColorMaterial(null)
         }
-        if (parsed.fillMatId) {
-          const m = await fetchMaterial(parsed.fillMatId)
+        const fillId = includeFillingInPrice ? parsed.fillMatId : null
+        if (fillId) {
+          const m = await fetchMaterial(fillId)
           if (!cancel) setFillingMaterial(m)
         } else {
           setFillingMaterial(null)
+        }
+        const hingeId = parsed.billHinges ? parsed.hingeMatId : null
+        if (hingeId) {
+          const m = await fetchMaterial(hingeId)
+          if (!cancel) setHingeMaterial(m)
+        } else {
+          setHingeMaterial(null)
         }
       } catch (e) {
         if (!cancel) {
           setFetchErr(e instanceof Error ? e.message : String(e))
           setColorMaterial(null)
           setFillingMaterial(null)
+          setHingeMaterial(null)
         }
       } finally {
         if (!cancel) setLoading(false)
@@ -136,15 +182,19 @@ function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceT
     return () => {
       cancel = true
     }
-  }, [parsed.colorId, parsed.fillMatId])
+  }, [parsed.colorId, parsed.fillMatId, parsed.billHinges, parsed.hingeMatId, includeFillingInPrice])
 
-  const breakdown = useMemo(() => {
+  const hingesPerFacade = parsed.billHinges ? parsed.hingesPerFacade : null
+
+  const priceState = useMemo(() => {
     const base = computeFramePriceBreakdown(
       colorMaterial,
       fillingMaterial,
       parsed.heightMm,
       parsed.widthMm,
-      parsed.facadeCount
+      parsed.facadeCount,
+      hingeMaterial,
+      hingesPerFacade,
     )
     const matched = matchFormulaTotalForFrame(
       formulas,
@@ -152,30 +202,63 @@ function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceT
       fillingMaterial,
       parsed.heightMm,
       parsed.widthMm,
-      parsed.facadeCount
+      parsed.facadeCount,
+      classCodesById,
+      hingeMaterial,
+      hingesPerFacade,
     )
-    if (!matched) return base
+    const breakdown = matched
+      ? {
+          ...base,
+          total: matched.total,
+          formulaName: matched.formula.name,
+          formulaExpression: matched.formula.expression,
+        }
+      : base
     return {
-      ...base,
-      total: matched.total,
-      formulaName: matched.formula.name,
-      formulaExpression: matched.formula.expression,
+      base,
+      breakdown,
+      formulaMatch: matched
+        ? {
+            formulaName: matched.formula.name,
+            formulaExpression: matched.formula.expression,
+            evaluation: matched.evaluation,
+            formula: matched.formula,
+          }
+        : null,
     }
-  }, [formulas, colorMaterial, fillingMaterial, parsed.heightMm, parsed.widthMm, parsed.facadeCount])
+  }, [
+    formulas,
+    classCodesById,
+    colorMaterial,
+    fillingMaterial,
+    hingeMaterial,
+    hingesPerFacade,
+    parsed.heightMm,
+    parsed.widthMm,
+    parsed.facadeCount,
+  ])
+
+  const breakdown = priceState.breakdown
 
   const currencies = useMemo(
-    () => collectCurrencies(colorMaterial, fillingMaterial),
-    [colorMaterial, fillingMaterial]
+    () => collectCurrencies(colorMaterial, fillingMaterial, hingeMaterial),
+    [colorMaterial, fillingMaterial, hingeMaterial]
   )
 
   const currency =
     colorMaterial?.base_currency ||
     fillingMaterial?.base_currency ||
+    hingeMaterial?.base_currency ||
     (currencies.length === 1 ? currencies[0] : BASE_CURRENCY)
 
   const currencyMismatch = currencies.length > 1
   const showTotals = Boolean(parsed.colorId) && colorMaterial != null && !fetchErr
   const idleHint = !parsed.colorId ? 'Выберите цвет профиля на шаге 2 — здесь появится расчёт.' : null
+  const fillingPendingHint =
+    showTotals && !includeFillingInPrice
+      ? 'Наполнение и формула по его классам появятся после выбора на шаге 4.'
+      : null
 
   const dimsInfo = useMemo(() => {
     const areaPerFacade = unitsPerFacade(parsed.heightMm, parsed.widthMm, 'm2')
@@ -197,41 +280,19 @@ function CalcPriceTotalsActive({ placement = 'aside' }: { placement?: CalcPriceT
                 В конфигурации разные валюты — сумма ориентировочная; уточняйте у менеджера.
               </p>
             )}
-            <dl className="calc-totals-lines">
-              {breakdown.formulaName ? (
-                <div className="calc-totals-line">
-                  <dt>Формула: {breakdown.formulaName}</dt>
-                  <dd>
-                    {formatSum(breakdown.total)} {currency}
-                  </dd>
-                </div>
-              ) : (
-                <>
-                  <div className="calc-totals-line">
-                    <dt>Профиль (цвет)</dt>
-                    <dd>
-                      {formatSum(breakdown.profile)} {currency}
-                    </dd>
-                  </div>
-                  {breakdown.related > 0 && (
-                    <div className="calc-totals-line">
-                      <dt>Сопутствующие</dt>
-                      <dd>
-                        {formatSum(breakdown.related)} {currency}
-                      </dd>
-                    </div>
-                  )}
-                  {breakdown.filling > 0 && (
-                    <div className="calc-totals-line">
-                      <dt>Наполнение</dt>
-                      <dd>
-                        {formatSum(breakdown.filling)} {currency}
-                      </dd>
-                    </div>
-                  )}
-                </>
-              )}
-            </dl>
+            {fillingPendingHint && <p className="calc-totals-muted">{fillingPendingHint}</p>}
+            <CalcPriceBreakdownView
+              currency={currency}
+              base={priceState.base}
+              formulaMatch={priceState.formulaMatch}
+              colorMaterial={colorMaterial}
+              fillingMaterial={fillingMaterial}
+              hingeMaterial={hingeMaterial}
+              hingesPerFacade={hingesPerFacade}
+              heightMm={parsed.heightMm}
+              widthMm={parsed.widthMm}
+              facadeCount={parsed.facadeCount}
+            />
             <div className="calc-totals-grand">
               <span className="calc-totals-grand-label">Итого</span>
               <span className="calc-totals-grand-value">
@@ -293,9 +354,19 @@ type Props = {
   /** Полностью скрыть колонку (например, шаг «Итог» со своей таблицей цен). */
   blankAside?: boolean
   placement?: CalcPriceTotalsPlacement
+  /** Учитывать материал наполнения из localStorage (false на шаге 3). */
+  includeFillingInPrice?: boolean
+  /** Учитывать петли производства (false до шага 5). */
+  includeHingesInPrice?: boolean
 }
 
-export function CalcPriceTotals({ hideTotals, blankAside, placement = 'aside' }: Props) {
+export function CalcPriceTotals({
+  hideTotals,
+  blankAside,
+  placement = 'aside',
+  includeFillingInPrice = true,
+  includeHingesInPrice = true,
+}: Props) {
   if (blankAside) return null
   if (hideTotals) {
     return (
@@ -309,12 +380,20 @@ export function CalcPriceTotals({ hideTotals, blankAside, placement = 'aside' }:
       </CalcPriceTotalsShell>
     )
   }
-  return <CalcPriceTotalsActive placement={placement} />
+  return (
+    <CalcPriceTotalsActive
+      placement={placement}
+      includeFillingInPrice={includeFillingInPrice}
+      includeHingesInPrice={includeHingesInPrice}
+    />
+  )
 }
 
 type CalcPriceTotalsSlotValue = {
   hideTotals: boolean
   blankAside: boolean
+  includeFillingInPrice: boolean
+  includeHingesInPrice: boolean
 }
 
 const CalcPriceTotalsSlotContext = createContext<CalcPriceTotalsSlotValue | null>(null)
@@ -322,10 +401,14 @@ const CalcPriceTotalsSlotContext = createContext<CalcPriceTotalsSlotValue | null
 export function CalcPriceTotalsSlotProvider({
   hideTotals,
   blankAside,
+  includeFillingInPrice,
+  includeHingesInPrice,
   children,
 }: CalcPriceTotalsSlotValue & { children: ReactNode }) {
   return (
-    <CalcPriceTotalsSlotContext.Provider value={{ hideTotals, blankAside }}>
+    <CalcPriceTotalsSlotContext.Provider
+      value={{ hideTotals, blankAside, includeFillingInPrice, includeHingesInPrice }}
+    >
       {children}
     </CalcPriceTotalsSlotContext.Provider>
   )
@@ -335,5 +418,12 @@ export function CalcPriceTotalsSlotProvider({
 export function CalcStepPriceTotals() {
   const slot = useContext(CalcPriceTotalsSlotContext)
   if (!slot || slot.blankAside) return null
-  return <CalcPriceTotals hideTotals={slot.hideTotals} placement="inline" />
+  return (
+    <CalcPriceTotals
+      hideTotals={slot.hideTotals}
+      placement="inline"
+      includeFillingInPrice={slot.includeFillingInPrice}
+      includeHingesInPrice={slot.includeHingesInPrice}
+    />
+  )
 }

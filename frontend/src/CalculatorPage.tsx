@@ -147,7 +147,17 @@ function CalculatorPageInner() {
   }, [loc.pathname])
 
   return (
-    <CalcPriceTotalsSlotProvider hideTotals={isStep1 || isStep2} blankAside={isStep8FrameResult}>
+    <CalcPriceTotalsSlotProvider
+      hideTotals={isStep1 || isStep2}
+      blankAside={isStep8FrameResult}
+      includeFillingInPrice={!isStep3FrameSizes}
+      includeHingesInPrice={
+        isStep5FrameSummary ||
+        isStep6FrameHingeLayout ||
+        isStep7FrameHandleHoles ||
+        isStep8FrameResult
+      }
+    >
     <div className="calc" ref={calcRootRef}>
       <div className="calc-head">
         <div className="calc-head-bar">

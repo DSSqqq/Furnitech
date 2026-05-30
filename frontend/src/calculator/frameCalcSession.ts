@@ -484,6 +484,66 @@ export function subscribeFrameCalcSession(onChange: () => void) {
   }
 }
 
+export type FrameMortiseMode = 'none' | 'hinge'
+export type FrameHingeSource = '' | 'customer' | 'production'
+
+/** Разбор `readCalculatorPriceConfigKey()` для расчёта цены. */
+export function parseFramePriceSessionFromConfigKey(cfgKey: string): {
+  colorId: number | null
+  fillMatId: number | null
+  mortiseMode: FrameMortiseMode
+  hingeSource: FrameHingeSource
+  hingeTypeId: number | null
+  hingeMatId: number | null
+} {
+  const parts = cfgKey.split('|')
+  const colorIdRaw = parts[0]?.trim() ?? ''
+  const colorId = colorIdRaw ? Number(colorIdRaw) : null
+  const fillIdRaw = parts[4]?.trim() ?? ''
+  const fillMatId = fillIdRaw ? Number(fillIdRaw) : null
+  const mortiseRaw = parts[5]?.trim() ?? ''
+  const mortiseMode: FrameMortiseMode = mortiseRaw === 'hinge' ? 'hinge' : 'none'
+  const hingeSrcRaw = parts[6]?.trim() ?? ''
+  const hingeSource: FrameHingeSource =
+    hingeSrcRaw === 'customer' || hingeSrcRaw === 'production' ? hingeSrcRaw : ''
+  const htRaw = parts[7]?.trim() ?? ''
+  const hmRaw = parts[8]?.trim() ?? ''
+  const hingeTypeId = htRaw ? Number(htRaw) : null
+  const hingeMatId = hmRaw ? Number(hmRaw) : null
+  return {
+    colorId: colorId != null && Number.isFinite(colorId) && colorId > 0 ? colorId : null,
+    fillMatId: fillMatId != null && Number.isFinite(fillMatId) && fillMatId > 0 ? fillMatId : null,
+    mortiseMode,
+    hingeSource,
+    hingeTypeId:
+      hingeTypeId != null && Number.isFinite(hingeTypeId) && hingeTypeId > 0 ? hingeTypeId : null,
+    hingeMatId:
+      hingeMatId != null && Number.isFinite(hingeMatId) && hingeMatId > 0 ? hingeMatId : null,
+  }
+}
+
+/** Петли производства в расчёте: присадка + источник + выбранный материал. */
+export function shouldBillProductionHinges(session: {
+  mortiseMode: FrameMortiseMode
+  hingeSource: FrameHingeSource
+  hingeMatId: number | null
+}): boolean {
+  return (
+    session.mortiseMode === 'hinge' &&
+    session.hingeSource === 'production' &&
+    session.hingeMatId != null
+  )
+}
+
+/** Число петель на один фасад (шаг 6); до сохранения раскладки — минимум по умолчанию. */
+export function hingesPerFacadeForPrice(): number {
+  const layout = readHingeLayout()
+  if (layout?.count != null && layout.count >= HINGE_LAYOUT_COUNT_MIN) {
+    return Math.min(HINGE_LAYOUT_COUNT_MAX, layout.count)
+  }
+  return HINGE_LAYOUT_COUNT_MIN
+}
+
 /** Снимок ключей localStorage, влияющих на расчёт цены (для useSyncExternalStore). */
 export function readCalculatorPriceConfigKey(): string {
   try {

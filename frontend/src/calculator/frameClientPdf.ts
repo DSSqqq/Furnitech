@@ -32,6 +32,7 @@ export type FrameClientPdfBreakdown = {
   profile: number
   filling: number
   related: number
+  hinges?: number
   total: number
 }
 
@@ -49,6 +50,9 @@ export type FrameClientPdfInput = {
   hingeLayoutLine: string
   handleLine: string
   breakdown: FrameClientPdfBreakdown
+  /** Расшифровка из serializePriceBreakdownForSnapshot (режим formula | standard). */
+  priceBreakdownDetail?: Record<string, unknown>
+  formulaName?: string
   currency: string
   currencyMismatch: boolean
   /** Как на шаге 7: эскиз с цепочками и отверстиями. */
@@ -519,18 +523,46 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
     costY += 3.5
   }
 
+  const costHead =
+    data.formulaName && data.priceBreakdownDetail?.mode === 'formula'
+      ? [['№', 'Формула', 'Итого']]
+      : data.breakdown.hinges != null && data.breakdown.hinges > 0
+        ? [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Петли', 'Итого']]
+        : [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Итого']]
+  const costBody =
+    data.formulaName && data.priceBreakdownDetail?.mode === 'formula'
+      ? [
+          [
+            '1',
+            String(data.formulaName),
+            formatMoney(data.breakdown.total, data.currency),
+          ],
+        ]
+      : data.breakdown.hinges != null && data.breakdown.hinges > 0
+        ? [
+            [
+              '1',
+              formatMoney(data.breakdown.profile, data.currency),
+              formatMoney(data.breakdown.filling, data.currency),
+              formatMoney(data.breakdown.related, data.currency),
+              formatMoney(data.breakdown.hinges, data.currency),
+              formatMoney(data.breakdown.total, data.currency),
+            ],
+          ]
+        : [
+            [
+              '1',
+              formatMoney(data.breakdown.profile, data.currency),
+              formatMoney(data.breakdown.filling, data.currency),
+              formatMoney(data.breakdown.related, data.currency),
+              formatMoney(data.breakdown.total, data.currency),
+            ],
+          ]
+
   autoTable(doc, {
     startY: costY,
-    head: [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Итого']],
-    body: [
-      [
-        '1',
-        formatMoney(data.breakdown.profile, data.currency),
-        formatMoney(data.breakdown.filling, data.currency),
-        formatMoney(data.breakdown.related, data.currency),
-        formatMoney(data.breakdown.total, data.currency),
-      ],
-    ],
+    head: costHead,
+    body: costBody,
     theme: 'grid',
     styles: { font: activePdfFont, fontSize: 8, cellPadding: 1.2, lineColor: [60, 60, 60], lineWidth: 0.2 },
     headStyles: {
@@ -543,6 +575,35 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
     margin: { left: margin, right: margin },
     tableWidth: contentW,
   })
+
+  const detail = data.priceBreakdownDetail
+  if (detail?.mode === 'formula' && Array.isArray(detail.classes)) {
+    let detailY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? costY + 8
+    detailY += 2
+    doc.setFontSize(7.5)
+    doc.setTextColor(50, 50, 50)
+    for (const cls of detail.classes as Array<{
+      code?: string
+      subtotal?: number
+      lines?: Array<{ name?: string; subtotal?: number }>
+    }>) {
+      if (detailY > footnoteY - 6) break
+      const code = cls.code ?? '—'
+      doc.text(`${code}: ${formatMoney(Number(cls.subtotal ?? 0), data.currency)}`, margin, detailY)
+      detailY += 3.2
+      for (const line of cls.lines ?? []) {
+        if (detailY > footnoteY - 6) break
+        const nm = line.name ?? '—'
+        doc.text(
+          `  · ${nm}: ${formatMoney(Number(line.subtotal ?? 0), data.currency)}`,
+          margin + 2,
+          detailY,
+          { maxWidth: contentW - 4 },
+        )
+        detailY += 3
+      }
+    }
+  }
 
   doc.setFontSize(7.5)
   doc.setTextColor(100, 100, 100)

@@ -1,6 +1,34 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-28 — PDF бланка: габарит ширины, выноска высоты, без заголовка «Эскиз».
+**Последнее обновление:** 2026-05-30 — расчёт: классы, петли, шаг 3 без наполнения.
+
+### Изменения 2026-05-30 (frontend — система расчёта: формулы + классы + избыток + петли)
+
+#### Поведение
+
+- Модуль **`priceBreakdown.ts`**: строки **`MaterialLineBreakdown`** (геометрия на фасад → × N → × **коэффициент избытка** → округление → × цена); **`buildHingeMaterialLine`** (шт/фас × число фасадов).
+- **`computeFramePriceBreakdown`**: профиль, наполнение, сопутствующие, **`hinges`**; формулы — тот же движок + **`hingeSubtotalOutsideFormula`** (петли вне токенов формулы прибавляются к итогу).
+- **`evaluateCalculationFormulaWithBreakdown`**: итог формулы + **`classSteps`**; в сумму класса попадают **только выбранные** материалы калькулятора и их **`related_items`**, не весь справочник класса.
+- Калькулятор: **`fetchCalculationFormulas({ active: true })`**; UI **`CalcPriceBreakdownView`**.
+- **Шаг 3:** наполнение **не** в расчёте (**`includeFillingInPrice: false`**); подсказка «после шага 4». При **смене цвета** на шаге 2 сброс **`calc_filling_*`**.
+- **Шаги 5–8:** **петли производства** в расчёте (**`includeHingesInPrice`**): выбранный материал + сопутствующие; количество — **`readHingeLayout().count`** (шаг 6), до раскладки — минимум **2** на фасад. «Петли заказчика» — без цены.
+- PDF и **`snapshot`**: расшифровка; колонка **«Петли»** в таблице стоимости при **`hinges > 0`**.
+- Админка «Расчёты»: чекбокс **«Активна»**, предупреждение при нескольких активных формулах; в поле формулы — **код класса** (`mc13`), не «Класс: …».
+- Карточка материала: подсказки у **режима расчёта** и **коэффициента избытка**.
+- Тесты: **`priceBreakdown.test.ts`** (Vitest, **`npm test`**).
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Движок | **`priceBreakdown.ts`**, **`calculationFormula.ts`**, **`framePriceEstimate.ts`**, **`frameCalcSession.ts`** |
+| UI | **`CalcPriceBreakdownView.tsx`**, **`CalcPriceTotals.tsx`**, **`CalculatorPage.tsx`**, **`Step2FrameFacade.tsx`**, **`Step8FrameResult.tsx`**, **`CalculatorPage.css`**, **`Step8FrameResult.css`** |
+| PDF / заказ | **`frameClientPdf.ts`** |
+| Админка | **`AdminCalculationsPanel.tsx`**, **`AdminApp.tsx`** |
+| Сборка | **`package.json`**, **`vite.config.ts`** |
+| Документация | **`docs/CALCULATION_FORMULAS.md`**, **`docs/ARCHITECTURE.md`**, **`docs/PROGRESS.md`** |
+
+**Последнее обновление (ранее):** 2026-05-28 — PDF бланка: габарит ширины, выноска высоты, без заголовка «Эскиз».
 
 ### Изменения 2026-05-28 (frontend — PDF: ширина ближе к эскизу, правки выносок)
 

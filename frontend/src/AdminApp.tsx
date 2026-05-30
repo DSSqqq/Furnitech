@@ -2364,7 +2364,10 @@ function MaterialForm({
                     }}
                   />
                 </div>
-                <label className="field mat-form-excess-field">
+                <label
+                  className="field mat-form-excess-field"
+                  title="Умножает количество до умножения на цену. Пример: 5 м.п. × 1,1 = 5,5 м.п."
+                >
                   <span>Коэффициент избытка</span>
                   <input
                     className="admin-input mat-form-excess-input"
@@ -2482,7 +2485,10 @@ function MaterialForm({
                 onChange={(e) => setField('note', e.target.value)}
               />
             </label>
-            <div className="field mat-form-calc-flags-col">
+            <div
+              className="field mat-form-calc-flags-col"
+              title="Задаёт, как считается количество на 1 фасад: м.п., м² или шт. Используется в калькуляторе и в формулах по классам."
+            >
               <span>Расчёт</span>
               <div className="mat-form-calc-flags-column" role="group" aria-label="Режим расчёта количества">
                 {PRICING_CALC_FLAGS.map(({ mode, label }) => (

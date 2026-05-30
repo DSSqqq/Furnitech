@@ -1,3 +1,19 @@
+.step8-price-breakdown-wrap {
+  margin-bottom: 0.75rem;
+}
+
+.step8-price-breakdown-wrap .calc-price-breakdown {
+  font-size: 0.86rem;
+}
+
+.step8-table-wrap--grand {
+  margin-top: 0.5rem;
+}
+
+.step8-table__grand-label {
+  font-weight: 600;
+}
+
 /* Шаг «Итог»: две колонки; справа — одна прокручиваемая колонка (детали + таблица + кнопки) */
 .frame2.step8-result {
   grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 400px)) minmax(0, 1fr);

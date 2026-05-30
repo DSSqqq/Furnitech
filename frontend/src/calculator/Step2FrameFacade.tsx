@@ -234,6 +234,8 @@ export function Step2FrameFacade() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const prevColorIdRef = useRef<number | null>(null)
+
   useEffect(() => {
     if (!calcSessionHydrated) return
     try {
@@ -247,6 +249,16 @@ export function Step2FrameFacade() {
           localStorage.setItem('calc_frame_color_id', String(selectedColorId))
         }
       }
+      const prev = prevColorIdRef.current
+      if (
+        prev != null &&
+        selectedColorId != null &&
+        prev !== selectedColorId
+      ) {
+        localStorage.removeItem('calc_filling_type_id')
+        localStorage.removeItem('calc_filling_material_id')
+      }
+      prevColorIdRef.current = selectedColorId
     } catch {
       // ignore
     }

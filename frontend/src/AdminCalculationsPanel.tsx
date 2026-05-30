@@ -16,13 +16,24 @@ import {
   deleteCalculationFormulaCategory,
   fetchCalculationFormulaCategoryTree,
   fetchCalculationFormulas,
+  fetchMaterialClasses,
   pickDefaultCalculationFormulaCategoryId,
   updateCalculationFormula,
   updateCalculationFormulaCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
-import type { CalculationFormula, CalculationFormulaCategory, CalculationFormulaToken } from './types'
-import { formulaDisplayExpression, formulaTokenDisplayLabel } from './calculator/calculationFormula'
+import type {
+  CalculationFormula,
+  CalculationFormulaCategory,
+  CalculationFormulaToken,
+  MaterialClass,
+} from './types'
+import {
+  formulaDisplayExpression,
+  formulaTokenDisplayLabel,
+  materialClassFormulaTokenLabel,
+  syncClassTokenLabels,
+} from './calculator/calculationFormula'
 import { MaterialClassPickerBody } from './MaterialClassPickModal'
 
 type Draft = {
@@ -30,6 +41,7 @@ type Draft = {
   name: string
   tokens: CalculationFormulaToken[]
   category: number | null
+  is_active: boolean
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -37,6 +49,7 @@ const EMPTY_DRAFT: Draft = {
   name: '',
   tokens: [],
   category: null,
+  is_active: true,
 }
 
 /** Список формул в основной колонке (как таблица материалов). */
@@ -544,12 +557,19 @@ function CfcTreeRow({
   )
 }
 
-function draftFromFormula(f: CalculationFormula): Draft {
+function draftFromFormula(
+  f: CalculationFormula,
+  classesById?: ReadonlyMap<number, MaterialClass>,
+): Draft {
+  const raw = f.tokens ?? []
+  const tokens =
+    classesById && classesById.size > 0 ? syncClassTokenLabels(raw, classesById) : raw
   return {
     id: f.id,
     name: f.name,
-    tokens: f.tokens ?? [],
+    tokens,
     category: f.category,
+    is_active: f.is_active,
   }
 }
 
@@ -579,8 +599,16 @@ export function AdminCalculationsPanel() {
   const [msg, setMsg] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [formulaDeleteOpen, setFormulaDeleteOpen] = useState(false)
+  const [materialClassesById, setMaterialClassesById] = useState<Map<number, MaterialClass>>(
+    () => new Map(),
+  )
 
   const expression = useMemo(() => formulaDisplayExpression(draft.tokens), [draft.tokens])
+
+  const activeFormulasCount = useMemo(
+    () => formulas.filter((f) => f.is_active).length,
+    [formulas],
+  )
 
   const selectedCfcCat = useMemo(
     () => (cfcSelected == null ? null : findCfcNode(cfcTree, cfcSelected)),
@@ -595,6 +623,23 @@ export function AdminCalculationsPanel() {
         .map((t) => Number(t.class_id)),
     [draft.tokens],
   )
+
+  useEffect(() => {
+    let cancelled = false
+    fetchMaterialClasses()
+      .then((r) => {
+        if (cancelled) return
+        const m = new Map<number, MaterialClass>()
+        for (const c of r.results ?? []) m.set(c.id, c)
+        setMaterialClassesById(m)
+      })
+      .catch(() => {
+        if (!cancelled) setMaterialClassesById(new Map())
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const reloadTree = useCallback(() => {
     setTreeLoading(true)
@@ -773,9 +818,13 @@ export function AdminCalculationsPanel() {
   )
 
   const insertClassToken = useCallback(
-    (class_id: number, label: string) => {
+    (c: MaterialClass) => {
       applyFormulaStringEdit((tokens, strPos) =>
-        formulaInsertClassAtStringPos(tokens, strPos, { type: 'class', class_id, label }),
+        formulaInsertClassAtStringPos(tokens, strPos, {
+          type: 'class',
+          class_id: c.id,
+          label: materialClassFormulaTokenLabel(c),
+        }),
       )
     },
     [applyFormulaStringEdit],
@@ -918,7 +967,7 @@ export function AdminCalculationsPanel() {
   }
 
   const openFormulaEditor = (f: CalculationFormula) => {
-    const next = draftFromFormula(f)
+    const next = draftFromFormula(f, materialClassesById)
     setDraft(next)
     const endPos = formulaDisplayExpression(next.tokens).length
     setFormulaCaret(next.tokens.length)
@@ -962,7 +1011,7 @@ export function AdminCalculationsPanel() {
       category,
       tokens: draft.tokens,
       expression,
-      is_active: true,
+      is_active: draft.is_active,
       sort_order: 0,
     }
     try {
@@ -970,7 +1019,7 @@ export function AdminCalculationsPanel() {
         ? await updateCalculationFormula(draft.id, payload)
         : await createCalculationFormula(payload)
       await reloadFormulas()
-      setDraft(draftFromFormula(saved))
+      setDraft(draftFromFormula(saved, materialClassesById))
       closeFormulaEditor()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -1105,6 +1154,12 @@ export function AdminCalculationsPanel() {
           <main className="admin-main">
             <div className="admin-main-scroll">
               {err ? <div className="admin-error">{err}</div> : null}
+              {activeFormulasCount > 1 ? (
+                <p className="admin-error" role="status">
+                  Активных формул: {activeFormulasCount}. В калькуляторе используется первая подходящая по
+                  порядку сортировки — оставьте одну активную или снимите флажок «Активна» у лишних.
+                </p>
+              ) : null}
               <div className="admin-heading-row">
                 <h2 className="admin-h2">
                   {cfcSelected == null
@@ -1229,9 +1284,7 @@ export function AdminCalculationsPanel() {
                           </div>
                           <div className="admin-calculations-picker-keypad-row">
                             <MaterialClassPickerBody
-                              onPick={(c) =>
-                                insertClassToken(c.id, `Класс: ${c.name}`)
-                              }
+                              onPick={(c) => insertClassToken(c)}
                               selectedClassIds={formulaSelectedClassIds}
                               autoFocusSearch={false}
                               hidePickChrome
@@ -1355,6 +1408,16 @@ export function AdminCalculationsPanel() {
                         />
                       </section>
                     </div>
+
+                    <label className="mat-form-rounding-check-wrap admin-calculations-active-flag">
+                      <input
+                        type="checkbox"
+                        checked={draft.is_active}
+                        disabled={busy}
+                        onChange={(e) => setDraft((d) => ({ ...d, is_active: e.target.checked }))}
+                      />
+                      <span>Активна (участвует в расчёте калькулятора)</span>
+                    </label>
 
                     <div className="admin-row mat-form-actions">
                       {draft.id ? (

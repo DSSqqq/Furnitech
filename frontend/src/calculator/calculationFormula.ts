@@ -1,15 +1,12 @@
 import type { CalculationFormula, CalculationFormulaToken, Material } from '../types'
+import { parseMoney } from './framePriceEstimate'
 import {
-  materialLineCost,
-  parseMoney,
-  pricedUnitsForMaterial,
-  relatedItemCalculatorCost,
-} from './framePriceEstimate'
-
-type ClassValue = {
-  classId: number
-  value: number
-}
+  buildClassBreakdown,
+  classSubtotalFromLines,
+  collectFrameMaterialLines,
+  type ClassBreakdownStep,
+  type MaterialLineBreakdown,
+} from './priceBreakdown'
 
 const PRECEDENCE: Record<string, number> = {
   '+': 1,
@@ -26,8 +23,40 @@ function applyOp(op: string, b: number, a: number): number | null {
   return null
 }
 
+const CLASS_TOKEN_LEGACY_PREFIX = /^Класс:\s*/u
+
+/** Подпись токена класса в поле формулы — только код (или имя, если кода нет). */
+export function materialClassFormulaTokenLabel(c: {
+  id: number
+  code: string
+  name: string
+}): string {
+  const code = (c.code ?? '').trim()
+  if (code) return code
+  const name = (c.name ?? '').trim()
+  if (name) return name
+  return `#${c.id}`
+}
+
+export function syncClassTokenLabels(
+  tokens: CalculationFormulaToken[],
+  classesById: ReadonlyMap<number, { id: number; code: string; name: string }>,
+): CalculationFormulaToken[] {
+  return tokens.map((t) => {
+    if (t.type !== 'class') return t
+    const cls = classesById.get(t.class_id)
+    if (!cls) return t
+    const label = materialClassFormulaTokenLabel(cls)
+    return t.label === label ? t : { ...t, label }
+  })
+}
+
 export function formulaTokenDisplayLabel(t: CalculationFormulaToken): string {
-  if (t.type === 'class') return t.label || `Класс #${t.class_id}`
+  if (t.type === 'class') {
+    const raw = t.label?.trim()
+    if (!raw) return `#${t.class_id}`
+    return raw.replace(CLASS_TOKEN_LEGACY_PREFIX, '').trim() || `#${t.class_id}`
+  }
   if (t.type === 'number') return String(t.value)
   return t.value
 }
@@ -52,11 +81,13 @@ function addMaterialClassIdsToSet(material: ClassIdsWalk | null | undefined, int
 /** Все классы на цвете профиля/наполнении и связанных материалах (для сопоставления с формулой). */
 export function collectMaterialTreeClassIds(
   colorMaterial: Material | null,
-  fillingMaterial: Material | null
+  fillingMaterial: Material | null,
+  hingeMaterial?: Material | null,
 ): Set<number> {
   const ids = new Set<number>()
   addMaterialClassIdsToSet(colorMaterial, ids)
   addMaterialClassIdsToSet(fillingMaterial, ids)
+  addMaterialClassIdsToSet(hingeMaterial, ids)
   return ids
 }
 
@@ -70,72 +101,49 @@ export function formulaReferencedClassIds(formula: CalculationFormula | null | u
 export function formulaAppliesToSelection(
   formula: CalculationFormula | null | undefined,
   colorMaterial: Material | null,
-  fillingMaterial: Material | null
+  fillingMaterial: Material | null,
+  hingeMaterial?: Material | null,
 ): boolean {
   const refs = formulaReferencedClassIds(formula)
   if (!refs.length) return false
-  const available = collectMaterialTreeClassIds(colorMaterial, fillingMaterial)
+  const available = collectMaterialTreeClassIds(colorMaterial, fillingMaterial, hingeMaterial)
   return refs.every((id) => available.has(id))
 }
 
-export function selectedClassValues(
-  colorMaterial: Material | null,
-  fillingMaterial: Material | null,
-  heightMm: number,
-  widthMm: number,
-  facadeCount: number
-): ClassValue[] {
-  const out: ClassValue[] = []
-  const fc = Math.max(0, facadeCount)
-
-  const addMaterial = (material: Material | null, value: number) => {
-    for (const classId of material?.material_class_ids ?? []) {
-      out.push({ classId: Number(classId), value })
-    }
+/** Сумма петель, не входящих в токены формулы (чтобы не дублировать класс в формуле). */
+export function hingeSubtotalOutsideFormula(
+  lines: MaterialLineBreakdown[],
+  formula: CalculationFormula | null | undefined,
+): number {
+  const refs = new Set(formulaReferencedClassIds(formula))
+  let sum = 0
+  for (const l of lines) {
+    if (l.source !== 'hinge' && !(l.source === 'related' && l.parentSource === 'hinge')) continue
+    if (l.classIds.some((id) => refs.has(id))) continue
+    sum += l.subtotal
   }
-
-  const colorGeom = colorMaterial && fc > 0 ? pricedUnitsForMaterial(colorMaterial, heightMm, widthMm, fc) : 0
-  const fillingGeom = fillingMaterial && fc > 0 ? pricedUnitsForMaterial(fillingMaterial, heightMm, widthMm, fc) : 0
-
-  addMaterial(colorMaterial, materialLineCost(colorMaterial, heightMm, widthMm, fc))
-  addMaterial(fillingMaterial, materialLineCost(fillingMaterial, heightMm, widthMm, fc))
-
-  for (const r of colorMaterial?.related_items ?? []) {
-    for (const classId of r.related_material.material_class_ids ?? []) {
-      out.push({
-        classId: Number(classId),
-        value: relatedItemCalculatorCost(r, colorGeom, heightMm, widthMm, fc),
-      })
-    }
-  }
-
-  for (const r of fillingMaterial?.related_items ?? []) {
-    for (const classId of r.related_material.material_class_ids ?? []) {
-      out.push({
-        classId: Number(classId),
-        value: relatedItemCalculatorCost(r, fillingGeom, heightMm, widthMm, fc),
-      })
-    }
-  }
-
-  return out
+  return sum
 }
 
-export function evaluateCalculationFormula(
-  formula: CalculationFormula | null | undefined,
-  colorMaterial: Material | null,
-  fillingMaterial: Material | null,
-  heightMm: number,
-  widthMm: number,
-  facadeCount: number
+export type FormulaClassStep = ClassBreakdownStep & {
+  classCode?: string
+  /** Порядок в выражении формулы */
+  tokenIndex?: number
+}
+
+export type FormulaEvaluationResult = {
+  total: number
+  expression: string
+  classSteps: FormulaClassStep[]
+  materialLines: MaterialLineBreakdown[]
+}
+
+function evaluateTokensToTotal(
+  tokens: CalculationFormulaToken[],
+  valueForClass: (classId: number) => number
 ): number | null {
-  if (!formula?.tokens?.length) return null
-  const classValues = selectedClassValues(colorMaterial, fillingMaterial, heightMm, widthMm, facadeCount)
   const values: number[] = []
   const ops: string[] = []
-
-  const valueForClass = (classId: number) =>
-    classValues.reduce((sum, row) => (row.classId === classId ? sum + row.value : sum), 0)
 
   const reduceTop = (): boolean => {
     const op = ops.pop()
@@ -148,7 +156,7 @@ export function evaluateCalculationFormula(
     return true
   }
 
-  for (const token of formula.tokens) {
+  for (const token of tokens) {
     if (token.type === 'class') {
       values.push(valueForClass(Number(token.class_id)))
       continue
@@ -187,15 +195,101 @@ export function evaluateCalculationFormula(
   return values.length === 1 && Number.isFinite(values[0]) ? values[0] : null
 }
 
-/** Первая подходящая формула и её значение по выбранным материалам. */
+export function evaluateCalculationFormulaWithBreakdown(
+  formula: CalculationFormula | null | undefined,
+  colorMaterial: Material | null,
+  fillingMaterial: Material | null,
+  heightMm: number,
+  widthMm: number,
+  facadeCount: number,
+  classCodesById?: ReadonlyMap<number, string>,
+  hingeMaterial?: Material | null,
+  hingesPerFacade?: number | null,
+): FormulaEvaluationResult | null {
+  if (!formula?.tokens?.length) return null
+
+  const materialLines = collectFrameMaterialLines(
+    colorMaterial,
+    fillingMaterial,
+    heightMm,
+    widthMm,
+    facadeCount,
+    hingeMaterial,
+    hingesPerFacade,
+  )
+
+  const valueForClass = (classId: number) => classSubtotalFromLines(materialLines, classId)
+
+  const total = evaluateTokensToTotal(formula.tokens, valueForClass)
+  if (total == null) return null
+
+  const seenClassIds = new Set<number>()
+  const classSteps: FormulaClassStep[] = []
+  formula.tokens.forEach((token, tokenIndex) => {
+    if (token.type !== 'class') return
+    const classId = Number(token.class_id)
+    if (!Number.isFinite(classId) || classId <= 0 || seenClassIds.has(classId)) return
+    seenClassIds.add(classId)
+    const step = buildClassBreakdown(materialLines, classId)
+    classSteps.push({
+      ...step,
+      classCode:
+        classCodesById?.get(classId) ??
+        formulaTokenDisplayLabel(token),
+      tokenIndex,
+    })
+  })
+
+  return {
+    total,
+    expression: formula.expression || formulaDisplayExpression(formula.tokens),
+    classSteps,
+    materialLines,
+  }
+}
+
+/** @deprecated Используйте evaluateCalculationFormulaWithBreakdown; оставлено для совместимости. */
+export function evaluateCalculationFormula(
+  formula: CalculationFormula | null | undefined,
+  colorMaterial: Material | null,
+  fillingMaterial: Material | null,
+  heightMm: number,
+  widthMm: number,
+  facadeCount: number,
+  hingeMaterial?: Material | null,
+  hingesPerFacade?: number | null,
+): number | null {
+  return evaluateCalculationFormulaWithBreakdown(
+    formula,
+    colorMaterial,
+    fillingMaterial,
+    heightMm,
+    widthMm,
+    facadeCount,
+    undefined,
+    hingeMaterial,
+    hingesPerFacade,
+  )?.total ?? null
+}
+
+export type FormulaMatchResult = {
+  formula: CalculationFormula
+  total: number
+  evaluation: FormulaEvaluationResult
+}
+
+/** Первая подходящая активная формула и полная расшифровка. */
 export function matchFormulaTotalForFrame(
   formulas: CalculationFormula[],
   colorMaterial: Material | null,
   fillingMaterial: Material | null,
   heightMm: number,
   widthMm: number,
-  facadeCount: number
-): { formula: CalculationFormula; total: number } | null {
+  facadeCount: number,
+  classCodesById?: ReadonlyMap<number, string>,
+  hingeMaterial?: Material | null,
+  hingesPerFacade?: number | null,
+): FormulaMatchResult | null {
   const sorted = [...formulas].sort((a, b) => {
     const ao = Number(a.sort_order ?? 0)
     const bo = Number(b.sort_order ?? 0)
@@ -203,9 +297,23 @@ export function matchFormulaTotalForFrame(
     return (a.name || '').localeCompare(b.name || '', 'ru')
   })
   for (const f of sorted) {
-    if (!formulaAppliesToSelection(f, colorMaterial, fillingMaterial)) continue
-    const total = evaluateCalculationFormula(f, colorMaterial, fillingMaterial, heightMm, widthMm, facadeCount)
-    if (total != null) return { formula: f, total }
+    if (!f.is_active) continue
+    if (!formulaAppliesToSelection(f, colorMaterial, fillingMaterial, hingeMaterial)) continue
+    const evaluation = evaluateCalculationFormulaWithBreakdown(
+      f,
+      colorMaterial,
+      fillingMaterial,
+      heightMm,
+      widthMm,
+      facadeCount,
+      classCodesById,
+      hingeMaterial,
+      hingesPerFacade,
+    )
+    if (evaluation != null) {
+      const hingeAddon = hingeSubtotalOutsideFormula(evaluation.materialLines, f)
+      return { formula: f, total: evaluation.total + hingeAddon, evaluation }
+    }
   }
   return null
 }

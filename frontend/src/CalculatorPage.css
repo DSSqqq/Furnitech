@@ -103,6 +103,83 @@
   white-space: nowrap;
 }
 
+.calc-price-breakdown {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.calc-price-breakdown-formula-head {
+  margin: 0 0 0.65rem;
+  color: var(--ft-text);
+}
+
+.calc-price-breakdown-expr {
+  color: var(--ft-muted);
+  font-weight: 400;
+}
+
+.calc-price-class-block {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ft-border);
+}
+
+.calc-price-class-block:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+.calc-price-class-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.calc-price-class-code {
+  color: var(--ft-accent-2);
+}
+
+.calc-price-class-sum {
+  white-space: nowrap;
+  color: var(--ft-text);
+}
+
+.calc-price-lines {
+  margin: 0;
+  padding: 0 0 0 0.65rem;
+  list-style: none;
+}
+
+.calc-price-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.15rem;
+  padding: 0.3rem 0;
+  border-top: 1px dashed var(--ft-border);
+}
+
+.calc-price-line:first-child {
+  border-top: 0;
+}
+
+.calc-price-line-name {
+  font-weight: 500;
+  color: var(--ft-text);
+}
+
+.calc-price-line-detail {
+  color: var(--ft-muted);
+  font-size: 0.78rem;
+}
+
+.calc-price-line-sum {
+  font-weight: 600;
+  color: var(--ft-text);
+}
+
 .calc-totals-grand {
   display: flex;
   justify-content: space-between;

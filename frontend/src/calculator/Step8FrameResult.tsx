@@ -7,6 +7,7 @@ import {
   fetchCalculatorHingeTypes,
   fetchCalculatorProfileTypes,
   fetchMaterial,
+  fetchMaterialClasses,
 } from '../api'
 import { fetchMe, hasValidSession } from '../auth'
 import { BASE_CURRENCY } from '../currencies'
@@ -20,9 +21,12 @@ import {
   FRAME_DEFAULT_WIDTH_MM,
   isFrameStep2Ready,
   isFrameStep4Ready,
+  hingesPerFacadeForPrice,
+  parseFramePriceSessionFromConfigKey,
   readCalculatorPriceConfigKey,
   readHandleHoles,
   readHingeLayout,
+  shouldBillProductionHinges,
   subscribeFrameCalcSession,
   clearFrameCalculatorStorage,
   notifyFrameCalcSession,
@@ -32,7 +36,9 @@ import './Step8FrameResult.css'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { buildFrameClientPdfBlob, preloadFramePdfFont } from './frameClientPdf'
 import { useFillingTypeName } from './useFillingTypeName'
+import { CalcPriceBreakdownView } from './CalcPriceBreakdownView'
 import { matchFormulaTotalForFrame } from './calculationFormula'
+import { serializePriceBreakdownForSnapshot } from './priceBreakdown'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -83,35 +89,23 @@ export function Step8FrameResult() {
   const fillingTypeName = useFillingTypeName(cfgKey)
 
   const parsed = useMemo(() => {
+    const session = parseFramePriceSessionFromConfigKey(cfgKey)
     const parts = cfgKey.split('|')
-    const colorIdRaw = parts[0]?.trim() ?? ''
-    const colorId = colorIdRaw ? Number(colorIdRaw) : null
     const h = parts[1] ?? ''
     const w = parts[2] ?? ''
     const qty = asPositiveInt(parts[3] ?? null, 1)
-    const fillIdRaw = parts[4]?.trim() ?? ''
-    const fillMatId = fillIdRaw ? Number(fillIdRaw) : null
-    const mortiseRaw = parts[5]?.trim() ?? ''
-    const mortiseMode = mortiseRaw === 'hinge' ? 'hinge' : 'none'
-    const hingeSrcRaw = parts[6]?.trim() ?? ''
-    const hingeSource =
-      hingeSrcRaw === 'customer' || hingeSrcRaw === 'production' ? hingeSrcRaw : ('' as const)
-    const htRaw = parts[7]?.trim() ?? ''
-    const hmRaw = parts[8]?.trim() ?? ''
-    const hingeTypeId = htRaw ? Number(htRaw) : null
-    const hingeMatId = hmRaw ? Number(hmRaw) : null
     return {
-      colorId: colorId && Number.isFinite(colorId) && colorId > 0 ? colorId : null,
+      colorId: session.colorId,
       heightMm: asPositiveMm(h, FRAME_DEFAULT_HEIGHT_MM),
       widthMm: asPositiveMm(w, FRAME_DEFAULT_WIDTH_MM),
       facadeCount: qty,
-      fillMatId: fillMatId && Number.isFinite(fillMatId) && fillMatId > 0 ? fillMatId : null,
-      mortiseMode,
-      hingeSource,
-      hingeTypeId:
-        hingeTypeId != null && Number.isFinite(hingeTypeId) && hingeTypeId > 0 ? hingeTypeId : null,
-      hingeMatId:
-        hingeMatId != null && Number.isFinite(hingeMatId) && hingeMatId > 0 ? hingeMatId : null,
+      fillMatId: session.fillMatId,
+      mortiseMode: session.mortiseMode,
+      hingeSource: session.hingeSource,
+      hingeTypeId: session.hingeTypeId,
+      hingeMatId: session.hingeMatId,
+      billHinges: shouldBillProductionHinges(session),
+      hingesPerFacade: hingesPerFacadeForPrice(),
     }
   }, [cfgKey])
 
@@ -121,7 +115,9 @@ export function Step8FrameResult() {
   const [frameTypeName, setFrameTypeName] = useState('—')
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [hingeMaterial, setHingeMaterial] = useState<Material | null>(null)
   const [formulasList, setFormulasList] = useState<CalculationFormula[]>([])
+  const [classCodesById, setClassCodesById] = useState<Map<number, string>>(() => new Map())
   const [mortiseLine, setMortiseLine] = useState('—')
   const [contactName, setContactName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -181,7 +177,24 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     let cancel = false
-    fetchCalculationFormulas()
+    fetchMaterialClasses()
+      .then((r) => {
+        if (cancel) return
+        const m = new Map<number, string>()
+        for (const c of r.results ?? []) m.set(c.id, c.code)
+        setClassCodesById(m)
+      })
+      .catch(() => {
+        if (!cancel) setClassCodesById(new Map())
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancel = false
+    fetchCalculationFormulas({ active: true })
       .then((r) => {
         if (!cancel) setFormulasList(r.results ?? [])
       })
@@ -241,6 +254,25 @@ export function Step8FrameResult() {
   }, [parsed.fillMatId])
 
   useEffect(() => {
+    let cancel = false
+    ;(async () => {
+      if (!parsed.billHinges || !parsed.hingeMatId) {
+        setHingeMaterial(null)
+        return
+      }
+      try {
+        const m = await fetchMaterial(parsed.hingeMatId)
+        if (!cancel) setHingeMaterial(m)
+      } catch {
+        if (!cancel) setHingeMaterial(null)
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [parsed.billHinges, parsed.hingeMatId])
+
+  useEffect(() => {
     if (parsed.mortiseMode !== 'hinge') {
       setMortiseLine('Не требуется')
       return
@@ -281,13 +313,17 @@ export function Step8FrameResult() {
     }
   }, [cfgKey, parsed.hingeMatId, parsed.hingeSource, parsed.hingeTypeId, parsed.mortiseMode])
 
-  const breakdown = useMemo(() => {
+  const hingesPerFacade = parsed.billHinges ? parsed.hingesPerFacade : null
+
+  const priceState = useMemo(() => {
     const base = computeFramePriceBreakdown(
       colorMaterial,
       fillingMaterial,
       parsed.heightMm,
       parsed.widthMm,
       parsed.facadeCount,
+      hingeMaterial,
+      hingesPerFacade,
     )
     const matched = matchFormulaTotalForFrame(
       formulasList,
@@ -296,31 +332,42 @@ export function Step8FrameResult() {
       parsed.heightMm,
       parsed.widthMm,
       parsed.facadeCount,
+      classCodesById,
+      hingeMaterial,
+      hingesPerFacade,
     )
-    if (!matched) return base
-    return {
-      ...base,
-      total: matched.total,
-      formulaName: matched.formula.name,
-      formulaExpression: matched.formula.expression,
-    }
+    const breakdown = matched
+      ? {
+          ...base,
+          total: matched.total,
+          formulaName: matched.formula.name,
+          formulaExpression: matched.formula.expression,
+        }
+      : base
+    return { base, breakdown, matched }
   }, [
     formulasList,
+    classCodesById,
     colorMaterial,
     fillingMaterial,
+    hingeMaterial,
+    hingesPerFacade,
     parsed.heightMm,
     parsed.widthMm,
     parsed.facadeCount,
   ])
 
+  const breakdown = priceState.breakdown
+
   const currencies = useMemo(
-    () => collectCurrencies(colorMaterial, fillingMaterial),
-    [colorMaterial, fillingMaterial],
+    () => collectCurrencies(colorMaterial, fillingMaterial, hingeMaterial),
+    [colorMaterial, fillingMaterial, hingeMaterial],
   )
 
   const currency =
     colorMaterial?.base_currency ||
     fillingMaterial?.base_currency ||
+    hingeMaterial?.base_currency ||
     (currencies.length === 1 ? currencies[0] : BASE_CURRENCY)
 
   const currencyMismatch = currencies.length > 1
@@ -424,9 +471,12 @@ export function Step8FrameResult() {
         profile: breakdown.profile,
         filling: breakdown.filling,
         related: breakdown.related,
+        hinges: breakdown.hinges,
         total: breakdown.total,
         formulaName: breakdown.formulaName,
       },
+      priceBreakdownDetail: serializePriceBreakdownForSnapshot(priceState.matched, priceState.base),
+      formulaName: breakdown.formulaName,
       currency,
       currencyMismatch,
       hingeLayout,
@@ -466,6 +516,7 @@ export function Step8FrameResult() {
       breakdown: p.breakdown,
       formulaName: breakdown.formulaName,
       formulaExpression: breakdown.formulaExpression,
+      priceBreakdown: serializePriceBreakdownForSnapshot(priceState.matched, priceState.base),
       currency: p.currency,
       currencyMismatch: p.currencyMismatch,
       hingeLayout: p.hingeLayout,
@@ -665,56 +716,40 @@ export function Step8FrameResult() {
           {currencyMismatch ? (
             <p className="step8-panel__warn">В конфигурации разные валюты — сумма ориентировочная.</p>
           ) : null}
-          <div className="step8-table-wrap">
-            {breakdown.formulaName ? (
-              <table className="step8-table">
-                <thead>
-                  <tr>
-                    <th>№</th>
-                    <th>Формула</th>
-                    <th>Итого</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>1</td>
-                    <td>{breakdown.formulaName}</td>
-                    <td className="step8-table__total">
-                      {formatSum(breakdown.total)} {currency}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            ) : (
-              <table className="step8-table">
-                <thead>
-                  <tr>
-                    <th>№</th>
-                    <th>Профиль</th>
-                    <th>Наполнение</th>
-                    <th>Сопутствующие</th>
-                    <th>Итого</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>1</td>
-                    <td>
-                      {formatSum(breakdown.profile)} {currency}
-                    </td>
-                    <td>
-                      {formatSum(breakdown.filling)} {currency}
-                    </td>
-                    <td>
-                      {formatSum(breakdown.related)} {currency}
-                    </td>
-                    <td className="step8-table__total">
-                      {formatSum(breakdown.total)} {currency}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
+          <div className="step8-price-breakdown-wrap">
+            <CalcPriceBreakdownView
+              currency={currency}
+              base={priceState.base}
+              formulaMatch={
+                priceState.matched
+                  ? {
+                      formulaName: priceState.matched.formula.name,
+                      formulaExpression: priceState.matched.formula.expression,
+                      evaluation: priceState.matched.evaluation,
+                      formula: priceState.matched.formula,
+                    }
+                  : null
+              }
+              colorMaterial={colorMaterial}
+              fillingMaterial={fillingMaterial}
+              hingeMaterial={hingeMaterial}
+              hingesPerFacade={hingesPerFacade}
+              heightMm={parsed.heightMm}
+              widthMm={parsed.widthMm}
+              facadeCount={parsed.facadeCount}
+            />
+          </div>
+          <div className="step8-table-wrap step8-table-wrap--grand">
+            <table className="step8-table">
+              <tbody>
+                <tr>
+                  <td className="step8-table__grand-label">Итого</td>
+                  <td className="step8-table__total">
+                    {formatSum(breakdown.total)} {currency}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <p className="step8-panel__note">
             * Цена ориентировочная, без учёта доставки и монтажа. Уточняйте детали у менеджера.

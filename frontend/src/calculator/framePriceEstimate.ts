@@ -1,5 +1,6 @@
 import { normalizeDecimalOnBlur } from '../floatInput'
 import type { Material, MaterialRelatedItemDto, PricingCalcMode, RelatedQuantityScale, UnitOfMeasure } from '../types'
+import { applyQuantityRounding, collectFrameMaterialLines, sumLinesBySource } from './priceBreakdown'
 
 export type PricingUomCode = 'm2' | 'm' | 'pc'
 
@@ -117,7 +118,11 @@ export function unitsPerFacade(heightMm: number, widthMm: number, code: string):
 }
 
 export function pricedUnitsForMaterial(
-  material: Pick<Material, 'uom' | 'pricing_calc_mode' | 'excess_coefficient'> | null | undefined,
+  material:
+    | Pick<Material, 'uom' | 'pricing_calc_mode' | 'excess_coefficient' | 'rounding_mode' | 'rounding_multiple'>
+    | Pick<Material, 'uom' | 'pricing_calc_mode' | 'excess_coefficient'>
+    | null
+    | undefined,
   heightMm: number,
   widthMm: number,
   facadeCount: number
@@ -125,7 +130,8 @@ export function pricedUnitsForMaterial(
   if (!material || facadeCount <= 0) return 0
   const code = resolveMaterialPricingUomCode(material)
   const raw = unitsPerFacade(heightMm, widthMm, code) * facadeCount
-  return raw * parseExcessCoefficient(material)
+  const withExcess = raw * parseExcessCoefficient(material)
+  return applyQuantityRounding(withExcess, material as Material).quantityBilled
 }
 
 export function materialLineCost(
@@ -185,6 +191,7 @@ export type FramePriceBreakdown = {
   profile: number
   related: number
   filling: number
+  hinges: number
   total: number
   formulaName?: string
   formulaExpression?: string
@@ -200,53 +207,45 @@ export function computeFramePriceBreakdown(
   fillingMaterial: Material | null,
   heightMm: number,
   widthMm: number,
-  facadeCount: number
+  facadeCount: number,
+  hingeMaterial?: Material | null,
+  hingesPerFacade?: number | null,
 ): FramePriceBreakdown {
-  const fc = Math.max(0, facadeCount)
-  const geomColor =
-    colorMaterial && fc > 0 ? pricedUnitsForMaterial(colorMaterial, heightMm, widthMm, fc) : 0
-  const mainUnit = colorMaterial ? parseMoney(colorMaterial.base_price) : 0
-  const profile = mainUnit * geomColor
-  const related = relatedItemsCalculatorCost(
-    colorMaterial?.related_items,
-    geomColor,
+  const lines = collectFrameMaterialLines(
+    colorMaterial,
+    fillingMaterial,
     heightMm,
     widthMm,
-    fc
+    facadeCount,
+    hingeMaterial,
+    hingesPerFacade,
   )
-
-  const geomFill =
-    fillingMaterial && fc > 0 ? pricedUnitsForMaterial(fillingMaterial, heightMm, widthMm, fc) : 0
-  const fillMain = fillingMaterial ? parseMoney(fillingMaterial.base_price) : 0
-  const fillingMain = fillMain * geomFill
-  const fillingRelated = relatedItemsCalculatorCost(
-    fillingMaterial?.related_items,
-    geomFill,
-    heightMm,
-    widthMm,
-    fc
-  )
-  const filling = fillingMain + fillingRelated
-
+  const { profile, related, filling, hinges } = sumLinesBySource(lines)
   return {
     profile,
     related,
     filling,
-    total: profile + related + filling,
+    hinges,
+    total: profile + related + filling + hinges,
   }
 }
 
 export function collectCurrencies(
   colorMaterial: Material | null,
-  fillingMaterial: Material | null
+  fillingMaterial: Material | null,
+  hingeMaterial?: Material | null,
 ): string[] {
   const s = new Set<string>()
   if (colorMaterial?.base_currency) s.add(colorMaterial.base_currency)
   if (fillingMaterial?.base_currency) s.add(fillingMaterial.base_currency)
+  if (hingeMaterial?.base_currency) s.add(hingeMaterial.base_currency)
   for (const r of colorMaterial?.related_items ?? []) {
     if (r.related_material?.base_currency) s.add(r.related_material.base_currency)
   }
   for (const r of fillingMaterial?.related_items ?? []) {
+    if (r.related_material?.base_currency) s.add(r.related_material.base_currency)
+  }
+  for (const r of hingeMaterial?.related_items ?? []) {
     if (r.related_material?.base_currency) s.add(r.related_material.base_currency)
   }
   return [...s]
