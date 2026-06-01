@@ -9,43 +9,12 @@ import {
   isPublicCalculatorRoute,
   type PublicShellOutletContext,
 } from './PublicClientPages'
+import { safePostLoginTarget } from './postLogin'
 import { RegisterPage } from './RegisterPage'
 import { ThemeToggle } from './ThemeToggle'
 import './App.css'
 
 type AuthState = { phase: 'loading' } | { phase: 'guest' } | { phase: 'authed'; user: Me }
-
-function safePostLoginTarget(rawFrom: string | undefined, access: 'admin' | 'manager' | 'public'): string {
-  const fallback = access === 'admin' ? '/materials' : access === 'manager' ? '/orders' : '/'
-  if (rawFrom == null || rawFrom === '') return fallback
-  const trimmed = rawFrom.trim()
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return fallback
-  if (trimmed.includes('://') || trimmed.includes('\\')) return fallback
-  const noHash = trimmed.split('#')[0] ?? ''
-  const pathname = (noHash.split('?')[0] ?? '').replace(/\/$/, '') || '/'
-  if (isPublicCalculatorRoute(pathname) || pathname.replace(/\/$/, '') === '/my-orders') {
-    return noHash || '/'
-  }
-  if (access === 'admin') {
-    if (
-      pathname.startsWith('/materials') ||
-      pathname.startsWith('/textures') ||
-      pathname.startsWith('/calculator') ||
-      pathname.startsWith('/classes') ||
-      pathname.startsWith('/uom') ||
-      pathname.startsWith('/calculations') ||
-      pathname.startsWith('/orders') ||
-      pathname.startsWith('/users')
-    ) {
-      return noHash
-    }
-  } else if (access === 'manager') {
-    if (pathname.startsWith('/orders') || pathname.startsWith('/calculator')) {
-      return noHash
-    }
-  }
-  return fallback
-}
 
 function LoginRoute({ auth, onAfterLogin }: { auth: AuthState; onAfterLogin: () => Promise<Me | null> }) {
   const nav = useNavigate()

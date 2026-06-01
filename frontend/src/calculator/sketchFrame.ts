@@ -153,6 +153,49 @@ export function facadeSketchBoxStyle(heightMm: number, widthMm: number): CSSProp
   } as CSSProperties
 }
 
+/** Соответствует `.sketch { --sketch-size-factor: 0.85 }` и `min(68dvh, 520px)`. */
+export const SKETCH_CSS_MAX_HEIGHT_PX = 520
+export const SKETCH_CSS_SIZE_FACTOR = 0.85
+/** `.sketch-paper { inset: 12px }` */
+export const SKETCH_PAPER_INSET_PX = 12
+/** `.sketch-paper::before { inset: 4.5% }` */
+export const SKETCH_PAPER_DASH_INSET_FRAC = 0.045
+/** Позиция уголков `.sketch-paper::after` */
+export const SKETCH_CORNER_INSET_FRAC = 0.043
+export const SKETCH_CORNER_MARK_PX = 18
+/** `.sketch-sheet { inset: 16% 10% }` */
+export const SKETCH_SHEET_INSET_Y_FRAC = 0.16
+export const SKETCH_SHEET_INSET_X_FRAC = 0.1
+
+/** Высота блока `.sketch` в CSS (px), с учётом `--sketch-scale-y` и size-factor. */
+export function facadeSketchCssHeightPx(
+  heightMm: number,
+  sizeFactor = SKETCH_CSS_SIZE_FACTOR,
+): number {
+  return SKETCH_CSS_MAX_HEIGHT_PX * facadeSketchScaleY(heightMm) * sizeFactor
+}
+
+/** Масштаб px-макета → мм на PDF-эскизе заданной высоты `sketchHeightMm`. */
+export function facadeSketchPxToMm(
+  px: number,
+  sketchHeightMm: number,
+  heightMm: number,
+  sizeFactor = SKETCH_CSS_SIZE_FACTOR,
+): number {
+  const cssH = facadeSketchCssHeightPx(heightMm, sizeFactor)
+  if (!(cssH > 0 && sketchHeightMm > 0)) return 0
+  return (px / cssH) * sketchHeightMm
+}
+
+/** Толщина видимой рамки (полоса профиля) как `inset: 12px` у `.sketch-paper`. */
+export function facadeSketchPaperInsetMm(
+  sketchHeightMm: number,
+  heightMm: number,
+  sizeFactor = SKETCH_CSS_SIZE_FACTOR,
+): number {
+  return facadeSketchPxToMm(SKETCH_PAPER_INSET_PX, sketchHeightMm, heightMm, sizeFactor)
+}
+
 /** Backward-compat: старый хелпер (используйте materialTextureLayerStyle). */
 export function sketchFrameInlineStyle(
   material: { texture_color?: string | null; texture_image?: string | null } | null | undefined

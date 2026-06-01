@@ -1,13 +1,14 @@
 import { FormEvent, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { registerAccount } from './api'
+import { safePreLoginReturnPath } from './postLogin'
 import './LoginPage.css'
 import './RegisterPage.css'
 
 export function RegisterPage() {
   const nav = useNavigate()
   const loc = useLocation()
-  const returnTo = (loc.state as { from?: string } | null)?.from
+  const returnTo = safePreLoginReturnPath((loc.state as { from?: string } | null)?.from)
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

@@ -3104,11 +3104,13 @@ button.admin-primary.admin-modal-confirm:hover {
   font-size: calc(0.72rem * var(--admin-refs-scale));
 }
 
-/* Первоначальная загрузка дерева текстур: размытие панели + спиннер по центру */
+/* Первоначальная загрузка справочников: размытие панели + спиннер по центру */
+.admin-body.admin-body--panel-loading-host,
 #admin-panel-textures.admin-body--textures-loading-host {
   position: relative;
 }
 
+.admin-panel-loading,
 .admin-textures-loading {
   position: absolute;
   inset: 0;
@@ -3120,6 +3122,7 @@ button.admin-primary.admin-modal-confirm:hover {
   pointer-events: auto;
 }
 
+.admin-panel-loading__shade,
 .admin-textures-loading__shade {
   position: absolute;
   inset: 0;
@@ -3128,6 +3131,7 @@ button.admin-primary.admin-modal-confirm:hover {
   -webkit-backdrop-filter: blur(12px);
 }
 
+.admin-panel-loading__card,
 .admin-textures-loading__card {
   position: relative;
   display: flex;
@@ -3147,6 +3151,7 @@ button.admin-primary.admin-modal-confirm:hover {
     inset 0 1px 0 var(--ft-hover-surface-2);
 }
 
+.admin-panel-loading__spinner,
 .admin-textures-loading__spinner {
   display: block;
   width: 2rem;
@@ -3154,15 +3159,22 @@ button.admin-primary.admin-modal-confirm:hover {
   border: 2px solid var(--ft-surface-border);
   border-top-color: var(--ft-accent-spinner);
   border-radius: 50%;
-  animation: admin-textures-loading-spin 0.72s linear infinite;
+  animation: admin-panel-loading-spin 0.72s linear infinite;
 }
 
+.admin-panel-loading__label,
 .admin-textures-loading__label {
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--ft-text);
   opacity: 0.94;
+}
+
+@keyframes admin-panel-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes admin-textures-loading-spin {
@@ -3172,12 +3184,14 @@ button.admin-primary.admin-modal-confirm:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .admin-panel-loading__spinner,
   .admin-textures-loading__spinner {
     animation: none;
     border-top-color: var(--ft-accent-spinner);
     opacity: 0.92;
   }
 
+  .admin-panel-loading__shade,
   .admin-textures-loading__shade {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

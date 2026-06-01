@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState } from 'react'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import { createUom, deleteUom, fetchUom, updateUom } from './api'
 import { sortUomForSelect } from './uomSelectOrder'
 import type { UnitOfMeasure } from './types'
@@ -138,11 +139,12 @@ export function AdminUomPanel() {
   return (
     <>
       <div
-        className="admin-body"
+        className={adminPanelBodyClass(loading)}
         id="admin-panel-uom"
         role="tabpanel"
         aria-labelledby="admin-tab-uom"
       >
+        <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка единиц измерения" />
         <div className="admin-main-col">
           <main className="admin-main">
             <div className="admin-main-scroll">
@@ -199,7 +201,6 @@ export function AdminUomPanel() {
                     })}
                 </ul>
               </div>
-              {loading ? <p className="admin-muted">Загрузка списка…</p> : null}
               {!loading && items.length === 0 ? (
                 <p className="admin-muted admin-calculations-classes-empty">Нет единиц измерения — нажмите «+ Ед. изм.».</p>
               ) : null}

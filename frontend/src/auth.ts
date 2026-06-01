@@ -1,3 +1,4 @@
+/** JWT в localStorage; обновление access через refresh. См. api.ts → apiFetch. */
 import { apiUrl } from './apiBase'
 
 const KEY_ACCESS = 'furnitech_access'

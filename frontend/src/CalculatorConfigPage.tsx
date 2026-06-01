@@ -1,3 +1,4 @@
+/** Устаревший экран (не в маршрутах SPA). Оставлен для возможного переноса логики профилей. */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createCalculatorProfile,

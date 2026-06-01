@@ -1,3 +1,4 @@
+/** HTTP-клиент к Django API: Bearer, пагинация, справочники и заказы. */
 import type {
   CalculationFormula,
   CalculationFormulaCategory,

@@ -22,6 +22,7 @@ import {
   updateCalculationFormulaCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import type {
   CalculationFormula,
   CalculationFormulaCategory,
@@ -605,11 +606,6 @@ export function AdminCalculationsPanel() {
 
   const expression = useMemo(() => formulaDisplayExpression(draft.tokens), [draft.tokens])
 
-  const activeFormulasCount = useMemo(
-    () => formulas.filter((f) => f.is_active).length,
-    [formulas],
-  )
-
   const selectedCfcCat = useMemo(
     () => (cfcSelected == null ? null : findCfcNode(cfcTree, cfcSelected)),
     [cfcTree, cfcSelected],
@@ -1051,11 +1047,12 @@ export function AdminCalculationsPanel() {
   return (
     <>
       <div
-        className="admin-body admin-calculations"
+        className={adminPanelBodyClass(treeLoading, 'admin-body admin-calculations')}
         id="admin-panel-calculations"
         role="tabpanel"
         aria-labelledby="admin-tab-calculations"
       >
+        <AdminPanelLoadingOverlay active={treeLoading} ariaLabel="Загрузка папок формул" />
         <aside className="admin-aside admin-calculations-list">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки формул</h2>
@@ -1094,7 +1091,6 @@ export function AdminCalculationsPanel() {
               </svg>
             </AdminFolderToolbarIcon>
           </div>
-          {treeLoading ? <p className="admin-muted">Загрузка дерева…</p> : null}
           <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок формул">
             <li className="folder-explorer-tree-item folder-explorer-tree-item--materials-root">
               <div
@@ -1154,12 +1150,6 @@ export function AdminCalculationsPanel() {
           <main className="admin-main">
             <div className="admin-main-scroll">
               {err ? <div className="admin-error">{err}</div> : null}
-              {activeFormulasCount > 1 ? (
-                <p className="admin-error" role="status">
-                  Активных формул: {activeFormulasCount}. В калькуляторе используется первая подходящая по
-                  порядку сортировки — оставьте одну активную или снимите флажок «Активна» у лишних.
-                </p>
-              ) : null}
               <div className="admin-heading-row">
                 <h2 className="admin-h2">
                   {cfcSelected == null

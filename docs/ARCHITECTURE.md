@@ -1,5 +1,7 @@
 # Архитектура Furnitech
 
+Справочник по стеку, API, маршрутам SPA и соглашениям UI. План этапов — [PLAN.md](PLAN.md).
+
 ## Стек
 
 | Слой | Технология |
@@ -131,7 +133,7 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `/api/texture-categories/{id}/` | GET, PUT, PATCH, DELETE | **JWT.** Каскадное удаление поддерева и **`TextureItem`**; у материалов **`texture_item`** → **`SET_NULL`**. |
 | `/api/texture-items/`, `/api/texture-items/{id}/` | CRUD | Пагинация 100. **JWT + model perms.** List: без query-параметров — все записи; **`?category=<id>`** — только эта папка; **`?category=<id>&subtree=1`** (и варианты `true`/`yes`) — папка и все вложенные (**`texture_category_subtree_ids`** в **`TextureItemViewSet`**). На фронте для полного списка и поддерева используется **`fetchTextureItems`** с обходом **`next`**. Тело POST/PATCH: JSON или multipart (**`image`**). Каталог файлов: **`texture_library/`**. |
 | `/api/uom/`, `/api/uom/{id}/` | CRUD | **JWT.** |
-| `/api/material-classes/`, `/{id}/` | CRUD, DELETE | **JWT.** |
+| `/api/material-classes/`, `/{id}/` | CRUD, DELETE | **GET — анонимно** (коды классов для формул в публичном калькуляторе); запись — JWT + model perms. |
 | `/api/calculation-formulas/`, `/{id}/` | CRUD | Формулы расчёта по классам материалов. **GET — анонимно** (для публичного калькулятора), запись — staff-админка. Query: **`?active=1`** — только активные формулы. |
 | `/api/materials/`, `/{id}/` | CRUD, list | Пагинация 100. **GET — анонимно; запись — JWT + model perms.** Параметры list (см. **`MaterialViewSet.get_queryset`**): **`category`** (id папки; при задании **`folder_name`** игнорируется), **`search`** (одна строка — **имя или артикул**, гибкий поиск), **`folder_name`** (по имени **`MaterialCategory`**), **`article`**, **`name`**, **`price`** (точное **`base_price`**, запятая нормализуется), **`material_class_ids`** (id через запятую — **хотя бы один** из классов у материала). Логика «гибкого» текста — **`materials/flexible_search.py`** (токены, **`icontains`**, при необходимости **rapidfuzz** на подмножестве pk). |
 | **`/api/materials-export/`** | **GET** | Экспорт **XLSX** или **XML**. Query: **`export_format`** = `xlsx` \| `xml` (**не** `format` — конфликт с DRF), опционально **`category`**. **JWT** + **`MaterialExportPermission`**. См. **[MATERIALS_IMPORT_EXPORT.md](MATERIALS_IMPORT_EXPORT.md)**. |

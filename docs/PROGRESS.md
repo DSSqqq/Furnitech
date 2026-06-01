@@ -1,6 +1,47 @@
 # Furnitech — прогресс (обновляйте в конце сессии)
 
-**Последнее обновление:** 2026-05-30 — PDF заказа из snapshot (как шаг 8).
+Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
+
+**Последнее обновление:** 2026-06-01 — безопасность, API, админка, PDF-эскиз, UI.
+
+### Изменения 2026-06-01 (безопасность, API, админка, PDF, UI)
+
+#### Безопасность и API
+
+- **Open redirect:** после входа/регистрации — только безопасные относительные пути (`postLogin.ts`: `safePostLoginTarget`, `safePreLoginReturnPath`; `RegisterPage`, `App.tsx`).
+- **Пользователи:** назначение роли **admin** и **DELETE** учётной записи — только **superuser** (`user_admin_views.py`, вкладка «Пользователи» в `AdminApp.tsx`).
+- **Классы материалов:** анонимный **GET** `/api/material-classes/` — коды классов для расчёта по формулам у гостя на `/` (`MaterialClassViewSet`, `ARCHITECTURE.md`).
+- **Production:** при `DEBUG=False` без своего `DJANGO_SECRET_KEY` — ошибка конфигурации при старте (`settings.py`).
+- **Импорт XML:** разбор загрузки через **`defusedxml`** (`material_import_export.py`, `requirements.txt`).
+- **Экспорт:** текст исключения в ответе 500 — только при `DEBUG`.
+- Ручной аудит Django/React: критичных уязвимостей (SQLi, CSRF, XSS, XXE, privilege escalation) не выявлено; Vitest проходит.
+
+#### Админка (UI)
+
+- **Загрузка панелей:** общий оверлей **`AdminPanelLoadingOverlay`** + `adminPanelBodyClass` — материалы, текстуры, классы, ЕИ, расчёты (`AdminApp.css`: `.admin-panel-loading`).
+- **Подсказки «i» убраны** там, где дублировали очевидный UI или заглушки: «Папки текстур» (`AdminTexturesPanel`), шаг 2 МДФ/ПВХ (`Step2MdfFacade`, `Step2PvcFacade`). На вкладке «Настройки калькулятора» и в карточках клиента подсказки сохранены.
+
+#### PDF и эскиз
+
+- **`sketchFrame.ts`:** константы и хелперы CSS-эскиза (`SKETCH_*`, `facadeSketchPxToMm`, `facadeSketchPaperInsetMm`) — единый источник для экрана и PDF.
+- **`frameClientPdf.ts`:** эскиз на бланке ближе к калькулятору (inset листа/бумаги, уголки, зеркало текстуры `tex_mirror`); дублирующая логика aspect/inset вынесена в `sketchFrame`.
+
+#### Документация
+
+- `ARCHITECTURE.md`, `DEPLOY.md`, `PLAN.md`, `README.md` — согласованы с правами API и `defusedxml`.
+- Лаконичные шапки в `settings.py`, `views.py`, `api.ts`, `auth.ts`.
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Безопасность / API | `postLogin.ts`, `RegisterPage.tsx`, `App.tsx`, `settings.py`, `views.py`, `user_admin_views.py`, `material_import_export.py`, `requirements.txt` |
+| Админка | `AdminPanelLoadingOverlay.tsx`, `AdminApp.tsx`, `AdminTexturesPanel.tsx`, `AdminCalculationsPanel.tsx`, `AdminMaterialClassesPanel.tsx`, `AdminUomPanel.tsx`, `AdminApp.css` |
+| Калькулятор | `Step2MdfFacade.tsx`, `Step2PvcFacade.tsx` |
+| PDF / эскиз | `sketchFrame.ts`, `frameClientPdf.ts` |
+| Документация | `docs/PROGRESS.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOY.md`, `docs/PLAN.md`, `README.md` |
+
+**Ранее:** 2026-05-30 — PDF заказа из snapshot (как шаг 8).
 
 ### Изменения 2026-05-30 (frontend — PDF заказов = генератор шага 8)
 

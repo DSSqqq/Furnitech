@@ -11,6 +11,7 @@ import {
   updateMaterialClassCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import type { MaterialClass, MaterialClassCategory } from './types'
 
 const MODAL_CLOSE_X_SVG = (
@@ -514,11 +515,12 @@ export function AdminMaterialClassesPanel() {
   return (
     <>
     <div
-      className="admin-body"
+      className={adminPanelBodyClass(treeLoading)}
       id="admin-panel-classes"
       role="tabpanel"
       aria-labelledby="admin-tab-classes"
     >
+      <AdminPanelLoadingOverlay active={treeLoading} ariaLabel="Загрузка папок классов" />
       <aside className="admin-aside">
         <div className="admin-heading-row">
           <h2 className="admin-h2">Папки классов</h2>
@@ -557,7 +559,6 @@ export function AdminMaterialClassesPanel() {
             </svg>
           </AdminFolderToolbarIcon>
         </div>
-        {treeLoading ? <p className="admin-muted">Загрузка дерева…</p> : null}
         <ul className="folder-explorer-tree-root admin-materials-tree-root" aria-label="Дерево папок классов">
           <li className="folder-explorer-tree-item folder-explorer-tree-item--materials-root">
             <div

@@ -1,3 +1,4 @@
+/** Модалка переноса папок/материалов; на вкладке «Материалы» не используется (inline DnD). */
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { fetchMaterials } from './api'

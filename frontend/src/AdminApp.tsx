@@ -31,6 +31,7 @@ import {
   type AdminUserRow,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import { AdminOrdersPanel } from './AdminOrdersPanel'
 import { AdminCalculationsPanel } from './AdminCalculationsPanel'
 import { AdminMaterialClassesPanel } from './AdminMaterialClassesPanel'
@@ -360,6 +361,13 @@ function formatListBasePrice(m: Material) {
 }
 
 export function AdminApp({ user, onLogout }: AdminProps) {
+  const adminUserRoleOptions = useMemo(
+    () =>
+      user.is_superuser
+        ? ADMIN_USER_ROLE_OPTIONS
+        : ADMIN_USER_ROLE_OPTIONS.filter((o) => o.value !== 'admin'),
+    [user.is_superuser],
+  )
   const nav = useNavigate()
   const loc = useLocation()
   const isAdmin = user.is_superuser || user.is_staff
@@ -1249,7 +1257,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
         </nav>
       </header>
       {err && section === 'materials' && <div className="admin-error">{err}</div>}
-      {loading && section === 'materials' && <p className="admin-muted admin-initial-state">Загрузка…</p>}
       {isManager ? (
         section === 'calculator' ? (
           <div
@@ -1272,11 +1279,12 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       ) : section === 'materials' ? (
         <div
           ref={materialsPanelRef}
-          className="admin-body"
+          className={adminPanelBodyClass(loading)}
           id="admin-panel-materials"
           role="tabpanel"
           aria-labelledby="admin-tab-materials"
         >
+          <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка папок материалов" />
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
@@ -1705,14 +1713,14 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               className="admin-users-role-ft"
                               value={u.is_staff ? 'admin' : u.is_manager ? 'manager' : 'user'}
                               onChange={(v) => setUserRole(u.id, v as 'user' | 'manager' | 'admin')}
-                              options={ADMIN_USER_ROLE_OPTIONS}
+                              options={adminUserRoleOptions}
                               disabled={staffTogglePending === u.id}
                               aria-label={`Роль для ${u.username}`}
                             />
                           )}
                         </td>
                         <td className="admin-users-actions-cell" data-label="Действия">
-                          {u.is_superuser || u.id === user.id ? (
+                          {u.is_superuser || u.id === user.id || !user.is_superuser ? (
                             <span className="admin-muted">—</span>
                           ) : (
                             <button

@@ -23,8 +23,17 @@ import {
 } from './pdfSketchDimsDraw'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import {
+  facadeSketchAspectRatio,
+  facadeSketchPaperInsetMm,
+  facadeSketchPxToMm,
+  facadeSketchScaleY,
   resolveMediaUrl,
+  SKETCH_CORNER_INSET_FRAC,
+  SKETCH_CORNER_MARK_PX,
   SKETCH_FILLING_TEXTURE_OPACITY,
+  SKETCH_PAPER_DASH_INSET_FRAC,
+  SKETCH_SHEET_INSET_X_FRAC,
+  SKETCH_SHEET_INSET_Y_FRAC,
   sketchMaterialOpacity,
 } from './sketchFrame'
 
@@ -64,27 +73,8 @@ export type FrameClientPdfInput = {
   orderNumber?: string
 }
 
-/** Оценочная толщина видимой рамки на чертеже (мм): подписи как отступ от края фасада до «стекла». */
-const FRAME_INSET_MM = 5
-
-/** Как на эскизах калькулятора (Step3–7): ширина/высота на экране слегка «смягчена» относительно реальных мм. */
 function clampPdf(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
-}
-
-function blendAspectPdf(defaultAspect: number, targetAspect: number, strength: number) {
-  const k = clampPdf(strength, 0, 1)
-  return defaultAspect + (targetAspect - defaultAspect) * k
-}
-
-/** Соотношение сторон рамки на чертеже (ширина / высота), как `sketchAspect` в `Step7FrameHandleHoles`. */
-function facadePdfSketchAspect(widthMm: number, heightMm: number): number {
-  const W = widthMm
-  const H = heightMm
-  if (!(W > 0 && H > 0)) return 3 / 4.2
-  const target = W / H
-  const softened = blendAspectPdf(3 / 4.2, target, 0.28)
-  return clampPdf(softened, 0.56, 0.92)
 }
 
 /** Эскиз на странице фасада — на 30% меньше максимально возможного (больше места под размеры). */
@@ -335,10 +325,13 @@ async function pdfDrawMaterialTextureLayer(
     material,
     opts?.sketchOpacity != null ? { sketchOpacity: opts.sketchOpacity } : undefined,
   )
+  const mirror = Boolean(material?.tex_mirror)
+  const imgX = mirror ? x + w : x
+  const imgW = mirror ? -w : w
 
   try {
     if (opacity < 0.999) pdfSetDocOpacity(doc, opacity)
-    doc.addImage(dataUrl, imgFmt(dataUrl), x, y, w, h, undefined, 'FAST')
+    doc.addImage(dataUrl, imgFmt(dataUrl), imgX, y, imgW, h, undefined, 'FAST')
   } catch {
     /* цвет уже залит */
   } finally {
@@ -629,7 +622,160 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
   doc.line(margin + 78, sigLine2Y + 0.6, pageW - margin, sigLine2Y + 0.6)
 }
 
-/** Эскиз страницы фасада: рисует «sketch-sheet»-карточку (как в Step7) поверх рамы. */
+type PdfSketchPxScale = {
+  skPx: (px: number) => number
+}
+
+function pdfSketchPxScale(dh: number, heightMm: number, sizeFactor: number): PdfSketchPxScale {
+  return {
+    skPx: (px) => facadeSketchPxToMm(px, dh, heightMm, sizeFactor),
+  }
+}
+
+/** Пунктир и уголки внутри `.sketch-paper` (как в Step2FrameFacade.css). */
+function drawSketchPaperDecor(
+  doc: jsPDF,
+  px: number,
+  py: number,
+  pw: number,
+  ph: number,
+  scale: PdfSketchPxScale,
+): void {
+  const dashInsetX = pw * SKETCH_PAPER_DASH_INSET_FRAC
+  const dashInsetY = ph * SKETCH_PAPER_DASH_INSET_FRAC
+  const dx = px + dashInsetX
+  const dy = py + dashInsetY
+  const dw = pw - 2 * dashInsetX
+  const dh = ph - 2 * dashInsetY
+  if (dw > 1 && dh > 1) {
+    doc.setDrawColor(17, 24, 39)
+    doc.setLineWidth(scale.skPx(2) * 0.35)
+    const dash = doc as jsPDF & { setLineDashPattern?: (a: number[], b: number) => void }
+    if (typeof dash.setLineDashPattern === 'function') {
+      dash.setLineDashPattern([scale.skPx(3), scale.skPx(2.5)], 0)
+    }
+    doc.rect(dx, dy, dw, dh, 'S')
+    if (typeof dash.setLineDashPattern === 'function') {
+      dash.setLineDashPattern([], 0)
+    }
+  }
+
+  const mark = scale.skPx(SKETCH_CORNER_MARK_PX)
+  const corners: Array<[number, number, number, number]> = [
+    [px + pw * SKETCH_CORNER_INSET_FRAC, py + ph * SKETCH_CORNER_INSET_FRAC, 1, 1],
+    [px + pw * (1 - SKETCH_CORNER_INSET_FRAC), py + ph * SKETCH_CORNER_INSET_FRAC, -1, 1],
+    [px + pw * SKETCH_CORNER_INSET_FRAC, py + ph * (1 - SKETCH_CORNER_INSET_FRAC), 1, -1],
+    [px + pw * (1 - SKETCH_CORNER_INSET_FRAC), py + ph * (1 - SKETCH_CORNER_INSET_FRAC), -1, -1],
+  ]
+  doc.setDrawColor(17, 24, 39)
+  doc.setLineWidth(0.12)
+  for (const [cx, cy, sx, sy] of corners) {
+    doc.line(cx, cy, cx + sx * mark, cy)
+    doc.line(cx, cy, cx, cy + sy * mark)
+  }
+}
+
+function drawPdfHingePin(
+  doc: jsPDF,
+  side: HingeMountSide,
+  px: number,
+  py: number,
+  index: number,
+  scale: PdfSketchPxScale,
+): void {
+  const label = `№${index + 1}`
+  const labelFs = Math.max(4, scale.skPx(8))
+  const dotR = Math.max(0.35, scale.skPx(1.5))
+  const gap = scale.skPx(2)
+
+  let bx: number
+  let by: number
+  let bw: number
+  let bh: number
+  let lx: number
+  let ly: number
+
+  if (side === 'top' || side === 'bottom') {
+    bw = scale.skPx(20)
+    bh = scale.skPx(11)
+    bx = px - bw / 2
+    by = side === 'top' ? py : py - bh
+    doc.setFillColor(10, 10, 12)
+    doc.setDrawColor(255, 255, 255)
+    doc.setLineWidth(Math.max(0.1, scale.skPx(1) * 0.28))
+    doc.roundedRect(bx, by, bw, bh, scale.skPx(2), scale.skPx(2), 'FD')
+    doc.setFillColor(255, 255, 255)
+    doc.circle(px, by + bh / 2, dotR, 'F')
+    lx = px - doc.getTextWidth(label) / 2
+    ly = side === 'top' ? by + bh + gap + labelFs * 0.75 : by - gap
+  } else {
+    bw = scale.skPx(11)
+    bh = scale.skPx(20)
+    bx = side === 'left' ? px : px - bw
+    by = py - bh / 2
+    doc.setFillColor(10, 10, 12)
+    doc.setDrawColor(255, 255, 255)
+    doc.setLineWidth(Math.max(0.1, scale.skPx(1) * 0.28))
+    doc.roundedRect(bx, by, bw, bh, scale.skPx(2), scale.skPx(2), 'FD')
+    doc.setFillColor(255, 255, 255)
+    doc.circle(bx + bw / 2, py, dotR, 'F')
+    ly = py + labelFs * 0.3
+    lx =
+      side === 'left'
+        ? bx + bw + gap
+        : bx - gap - doc.getTextWidth(label)
+  }
+
+  setBoldFont(doc)
+  doc.setFontSize(labelFs)
+  doc.setTextColor(24, 22, 19)
+  doc.text(label, lx, ly)
+  setRegularFont(doc)
+}
+
+function drawPdfHandlePin(
+  doc: jsPDF,
+  side: HingeMountSide,
+  px: number,
+  py: number,
+  index: number,
+  first: boolean,
+  scale: PdfSketchPxScale,
+): void {
+  const label = `№${index + 1}`
+  const labelFs = Math.max(4, scale.skPx(8))
+  const dia = scale.skPx(14)
+  const r = dia / 2
+  const gap = scale.skPx(3)
+
+  doc.setFillColor(255, 255, 255)
+  if (first) {
+    doc.setDrawColor(232, 140, 50)
+    doc.setLineWidth(Math.max(0.2, scale.skPx(2) * 0.35))
+  } else {
+    doc.setDrawColor(120, 125, 135)
+    doc.setLineWidth(Math.max(0.15, scale.skPx(2) * 0.3))
+  }
+  doc.circle(px, py, r, 'FD')
+
+  let lx: number
+  let ly: number
+  if (side === 'top' || side === 'bottom') {
+    lx = px - doc.getTextWidth(label) / 2
+    ly = side === 'top' ? py + r + gap + labelFs * 0.75 : py - r - gap
+  } else {
+    ly = py + labelFs * 0.3
+    lx = side === 'left' ? px + r + gap : px - r - gap - doc.getTextWidth(label)
+  }
+
+  setBoldFont(doc)
+  doc.setFontSize(labelFs)
+  doc.setTextColor(24, 22, 19)
+  doc.text(label, lx, ly)
+  setRegularFont(doc)
+}
+
+/** «sketch-sheet» поверх `.sketch` (прозрачный фон, как в калькуляторе). */
 function drawSketchInfoOverlay(
   doc: jsPDF,
   ox: number,
@@ -637,44 +783,29 @@ function drawSketchInfoOverlay(
   dw: number,
   dh: number,
   data: FrameClientPdfInput,
+  sizeFactor: number,
 ): void {
-  /** Как `.sketch-sheet { inset: 16% 10% }`: внутренняя «бумага» с подписями. */
-  const insetX = dw * 0.1
-  const insetY = dh * 0.16
+  const insetX = dw * SKETCH_SHEET_INSET_X_FRAC
+  const insetY = dh * SKETCH_SHEET_INSET_Y_FRAC
   const sx = ox + insetX
   const sy = oy + insetY
   const sw = dw - 2 * insetX
   const sh = dh - 2 * insetY
   if (sw <= 6 || sh <= 10) return
 
-  /** Полупрозрачная белая подложка, чтобы текст читался поверх заливки. */
-  doc.setFillColor(255, 255, 255)
-  if (typeof (doc as unknown as { setGState?: unknown }).setGState === 'function') {
-    try {
-      const gs = (doc as unknown as { GState: (o: { opacity?: number }) => unknown; setGState: (g: unknown) => void })
-      const layer = gs.GState({ opacity: 0.85 })
-      gs.setGState(layer)
-      doc.rect(sx, sy, sw, sh, 'F')
-      const reset = gs.GState({ opacity: 1 })
-      gs.setGState(reset)
-    } catch {
-      doc.rect(sx, sy, sw, sh, 'F')
-    }
-  } else {
-    doc.rect(sx, sy, sw, sh, 'F')
-  }
-
-  setBoldFont(doc)
-  doc.setTextColor(15, 15, 15)
-  const titleFs = Math.max(6, Math.min(10, sw / 22))
-  doc.setFontSize(titleFs)
-  doc.text('ЛИЦЕВАЯ СТОРОНА ФАСАДА', sx + sw / 2, sy + 5, { align: 'center', maxWidth: sw - 2 })
-
   setRegularFont(doc)
-  doc.setTextColor(60, 60, 60)
-  const subFs = Math.max(5.5, Math.min(8, sw / 30))
+  doc.setTextColor(0, 0, 0)
+  const pxMm = (px: number) => facadeSketchPxToMm(px, dh, data.heightMm, sizeFactor)
+  const titleFs = Math.max(6, pxMm(13.1))
+  doc.setFontSize(titleFs)
+  doc.text('ЛИЦЕВАЯ СТОРОНА ФАСАДА', sx + sw / 2, sy + titleFs * 0.9, {
+    align: 'center',
+    maxWidth: sw - 2,
+  })
+
+  const subFs = Math.max(5.5, pxMm(10.9))
   doc.setFontSize(subFs)
-  doc.text('Визуализация примерная', sx + sw / 2, sy + 5 + titleFs * 0.6, {
+  doc.text('Визуализация примерная', sx + sw / 2, sy + titleFs * 1.55, {
     align: 'center',
     maxWidth: sw - 2,
   })
@@ -686,31 +817,32 @@ function drawSketchInfoOverlay(
     ['Наполнение', sketchFillingLine(data.fillingTypeName, data.fillingMaterial)],
   ]
 
-  const tableTop = sy + 5 + titleFs * 0.6 + subFs * 1.4 + 1
+  const tableTop = sy + titleFs * 2.8 + subFs
   if (tableTop >= sy + sh - 3) return
 
-  const tableFs = Math.max(5.5, Math.min(7.5, sw / 36))
-  const rowH = tableFs * 1.4
-  /** Линия сверху таблички — как `border-top` в Step2FrameFacade.css. */
-  doc.setDrawColor(140, 140, 140)
-  doc.setLineWidth(0.15)
-  doc.line(sx + 3, tableTop, sx + sw - 3, tableTop)
-  doc.setFontSize(tableFs)
-  let rowY = tableTop + 2
-  const keyX = sx + 3
-  const valX = sx + sw * 0.4
+  const keyFs = Math.max(5, pxMm(11.2))
+  const valFs = Math.max(5.2, pxMm(11.5))
+  const rowGap = pxMm(8.8)
+  const keyColW = pxMm(80)
+
+  doc.setDrawColor(17, 24, 39)
+  doc.setLineWidth(0.12)
+  doc.line(sx, tableTop, sx + sw, tableTop)
+
+  let rowY = tableTop + pxMm(11)
   for (const [k, v] of rows) {
     if (rowY > sy + sh - 1) break
-    doc.setTextColor(50, 50, 50)
+    doc.setFontSize(keyFs)
     setRegularFont(doc)
-    doc.text(k, keyX, rowY + tableFs * 0.6)
+    doc.setTextColor(0, 0, 0)
+    doc.text(k, sx, rowY)
+    doc.setFontSize(valFs)
     setBoldFont(doc)
-    doc.setTextColor(15, 15, 15)
-    const valWrap = doc.splitTextToSize(v, sw - (sx + sw * 0.4 - keyX) - 4)
-    doc.text(valWrap as string[], valX, rowY + tableFs * 0.6)
+    const valWrap = doc.splitTextToSize(v, sw - keyColW - 2)
+    doc.text(valWrap as string[], sx + keyColW, rowY)
     setRegularFont(doc)
     const linesUsed = Array.isArray(valWrap) ? Math.max(1, valWrap.length) : 1
-    rowY += rowH * linesUsed * 0.9
+    rowY += rowGap * linesUsed
   }
 }
 
@@ -741,8 +873,6 @@ async function drawFacadeSketchInArea(
 
   const W = data.widthMm
   const H = data.heightMm
-  const innerW = Math.max(1, W - 2 * FRAME_INSET_MM)
-  const innerH = Math.max(1, H - 2 * FRAME_INSET_MM)
 
   const hingePos = hingePositionsPdf(data.hingeLayout)
   const handleCenters = handleCentersPdf(data.handleHoles, data.hingeLayout)
@@ -802,91 +932,56 @@ async function drawFacadeSketchInArea(
   const insetL = area.x + leftExtra
   const insetT = area.y + topExtra
 
-  const aspectWh = facadePdfSketchAspect(W, H)
-  const dh = Math.min(drawAreaH, drawAreaW / aspectWh, 1e6) * sizeFactor
+  const aspectWh = facadeSketchAspectRatio(W, H)
+  const sketchScaleY = facadeSketchScaleY(H)
+  const dh = Math.min(drawAreaH, drawAreaW / aspectWh, 1e6) * sizeFactor * sketchScaleY
   const dw = aspectWh * dh
-  const scaleX = dw / W
-  const scaleY = dh / H
   const ox = insetL + (drawAreaW - dw) / 2
   const oy = insetT + (drawAreaH - dh) / 2
 
+  const paperInset = facadeSketchPaperInsetMm(dh, H, sizeFactor)
+  const px = ox + paperInset
+  const py = oy + paperInset
+  const pw = Math.max(0.5, dw - 2 * paperInset)
+  const ph = Math.max(0.5, dh - 2 * paperInset)
+  const skScale = pdfSketchPxScale(dh, H, sizeFactor)
+
+  /** `.sketch-frame` + текстура профиля на весь блок. */
   await pdfDrawMaterialTextureLayer(doc, data.colorMaterial, ox, oy, dw, dh, {
     fallbackRgb: [201, 194, 184],
   })
 
-  const ix = ox + FRAME_INSET_MM * scaleX
-  const iy = oy + FRAME_INSET_MM * scaleY
-  const idw = innerW * scaleX
-  const idh = innerH * scaleY
-
+  /** `.sketch-paper` — белое поле, оставляет полосу профиля по периметру. */
   doc.setFillColor(255, 255, 255)
-  doc.rect(ix, iy, idw, idh, 'F')
-  await pdfDrawMaterialTextureLayer(doc, data.fillingMaterial, ix, iy, idw, idh, {
+  doc.rect(px, py, pw, ph, 'F')
+  await pdfDrawMaterialTextureLayer(doc, data.fillingMaterial, px, py, pw, ph, {
     sketchOpacity: SKETCH_FILLING_TEXTURE_OPACITY,
     fallbackRgb: [217, 217, 217],
   })
+  drawSketchPaperDecor(doc, px, py, pw, ph, skScale)
 
-  doc.setDrawColor(40, 40, 40)
-  doc.setLineWidth(0.25)
+  /** `.sketch { border: 1px solid rgba(17, 24, 39, 0.22) }` */
+  doc.setDrawColor(17, 24, 39)
+  doc.setLineWidth(Math.max(0.12, skScale.skPx(1) * 0.22))
   doc.rect(ox, oy, dw, dh, 'S')
-  doc.rect(ix, iy, idw, idh, 'S')
 
   if (showInfoOverlay) {
-    drawSketchInfoOverlay(doc, ox, oy, dw, dh, data)
+    drawSketchInfoOverlay(doc, ox, oy, dw, dh, data, sizeFactor)
   }
-
-  doc.setFontSize(6.5)
-  doc.setTextColor(28, 28, 28)
 
   if (hingePos && data.hingeLayout) {
     const side = data.hingeLayout.side
     hingePos.forEach((posMm, i) => {
-      const [px, py] = pdfEdgePoint(side, posMm, W, H, ox, oy, dw, dh)
-      doc.setFillColor(10, 10, 12)
-      doc.setDrawColor(255, 255, 255)
-      doc.setLineWidth(0.15)
-      if (side === 'top' || side === 'bottom') {
-        doc.rect(px - 2.4, py - (side === 'top' ? 0 : 2.4), 4.8, 2.4, 'FD')
-      } else {
-        doc.rect(px - (side === 'left' ? 0 : 2.4), py - 2.4, 2.4, 4.8, 'FD')
-      }
-      doc.setTextColor(255, 255, 255)
-      const lx =
-        side === 'left'
-          ? px + 3.5
-          : side === 'right'
-            ? px - 3.5 - doc.getTextWidth(`№${i + 1}`)
-            : px - doc.getTextWidth(`№${i + 1}`) / 2
-      const ly =
-        side === 'top' ? py + 4 : side === 'bottom' ? py - 3 : py + 1
-      doc.text(`№${i + 1}`, lx, ly)
+      const [epx, epy] = pdfEdgePoint(side, posMm, W, H, ox, oy, dw, dh)
+      drawPdfHingePin(doc, side, epx, epy, i, skScale)
     })
   }
 
   if (handleCenters && data.handleHoles) {
     const side = data.handleHoles.side
-    const dia = Math.min(4, Math.max(1.8, data.handleHoles.diameterMm * Math.min(scaleX, scaleY) * 0.35))
     handleCenters.forEach((posMm, i) => {
-      const [px, py] = pdfEdgePoint(side, posMm, W, H, ox, oy, dw, dh)
-      const first = i === 0
-      doc.setFillColor(255, 255, 255)
-      doc.setDrawColor(first ? 232 : 120, first ? 140 : 125, first ? 50 : 135)
-      doc.setLineWidth(first ? 0.35 : 0.22)
-      doc.circle(px, py, dia / 2, 'FD')
-      doc.setTextColor(40, 40, 45)
-      const lx =
-        side === 'left'
-          ? px + dia / 2 + 1.5
-          : side === 'right'
-            ? px - dia / 2 - 1.5 - doc.getTextWidth(`№${i + 1}`)
-            : px - doc.getTextWidth(`№${i + 1}`) / 2
-      const ly =
-        side === 'top'
-          ? py + dia / 2 + 3
-          : side === 'bottom'
-            ? py - dia / 2 - 1.5
-            : py + 1
-      doc.text(`№${i + 1}`, lx, ly)
+      const [epx, epy] = pdfEdgePoint(side, posMm, W, H, ox, oy, dw, dh)
+      drawPdfHandlePin(doc, side, epx, epy, i, i === 0, skScale)
     })
   }
 
@@ -909,7 +1004,7 @@ async function drawFacadeSketchInArea(
     doc.setFontSize(8)
     doc.setTextColor(90, 90, 90)
     const legend: string[] = [
-      `Внутреннее поле наполнения (условно): ${innerW} × ${innerH} мм (вылет рамы ${FRAME_INSET_MM} мм с каждой стороны).`,
+      'Эскиз — визуализация как в калькуляторе; габариты на выносных размерах — по введённым мм.',
     ]
     if (data.handleHoles && handleCenters) {
       legend.push(

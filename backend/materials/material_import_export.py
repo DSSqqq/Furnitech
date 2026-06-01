@@ -511,7 +511,9 @@ def xml_material_to_canonical(mat_el: ET.Element) -> dict[str, str]:
 
 
 def iter_materials_table_xml_dicts(fileobj: BinaryIO) -> list[dict[str, str]]:
-    tree = ET.parse(fileobj)
+    from defusedxml.ElementTree import parse as safe_parse
+
+    tree = safe_parse(fileobj)
     root = tree.getroot()
     rows: list[dict[str, str]] = []
     for mat in root.iter():

@@ -1,8 +1,14 @@
+"""
+Настройки Django (config). Секреты и DEBUG — из backend/.env; в production обязательны
+DJANGO_SECRET_KEY и DJANGO_DEBUG=False (см. docs/DEPLOY.md).
+"""
+
 import os
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import quote
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 try:
@@ -14,8 +20,13 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
+_DEV_SECRET = "dev-insecure-change-me"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", _DEV_SECRET)
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
+if not DEBUG and SECRET_KEY in ("", _DEV_SECRET):
+    raise ImproperlyConfigured(
+        "В production задайте уникальный DJANGO_SECRET_KEY (не значение по умолчанию)."
+    )
 ALLOWED_HOSTS = [
     h.strip()
     for h in os.environ.get(

@@ -1,5 +1,8 @@
+"""DRF viewsets: каталог, калькулятор, заказы. Публичный калькулятор — анонимный GET на части ресурсов."""
+
 from io import BytesIO
 
+from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse
 from rest_framework import viewsets
@@ -135,6 +138,26 @@ def calculation_formula_category_subtree_ids(root_id: int) -> list[int]:
     return out
 
 
+class AllowAnyReadStaffWrite(BasePermission):
+    """GET — публично для калькулятора; запись — только staff-админка."""
+
+    def has_permission(self, request, view) -> bool:
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
+
+
+class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
+    """GET/HEAD/OPTIONS — всем; запись — JWT + Django model permissions."""
+
+    def has_permission(self, request, view) -> bool:
+        if request.method in SAFE_METHODS:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return DjangoModelPermissions().has_permission(request, view)
+
+
 class CalculationFormulaCategoryViewSet(viewsets.ModelViewSet):
     queryset = CalculationFormulaCategory.objects.all()
     serializer_class = CalculationFormulaCategorySerializer
@@ -202,7 +225,7 @@ class MaterialClassCategoryViewSet(viewsets.ModelViewSet):
 class MaterialClassViewSet(viewsets.ModelViewSet):
     queryset = MaterialClass.objects.all().select_related("category")
     serializer_class = MaterialClassSerializer
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
     filter_backends = []
 
     def get_queryset(self):
@@ -222,15 +245,6 @@ class MaterialClassViewSet(viewsets.ModelViewSet):
             else:
                 qs = qs.filter(category_id=cat_id)
         return qs
-
-
-class AllowAnyReadStaffWrite(BasePermission):
-    """GET — публично для калькулятора; запись — только staff-админка."""
-
-    def has_permission(self, request, view) -> bool:
-        if request.method in SAFE_METHODS:
-            return True
-        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
 
 
 class CalculationFormulaViewSet(viewsets.ModelViewSet):
@@ -404,17 +418,6 @@ class MaterialExportPermission(BasePermission):
         )
 
 
-class AllowAnyReadAuthenticatedModelPermsWrite(BasePermission):
-    """GET/HEAD/OPTIONS — всем (в т.ч. без авторизации); запись — авторизация + Django model permissions."""
-
-    def has_permission(self, request, view) -> bool:
-        if request.method in SAFE_METHODS:
-            return True
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return DjangoModelPermissions().has_permission(request, view)
-
-
 class MaterialViewSet(viewsets.ModelViewSet):
     queryset = (
         Material.objects.all()
@@ -423,6 +426,7 @@ class MaterialViewSet(viewsets.ModelViewSet):
             "material_classes",
             "companion_items__related_material__uom",
             "companion_items__related_material__texture_item",
+            "companion_items__related_material__material_classes",
         )
     )
     serializer_class = MaterialSerializer
@@ -526,7 +530,10 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 status=503,
             )
         except Exception as e:  # noqa: BLE001
-            return Response({"detail": "Ошибка формирования файла экспорта.", "error": str(e)}, status=500)
+            body: dict[str, str] = {"detail": "Ошибка формирования файла экспорта."}
+            if settings.DEBUG:
+                body["error"] = str(e)
+            return Response(body, status=500)
         return FileResponse(
             BytesIO(data),
             as_attachment=True,
@@ -549,7 +556,11 @@ class AuthReadModelPermsWrite(IsAuthenticated):
 class CalculatorProfileViewSet(viewsets.ModelViewSet):
     queryset = CalculatorProfile.objects.all().select_related(
         "material", "material__texture_item"
-    ).prefetch_related("colors__color_material__uom", "colors__color_material__texture_item")
+    ).prefetch_related(
+        "colors__color_material__uom",
+        "colors__color_material__texture_item",
+        "colors__color_material__material_classes",
+    )
     serializer_class = CalculatorProfileSerializer
     permission_classes = [AuthReadModelPermsWrite]
 
@@ -561,7 +572,9 @@ class CalculatorProfileTypeViewSet(viewsets.ModelViewSet):
         "card_texture_3",
         "card_texture_4",
     ).prefetch_related(
-        "colors__color_material__uom", "colors__color_material__texture_item"
+        "colors__color_material__uom",
+        "colors__color_material__texture_item",
+        "colors__color_material__material_classes",
     )
     serializer_class = CalculatorProfileTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
@@ -575,7 +588,9 @@ class CalculatorFillingTypeViewSet(viewsets.ModelViewSet):
         "card_texture_3",
         "card_texture_4",
     ).prefetch_related(
-        "materials__material__uom", "materials__material__texture_item"
+        "materials__material__uom",
+        "materials__material__texture_item",
+        "materials__material__material_classes",
     )
     serializer_class = CalculatorFillingTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]
@@ -589,7 +604,9 @@ class CalculatorHingeTypeViewSet(viewsets.ModelViewSet):
         "card_texture_3",
         "card_texture_4",
     ).prefetch_related(
-        "materials__material__uom", "materials__material__texture_item"
+        "materials__material__uom",
+        "materials__material__texture_item",
+        "materials__material__material_classes",
     )
     serializer_class = CalculatorHingeTypeSerializer
     permission_classes = [AllowAnyReadAuthenticatedModelPermsWrite]

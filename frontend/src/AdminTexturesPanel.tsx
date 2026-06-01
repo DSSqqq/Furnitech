@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import {
   createTextureCategory,
   createTextureItem,
@@ -26,7 +27,6 @@ import {
   isFolderDrag,
   isTextureItemDrag,
 } from './folderMoveDnD'
-import { HintButton } from './HintButton'
 import { resolveTextureImageUrl } from './TexturePickerModal'
 import type { TextureCategory, TextureItem } from './types'
 
@@ -964,31 +964,16 @@ export function AdminTexturesPanel() {
   return (
     <>
       <div
-        className={loading ? 'admin-body admin-body--textures-loading-host' : 'admin-body'}
+        className={adminPanelBodyClass(loading)}
         id="admin-panel-textures"
         role="tabpanel"
         aria-labelledby="admin-tab-textures"
       >
-        {loading ? (
-          <div
-            className="admin-textures-loading"
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-            aria-label="Загрузка папок текстур"
-          >
-            <div className="admin-textures-loading__shade" aria-hidden />
-            <div className="admin-textures-loading__card">
-              <span className="admin-textures-loading__spinner" aria-hidden />
-              <span className="admin-textures-loading__label">Загрузка</span>
-            </div>
-          </div>
-        ) : null}
+        <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка папок текстур" />
         {err && <div className="admin-error">{err}</div>}
         <aside className="admin-aside">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки текстур</h2>
-            <HintButton text="Клик по названию папки — выбрать её; список справа: при «База текстур» — все текстуры базы, при выборе папки — текстуры в ней и во вложенных папках. Стрелка слева от «База текстур» сворачивает и разворачивает список папок. Папку можно перетащить на другую строку папки, на строку «База текстур» или в область открытой папки справа; текстуру — на папку в дереве или в область списка выбранной папки. Панель: новая папка, переименовать и удалить папку." />
           </div>
           <div
             className="admin-folder-toolbar"

@@ -94,7 +94,7 @@ class AdminUserListView(APIView):
 
 
 class AdminUserStaffView(APIView):
-    """PATCH is_staff; DELETE учётной записи (не суперпользователя, не себя). Доступ: is_staff."""
+    """PATCH роли; DELETE учётной записи. Список — is_staff; роль admin и DELETE — только superuser."""
 
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
@@ -132,6 +132,12 @@ class AdminUserStaffView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if role == "admin" and not request.user.is_superuser:
+            return Response(
+                {"detail": "Назначить роль администратора может только суперпользователь."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # ensure group exists (created by migration, but be defensive)
         managers_group, _ = Group.objects.get_or_create(name=MANAGERS_GROUP_NAME)
 
@@ -149,6 +155,12 @@ class AdminUserStaffView(APIView):
         return Response(_user_row(target))
 
     def delete(self, request, pk: int) -> Response:
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Удаление учётных записей доступно только суперпользователю."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         try:
             pk = int(pk)
         except (TypeError, ValueError):
