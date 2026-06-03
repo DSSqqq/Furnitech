@@ -31,10 +31,15 @@ export type FrameDimMaterialLimits = {
   min_width?: string | number | null
 }
 
-function parsePositiveMaterialDim(v: unknown): number {
+export function parsePositiveMaterialDim(v: unknown): number {
   if (v == null || v === '') return 0
   const n = Number(String(v).trim().replace(',', '.'))
   return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/** Подпись лимита габарита в шаге 3: только заданные (> 0) значения, иначе «—». */
+export function formatFrameMaterialDimLimitDisplay(n: number): string {
+  return n > 0 ? String(n) : '—'
 }
 
 /** Дефолтные габариты эскиза: min материала или 500×200. */

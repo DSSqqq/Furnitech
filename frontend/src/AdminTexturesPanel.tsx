@@ -385,6 +385,7 @@ function TextureCardForm({
       createTextureItem(fd)
         .then((t) => {
           onSaved(t)
+          onClose()
         })
         .catch((e) => setLocalErr(String(e)))
         .finally(() => setSaving(false))
@@ -398,6 +399,7 @@ function TextureCardForm({
       updateTextureItem(id, fd)
         .then((t) => {
           onSaved(t)
+          onClose()
         })
         .catch((e) => setLocalErr(String(e)))
         .finally(() => setSaving(false))
@@ -405,6 +407,7 @@ function TextureCardForm({
       updateTextureItem(id, { name: n, category: categoryId })
         .then((t) => {
           onSaved(t)
+          onClose()
         })
         .catch((e) => setLocalErr(String(e)))
         .finally(() => setSaving(false))
@@ -1275,7 +1278,6 @@ export function AdminTexturesPanel() {
                         }
                         return prev.map((x) => (x.id === t.id ? t : x))
                       })
-                      setEditing(t)
                     }}
                     onDeleted={(id) => {
                       setItems((prev) => prev.filter((x) => x.id !== id))

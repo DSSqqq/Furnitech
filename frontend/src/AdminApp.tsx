@@ -1512,8 +1512,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               tabIndex={0}
                               className={rowActive ? 'mat-list-row mat-list-row--active' : 'mat-list-row'}
                               aria-current={rowActive ? 'true' : undefined}
-                              aria-label={`${m.name || 'материал'}. Щелчок — сопутствующие. Двойной щелчок или Alt+Enter — карточка.`}
-                              title="Щелчок — сопутствующие. Двойной щелчок — карточка."
+                              aria-label={`${m.name || 'материал'}. Щелчок — сопутствующие материалы. Двойной щелчок или Alt+Enter — карточка.`}
+                              title="Щелчок — сопутствующие материалы. Двойной щелчок — карточка."
                               draggable
                               onDragStart={(e) => onMaterialRowDragStart(e, m)}
                               onClick={() => {
@@ -1631,7 +1631,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         if (editing === 'new') return [...prev, m]
                         return prev.map((x) => (x.id === m.id ? m : x))
                       })
-                      setEditing(m)
                     }}
                   />
                 </section>
@@ -2135,6 +2134,7 @@ function MaterialForm({
       setTextureLibraryItemName(m.texture_library_item_name ?? '')
       setTextureClearRequested(false)
       setRelatedItems(materialExtrasInitRelated(m))
+      onClose()
     })
       .catch((e) => setLocalErr(String(e)))
       .finally(() => setSaving(false))

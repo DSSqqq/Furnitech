@@ -522,8 +522,8 @@ async function buildBlankPage(doc: jsPDF, calcNo: string, data: FrameClientPdfIn
     data.formulaName && data.priceBreakdownDetail?.mode === 'formula'
       ? [['№', 'Формула', 'Итого']]
       : data.breakdown.hinges != null && data.breakdown.hinges > 0
-        ? [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Петли', 'Итого']]
-        : [['№', 'Профиль', 'Наполнение', 'Сопутствующие', 'Итого']]
+        ? [['№', 'Профиль', 'Наполнение', 'Сопутствующие материалы', 'Петли', 'Итого']]
+        : [['№', 'Профиль', 'Наполнение', 'Сопутствующие материалы', 'Итого']]
   const costBody =
     data.formulaName && data.priceBreakdownDetail?.mode === 'formula'
       ? [

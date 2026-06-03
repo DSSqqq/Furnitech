@@ -270,7 +270,7 @@ export function MaterialExtrasPanel({
       </div>
       <p className="mat-extras-total" aria-live="polite">
         Предв. оценка (карточка, без габаритов): основной {formatNumberForUi(mainP, DECIMAL_FRACTION_DIGITS)} +
-        сопутствующие {formatNumberForUi(sumRelated, DECIMAL_FRACTION_DIGITS)} ={' '}
+        сопутствующие материалы {formatNumberForUi(sumRelated, DECIMAL_FRACTION_DIGITS)} ={' '}
         <strong>
           {formatNumberForUi(grand, DECIMAL_FRACTION_DIGITS)} {BASE_CURRENCY}
         </strong>

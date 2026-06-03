@@ -194,7 +194,7 @@ export function CalcPriceBreakdownView({
       {relatedLines.length > 0 && (
         <section className="calc-price-class-block">
           <div className="calc-price-class-head">
-            <span className="calc-price-class-code">Сопутствующие (профиль)</span>
+            <span className="calc-price-class-code">Сопутствующие материалы (профиль)</span>
             <span className="calc-price-class-sum">
               {formatSum(base.related)} {currency}
             </span>

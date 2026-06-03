@@ -7,9 +7,10 @@ import { CalcStepPriceTotals } from './CalcPriceTotals'
 import {
   clampFrameDimDigits,
   effectiveFrameDimMax,
-  FRAME_DIM_FALLBACK_MAX_MM,
+  formatFrameMaterialDimLimitDisplay,
   FRAME_FACADE_COUNT_MAX,
   frameDimDefaultsFromMaterial,
+  parsePositiveMaterialDim,
   frameSketchDisplayDims,
   isFrameStep2Ready,
   notifyFrameCalcSession,
@@ -143,10 +144,11 @@ export function Step3FrameSizes() {
   )
 
   const limits = useMemo(() => {
-    const minH = asNum(String((colorMaterial as any)?.min_length ?? '0')) ?? 0
-    const maxH = asNum(String((colorMaterial as any)?.max_length ?? '0')) ?? 0
-    const minW = asNum(String((colorMaterial as any)?.min_width ?? '0')) ?? 0
-    const maxW = asNum(String((colorMaterial as any)?.max_width ?? '0')) ?? 0
+    const m = colorMaterial as Material | null
+    const minH = parsePositiveMaterialDim(m?.min_length)
+    const maxH = parsePositiveMaterialDim(m?.max_length)
+    const minW = parsePositiveMaterialDim(m?.min_width)
+    const maxW = parsePositiveMaterialDim(m?.max_width)
     return {
       minH,
       maxH,
@@ -269,10 +271,12 @@ export function Step3FrameSizes() {
             Ограничение по размерам для фасадного профиля {selectedType?.name ? `"${selectedType.name}"` : ''}
           </div>
           <div className="frame3-limits-row">
-            Минимальные размеры: {limits.minH || '—'}×{limits.minW || '—'} мм.
+            Минимальные размеры: {formatFrameMaterialDimLimitDisplay(limits.minH)}×
+            {formatFrameMaterialDimLimitDisplay(limits.minW)} мм.
           </div>
           <div className="frame3-limits-row">
-            Максимальные размеры: {limits.maxH || FRAME_DIM_FALLBACK_MAX_MM}×{limits.maxW || FRAME_DIM_FALLBACK_MAX_MM} мм.
+            Максимальные размеры: {formatFrameMaterialDimLimitDisplay(limits.maxH)}×
+            {formatFrameMaterialDimLimitDisplay(limits.maxW)} мм.
           </div>
         </div>
         <CalcStepPriceTotals />
