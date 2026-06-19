@@ -17,6 +17,7 @@
 - **`useFrameColorMaterial.ts`**: хук **`useFrameColorMaterial()`** и **`mergeFrameColorMaterial(summary, full)`** — как на шаге 2: summary из типа профиля + полный материал, приоритет непустых **`texture_color`** / **`texture_image`**.
 - **`sketchFrame.ts`**: **`profileFrameTextureLayerStyle`** — рамка профиля на эскизе всегда с opacity **1** (опция **`profileFrame`** у **`materialTextureLayerStyle`**).
 - Шаги **2–7**: единый источник цвета рамки; шаги **3–7** переведены на хук вместо дублирующих **`useEffect`** с одним **`fetchMaterial`**.
+- **Дополнение:** на **шаге 2** выбор **тип профиля + цвет** записывается в **`localStorage`** синхронно при клике по цвету и перед переходом на шаг 3 (**`persistFrameSelection`**), чтобы production-build не уходил на следующий маршрут до записи **`calc_frame_color_id`**.
 
 #### Затронутые файлы
 

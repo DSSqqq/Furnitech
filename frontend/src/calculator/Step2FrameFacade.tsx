@@ -237,6 +237,26 @@ export function Step2FrameFacade() {
 
   const prevColorIdRef = useRef<number | null>(null)
 
+  const persistFrameSelection = useCallback((typeId: number | null, colorId: number | null) => {
+    try {
+      if (typeId == null || colorId == null) return false
+      const t = profileTypes.find((x) => x.id === typeId)
+      if (!t || !(t.colors ?? []).some((c) => c.color_material_id === colorId)) return false
+      const prevColorRaw = localStorage.getItem('calc_frame_color_id')
+      const prevColor = prevColorRaw ? Number(prevColorRaw) : null
+      localStorage.setItem('calc_frame_type_id', String(typeId))
+      localStorage.setItem('calc_frame_color_id', String(colorId))
+      if (prevColor != null && Number.isFinite(prevColor) && prevColor !== colorId) {
+        localStorage.removeItem('calc_filling_type_id')
+        localStorage.removeItem('calc_filling_material_id')
+      }
+      notifyFrameCalcSession()
+      return true
+    } catch {
+      return false
+    }
+  }, [profileTypes])
+
   useEffect(() => {
     if (!calcSessionHydrated) return
     try {
@@ -244,11 +264,7 @@ export function Step2FrameFacade() {
         localStorage.removeItem('calc_frame_type_id')
         localStorage.removeItem('calc_frame_color_id')
       } else {
-        const t = profileTypes.find((x) => x.id === selectedTypeId)
-        if (t && (t.colors ?? []).some((c) => c.color_material_id === selectedColorId)) {
-          localStorage.setItem('calc_frame_type_id', String(selectedTypeId))
-          localStorage.setItem('calc_frame_color_id', String(selectedColorId))
-        }
+        persistFrameSelection(selectedTypeId, selectedColorId)
       }
       const prev = prevColorIdRef.current
       if (
@@ -264,7 +280,7 @@ export function Step2FrameFacade() {
       // ignore
     }
     notifyFrameCalcSession()
-  }, [calcSessionHydrated, selectedTypeId, selectedColorId, profileTypes])
+  }, [calcSessionHydrated, selectedTypeId, selectedColorId, profileTypes, persistFrameSelection])
 
   useEffect(() => {
     if (!calcSessionHydrated || loading) return
@@ -1184,7 +1200,10 @@ export function Step2FrameFacade() {
               className="admin-primary"
               disabled={!selectedTypeId || !selectedColorId}
               title={!selectedTypeId || !selectedColorId ? 'Сначала выберите тип профиля и цвет' : undefined}
-              onClick={() => nav(step('frame/size'))}
+              onClick={() => {
+                persistFrameSelection(selectedTypeId, selectedColorId)
+                nav(step('frame/size'))
+              }}
             >
               Следующий шаг →
             </button>
@@ -1277,6 +1296,7 @@ export function Step2FrameFacade() {
                       className={active ? 'tile tile--active tile--fill' : 'tile tile--fill'}
                       onClick={() => {
                         setSelectedColorId(c.color_material_id)
+                        persistFrameSelection(selectedTypeId, c.color_material_id)
                         setModalTypeId(null)
                       }}
                       title={matLabel(merged)}
