@@ -9,6 +9,11 @@ from rest_framework.views import APIView
 
 User = get_user_model()
 MANAGERS_GROUP_NAME = "Менеджеры"
+# Группа со всеми правами модели приложения `materials` (материалы, текстуры,
+# справочники калькулятора и т.д.). SPA-«админ» (is_staff, не суперпользователь)
+# должен иметь эти права, иначе DjangoModelPermissions вернёт 403 на запись
+# (например POST /api/texture-items/ — кнопка «+ Текстура»).
+EDITOR_GROUP_NAME = "Редактор материалов"
 
 
 def _requests_staff_or_superuser_elevation(data) -> bool:
@@ -138,18 +143,23 @@ class AdminUserStaffView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # ensure group exists (created by migration, but be defensive)
+        # ensure groups exist (created by migrations, but be defensive)
         managers_group, _ = Group.objects.get_or_create(name=MANAGERS_GROUP_NAME)
+        editor_group, _ = Group.objects.get_or_create(name=EDITOR_GROUP_NAME)
 
         if role == "admin":
+            # Доступ к админке + права модели на запись справочников (текстуры и пр.).
             target.is_staff = True
+            target.groups.add(editor_group)
             target.groups.remove(managers_group)
         elif role == "manager":
             target.is_staff = False
             target.groups.add(managers_group)
+            target.groups.remove(editor_group)
         else:  # user
             target.is_staff = False
             target.groups.remove(managers_group)
+            target.groups.remove(editor_group)
 
         target.save(update_fields=["is_staff"])
         return Response(_user_row(target))

@@ -41,6 +41,15 @@ type FolderRenameRequest = { targetId: number; nonce: number }
 
 const TEX_LIST_COLUMNS = ['Превью', 'Наименование'] as const
 
+/** Человекочитаемый текст ошибки: без префикса «Error:», с подсказкой для сетевых сбоев. */
+function errorText(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e)
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    return 'Не удалось связаться с сервером (сеть, CORS или origin API). Проверьте интернет и адрес сайта, затем повторите.'
+  }
+  return msg
+}
+
 function collectIdsWithChildren(tree: TextureCategory[]): Set<number> {
   const out = new Set<number>()
   const walk = (nodes: TextureCategory[]) => {
@@ -387,7 +396,7 @@ function TextureCardForm({
           onSaved(t)
           onClose()
         })
-        .catch((e) => setLocalErr(String(e)))
+        .catch((e) => setLocalErr(errorText(e)))
         .finally(() => setSaving(false))
       return
     }
@@ -401,7 +410,7 @@ function TextureCardForm({
           onSaved(t)
           onClose()
         })
-        .catch((e) => setLocalErr(String(e)))
+        .catch((e) => setLocalErr(errorText(e)))
         .finally(() => setSaving(false))
     } else {
       updateTextureItem(id, { name: n, category: categoryId })
@@ -409,7 +418,7 @@ function TextureCardForm({
           onSaved(t)
           onClose()
         })
-        .catch((e) => setLocalErr(String(e)))
+        .catch((e) => setLocalErr(errorText(e)))
         .finally(() => setSaving(false))
     }
   }
@@ -421,7 +430,7 @@ function TextureCardForm({
     deleteTextureItem(item.id)
       .then(() => onDeleted(item.id))
       .then(() => onClose())
-      .catch((e) => setLocalErr(String(e)))
+      .catch((e) => setLocalErr(errorText(e)))
       .finally(() => setSaving(false))
   }
 

@@ -29,22 +29,57 @@ const FIELD_LABELS: Record<string, string> = {
   code: '',
 }
 
+const IMAGE_FIELD_LABELS: Record<string, string> = {
+  image: 'Изображение',
+  texture_image: 'Изображение',
+}
+
+/** Перевод частых англоязычных сообщений DRF/Django про файл изображения. */
+function localizeFieldMessage(field: string, raw: string): string {
+  const t = raw.trim()
+  if (field === 'image' || field === 'texture_image') {
+    if (/not a valid image|corrupted image|valid image/i.test(t)) {
+      return 'Файл не распознан как изображение. Используйте JPG, PNG или WebP (форматы вроде HEIC с iPhone не поддерживаются — пересохраните в JPG/PNG).'
+    }
+    if (/too large|maximum.*length|ensure this filename/i.test(t)) {
+      return 'Слишком длинное имя файла. Переименуйте файл короче и повторите.'
+    }
+  }
+  return t
+}
+
 function formatFieldErrors(j: Record<string, unknown>): string {
   const parts: string[] = []
   for (const [k, v] of Object.entries(j)) {
     if (k === 'detail') continue
-    const label = FIELD_LABELS[k] ?? k
+    const label = IMAGE_FIELD_LABELS[k] ?? FIELD_LABELS[k] ?? k
     if (Array.isArray(v)) {
       for (const line of v) {
-        if (label) parts.push(`${label}: ${String(line)}`)
-        else parts.push(String(line))
+        const msg = localizeFieldMessage(k, String(line))
+        if (label) parts.push(`${label}: ${msg}`)
+        else parts.push(msg)
       }
     } else if (typeof v === 'string') {
-      if (label) parts.push(`${label}: ${v}`)
-      else parts.push(v)
+      const msg = localizeFieldMessage(k, v)
+      if (label) parts.push(`${label}: ${msg}`)
+      else parts.push(msg)
     }
   }
   return parts.join(' ')
+}
+
+/** Понятные сообщения по HTTP-статусу, когда тело ответа не дало конкретики. */
+function statusFallbackMessage(status: number): string | null {
+  if (status === 401) {
+    return 'Сессия истекла или вы не вошли. Войдите в систему заново и повторите.'
+  }
+  if (status === 403) {
+    return 'Недостаточно прав для этого действия. Нужна роль «Администратор» с правами на справочники — обратитесь к владельцу, чтобы выдать доступ (роль на вкладке «Пользователи»).'
+  }
+  if (status === 413) {
+    return 'Файл слишком большой. Уменьшите размер изображения (например до 2–5 МБ) и повторите загрузку.'
+  }
+  return null
 }
 
 export type PaginatedResult<T> = {
@@ -66,6 +101,10 @@ async function parseJsonError(r: Response): Promise<never> {
 
   if (looksHtml) {
     const u = r.url || String(r)
+    // Прокси/веб-сервер (Render и т.п.) часто отдаёт HTML на 401/403/413 — переводим
+    // в понятное сообщение, не сбивая на «перезапустите backend».
+    const statusMsg = statusFallbackMessage(r.status)
+    if (statusMsg) throw new Error(statusMsg)
     if (r.status === 404 && u.includes('calculator-profile-types')) {
       throw new Error(
         'На сервере :8000 нет маршрута /api/calculator-profile-types/ (запущен старый Django или другая копия проекта). Сделайте: 1) Ctrl+C — остановить все runserver; 2) из корня Furnitech: .\\.venv\\Scripts\\python.exe backend\\manage.py migrate; 3) .\\.venv\\Scripts\\python.exe backend\\manage.py runserver; 4) проверка: py scripts\\check_calculator_api_route.py (должно вывести /api/calculator-profile-types/).'
@@ -83,11 +122,17 @@ async function parseJsonError(r: Response): Promise<never> {
     )
   }
 
+  const statusMsg = statusFallbackMessage(r.status)
+  if (statusMsg) msg = statusMsg
+
   try {
     const j = (trimmed ? JSON.parse(trimmed) : {}) as Record<string, unknown>
     const d = j.detail
-    if (typeof d === 'string') msg = d
-    else if (Array.isArray(d)) msg = d.map(String).join(', ')
+    if (typeof d === 'string') {
+      // DRF отдаёт англоязычный detail для 403 — оставляем понятное RU-сообщение.
+      const isGenericDeny = /do not have permission/i.test(d)
+      if (!(r.status === 403 && isGenericDeny && statusMsg)) msg = d
+    } else if (Array.isArray(d)) msg = d.map(String).join(', ')
     else if (j.non_field_errors && Array.isArray(j.non_field_errors)) {
       msg = j.non_field_errors.map(String).join(', ')
     } else {
@@ -95,7 +140,7 @@ async function parseJsonError(r: Response): Promise<never> {
       if (flat) msg = flat
     }
   } catch {
-    if (trimmed) msg = trimmed
+    if (trimmed && !statusMsg) msg = trimmed
   }
   throw new Error(msg)
 }
