@@ -11,7 +11,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 import {
   fetchCalculatorHandleHoleDiameters,
-  fetchCalculatorProfileTypes,
   fetchMaterial,
 } from '../api'
 import type { CalculatorHandleHoleDiameter, Material } from '../types'
@@ -40,7 +39,8 @@ import {
   writeHandleHoles,
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
-import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
+import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
@@ -141,8 +141,7 @@ export function Step7FrameHandleHoles() {
     return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
-  const [frameTypeName, setFrameTypeName] = useState('—')
-  const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
+  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
 
   useEffect(() => {
@@ -654,7 +653,7 @@ export function Step7FrameHandleHoles() {
                 }
               >
                 <div className="sketch-frame">
-                  <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
+                  <div className="sketch-frame-texture" style={profileFrameTextureLayerStyle(frameColorMaterial)} />
                 </div>
                 <div className="sketch-paper" style={fillingPaperStyle(fillingMaterial)}>
                   <div className="sketch-paper-texture" style={materialFillingTextureLayerStyle(fillingMaterial as any)} />
@@ -779,55 +778,18 @@ export function Step7FrameHandleHoles() {
         </div>
       </section>
 
-      <HydrateMaterials
-        onTypes={setFrameTypeName}
-        onColor={setFrameColorMaterial}
-        fillMatId={parsed.fillMatId}
-        onFilling={setFillingMaterial}
-      />
+      <HydrateFillingMaterial fillMatId={parsed.fillMatId} onFilling={setFillingMaterial} />
     </div>
   )
 }
 
-function HydrateMaterials({
-  onTypes,
-  onColor,
+function HydrateFillingMaterial({
   fillMatId,
   onFilling,
 }: {
-  onTypes: (name: string) => void
-  onColor: (m: Material | null) => void
   fillMatId: number | null
   onFilling: (m: Material | null) => void
 }) {
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      const tid = localStorage.getItem('calc_frame_type_id')
-      const cid = localStorage.getItem('calc_frame_color_id')
-      if (cid) {
-        try {
-          const m = await fetchMaterial(Number(cid))
-          if (!cancel) onColor(m)
-        } catch {
-          if (!cancel) onColor(null)
-        }
-      }
-      if (tid) {
-        try {
-          const r = await fetchCalculatorProfileTypes()
-          const t = (r.results ?? []).find((x) => x.id === Number(tid))
-          if (!cancel && t) onTypes(t.name)
-        } catch {
-          /* ignore */
-        }
-      }
-    })()
-    return () => {
-      cancel = true
-    }
-  }, [onTypes, onColor])
-
   useEffect(() => {
     let cancel = false
     ;(async () => {

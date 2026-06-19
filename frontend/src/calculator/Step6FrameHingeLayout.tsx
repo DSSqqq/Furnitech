@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import { fetchMaterial } from '../api'
 import type { Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
@@ -25,7 +25,8 @@ import {
   writeHingeLayout,
 } from './frameCalcSession'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
-import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
+import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
@@ -157,8 +158,7 @@ export function Step6FrameHingeLayout() {
     return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
-  const [frameTypeName, setFrameTypeName] = useState('—')
-  const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
+  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
 
   useEffect(() => {
@@ -189,34 +189,6 @@ export function Step6FrameHingeLayout() {
       return defaultHingeDistStrRow(edgeL, prev.length)
     })
   }, [edgeL])
-
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      const tid = localStorage.getItem('calc_frame_type_id')
-      const cid = localStorage.getItem('calc_frame_color_id')
-      if (cid) {
-        try {
-          const m = await fetchMaterial(Number(cid))
-          if (!cancel) setFrameColorMaterial(m)
-        } catch {
-          /* ignore */
-        }
-      }
-      if (tid) {
-        try {
-          const r = await fetchCalculatorProfileTypes()
-          const t = (r.results ?? []).find((x) => x.id === Number(tid))
-          if (!cancel && t) setFrameTypeName(t.name)
-        } catch {
-          /* ignore */
-        }
-      }
-    })()
-    return () => {
-      cancel = true
-    }
-  }, [])
 
   useEffect(() => {
     let cancel = false
@@ -437,7 +409,7 @@ export function Step6FrameHingeLayout() {
                 }
               >
                 <div className="sketch-frame">
-                  <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
+                  <div className="sketch-frame-texture" style={profileFrameTextureLayerStyle(frameColorMaterial)} />
                 </div>
                 <div className="sketch-paper" style={fillingPaperStyle(fillingMaterial)}>
                   <div className="sketch-paper-texture" style={materialFillingTextureLayerStyle(fillingMaterial as any)} />

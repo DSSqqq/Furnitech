@@ -5,7 +5,6 @@ import {
   createCalculatorFillingType,
   deleteCalculatorFillingType,
   fetchCalculatorFillingTypes,
-  fetchCalculatorProfileTypes,
   fetchCategoryTree,
   fetchMaterial,
   fetchMaterialClasses,
@@ -39,7 +38,8 @@ import {
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
-import { resolveMediaUrl, materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { resolveMediaUrl, profileFrameTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { useFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -95,8 +95,7 @@ export function Step4FrameFilling() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
 
-  const [frameTypeName, setFrameTypeName] = useState('—')
-  const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
+  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
 
   // Габариты (и qty) живут в localStorage, шаг 3 их записывает. На шаге 4 — читаем через подписку,
   // чтобы размеры не “пропадали” и обновлялись при навигации/изменениях.
@@ -253,34 +252,6 @@ export function Step4FrameFilling() {
   useEffect(() => {
     if (!isFrameStep2Ready()) nav(step('frame'), { replace: true })
   }, [nav, step])
-
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      const tid = localStorage.getItem('calc_frame_type_id')
-      const cid = localStorage.getItem('calc_frame_color_id')
-      if (cid) {
-        try {
-          const m = await fetchMaterial(Number(cid))
-          if (!cancel) setFrameColorMaterial(m)
-        } catch {
-          /* ignore */
-        }
-      }
-      if (tid) {
-        try {
-          const r = await fetchCalculatorProfileTypes()
-          const t = (r.results ?? []).find((x) => x.id === Number(tid))
-          if (!cancel && t) setFrameTypeName(t.name)
-        } catch {
-          /* ignore */
-        }
-      }
-    })()
-    return () => {
-      cancel = true
-    }
-  }, [])
 
   useEffect(() => {
     try {
@@ -1054,7 +1025,7 @@ export function Step4FrameFilling() {
                 }
               >
                 <div className="sketch-frame">
-                  <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
+                  <div className="sketch-frame-texture" style={profileFrameTextureLayerStyle(frameColorMaterial)} />
                 </div>
                 <div className="sketch-paper" style={fillingPaperStyle((selectedFillingMaterialFull ?? selectedFillingMaterial) as Material)}>
                   <div

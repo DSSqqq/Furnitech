@@ -45,7 +45,8 @@ import {
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
-import { facadeSketchBoxStyle, resolveMediaUrl, materialTextureLayerStyle } from './sketchFrame'
+import { facadeSketchBoxStyle, profileFrameTextureLayerStyle, resolveMediaUrl } from './sketchFrame'
+import { mergeFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -701,6 +702,11 @@ export function Step2FrameFacade() {
     () => `${FRAME_DEFAULT_HEIGHT_MM}|${FRAME_DEFAULT_WIDTH_MM}`
   )
 
+  const sketchFrameColorMaterial = useMemo(
+    () => mergeFrameColorMaterial(selectedColorMaterial, selectedColorMaterialFull),
+    [selectedColorMaterial, selectedColorMaterialFull],
+  )
+
   const step2SketchBoxStyle = useMemo(() => {
     const d = readFrameDimsMm()
     const fallback = frameDimDefaultsFromMaterial(selectedColorMaterialFull)
@@ -1191,7 +1197,7 @@ export function Step2FrameFacade() {
               <div className="sketch-frame">
                 <div
                   className="sketch-frame-texture"
-                  style={materialTextureLayerStyle(selectedColorMaterialFull ?? selectedColorMaterial)}
+                  style={profileFrameTextureLayerStyle(sketchFrameColorMaterial)}
                 />
               </div>
               <div className="sketch-paper">
@@ -1210,9 +1216,7 @@ export function Step2FrameFacade() {
                   <div className="sketch-row">
                     <div className="sketch-key">Цвет</div>
                     <div className="sketch-val sketch-val--texture-wrap">
-                      {textureLabelDisplayWrap(
-                        materialTextureLabel(selectedColorMaterialFull ?? selectedColorMaterial),
-                      )}
+                      {textureLabelDisplayWrap(materialTextureLabel(sketchFrameColorMaterial))}
                     </div>
                   </div>
                 </div>

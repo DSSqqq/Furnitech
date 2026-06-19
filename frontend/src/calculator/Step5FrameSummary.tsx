@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchCalculatorHingeTypes, fetchCalculatorProfileTypes, fetchMaterial } from '../api'
+import { fetchCalculatorHingeTypes, fetchMaterial } from '../api'
 import type { Material } from '../types'
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
@@ -12,7 +12,8 @@ import {
 } from './frameCalcSession'
 import { FrameHingeMortisePanel } from './FrameHingeMortisePanel'
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
-import { materialTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
+import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
+import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
@@ -96,38 +97,9 @@ export function Step5FrameSummary() {
     return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
-  const [frameTypeName, setFrameTypeName] = useState('—')
-  const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
+  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
   const [mortiseSketchLine, setMortiseSketchLine] = useState('—')
-
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      const tid = localStorage.getItem('calc_frame_type_id')
-      const cid = localStorage.getItem('calc_frame_color_id')
-      if (cid) {
-        try {
-          const m = await fetchMaterial(Number(cid))
-          if (!cancel) setFrameColorMaterial(m)
-        } catch {
-          /* ignore */
-        }
-      }
-      if (tid) {
-        try {
-          const r = await fetchCalculatorProfileTypes()
-          const t = (r.results ?? []).find((x) => x.id === Number(tid))
-          if (!cancel && t) setFrameTypeName(t.name)
-        } catch {
-          /* ignore */
-        }
-      }
-    })()
-    return () => {
-      cancel = true
-    }
-  }, [])
 
   useEffect(() => {
     let cancel = false
@@ -227,7 +199,7 @@ export function Step5FrameSummary() {
               }
             >
               <div className="sketch-frame">
-                <div className="sketch-frame-texture" style={materialTextureLayerStyle(frameColorMaterial)} />
+                <div className="sketch-frame-texture" style={profileFrameTextureLayerStyle(frameColorMaterial)} />
               </div>
               <div className="sketch-paper" style={fillingPaperStyle(fillingMaterial)}>
                 <div className="sketch-paper-texture" style={materialFillingTextureLayerStyle(fillingMaterial as any)} />

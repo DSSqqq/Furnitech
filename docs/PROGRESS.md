@@ -2,7 +2,28 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-03 — шаг 3 лимиты, админка карточек, терминология «сопутствующие материалы».
+**Последнее обновление:** 2026-06-19 — цвет рамки профиля на эскизе (шаги 3–8), как на шаге 2.
+
+### Изменения 2026-06-19 (frontend — цвет рамки на эскизе, шаги 3–8)
+
+#### Проблема (прод)
+
+На **шаге 2** цвет/текстура рамки фасада на эскизе брались из вложенного **`color_material`** в ответе **`/api/calculator-profile-types/`** (с подгрузкой **`fetchMaterial`** при необходимости). На **шагах 3–7** использовался **только** **`GET /api/materials/{id}/`**; при сбое или пустых **`texture_*`** в детальном ответе рамка оставалась серой (**`#c9c2b8`**), хотя на шаге 2 выбранный цвет был виден.
+
+Дополнительно **`materialTextureLayerStyle`** применял **`tex_opacity`** ко всему слою (включая **`backgroundColor`**); у summary в типе профиля **`tex_opacity`** нет (непрозрачность 1), у полного материала — есть.
+
+#### Исправление
+
+- **`useFrameColorMaterial.ts`**: хук **`useFrameColorMaterial()`** и **`mergeFrameColorMaterial(summary, full)`** — как на шаге 2: summary из типа профиля + полный материал, приоритет непустых **`texture_color`** / **`texture_image`**.
+- **`sketchFrame.ts`**: **`profileFrameTextureLayerStyle`** — рамка профиля на эскизе всегда с opacity **1** (опция **`profileFrame`** у **`materialTextureLayerStyle`**).
+- Шаги **2–7**: единый источник цвета рамки; шаги **3–7** переведены на хук вместо дублирующих **`useEffect`** с одним **`fetchMaterial`**.
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Эскиз / цвет рамки | **`useFrameColorMaterial.ts`**, **`sketchFrame.ts`**, **`Step2FrameFacade.tsx`**, **`Step3FrameSizes.tsx`**, **`Step4FrameFilling.tsx`**, **`Step5FrameSummary.tsx`**, **`Step6FrameHingeLayout.tsx`**, **`Step7FrameHandleHoles.tsx`** |
+| Документация | **`docs/PROGRESS.md`**, **`docs/ARCHITECTURE.md`** |
 
 ### Изменения 2026-06-03 (калькулятор шаг 3, админка, PDF, UI)
 

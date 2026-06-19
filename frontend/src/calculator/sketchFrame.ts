@@ -49,6 +49,11 @@ export const SKETCH_FILLING_TEXTURE_OPACITY = 0.18
 export type MaterialTextureLayerOptions = {
   /** Перекрывает `tex_opacity` материала в эскизе. */
   sketchOpacity?: number
+  /**
+   * Рамка профиля на эскизе: всегда непрозрачная (tex_opacity — только для превью в карточке материала).
+   * Без этого на шагах 3+ цвет мог пропадать, если у материала tex_opacity < 1.
+   */
+  profileFrame?: boolean
 }
 
 /** Непрозрачность слоя текстуры (как в `materialTextureLayerStyle`). */
@@ -86,7 +91,12 @@ export function materialTextureLayerStyle(
   // В режиме эскиза используем "растянуть по области" (как просили): cover + no-repeat + center.
   // Это даёт предсказуемую визуализацию на всех шагах и не зависит от шагов тайлинга.
   // Параметры step/offset оставляем на будущее (если потребуется вернуть тайлинг).
-  const opacity = sketchMaterialOpacity(material, options)
+  const opacity =
+    options?.sketchOpacity != null
+      ? clamp(options.sketchOpacity, 0, 1)
+      : options?.profileFrame
+        ? 1
+        : sketchMaterialOpacity(material, options)
   const mirror = Boolean(material.tex_mirror)
 
   // В режиме эскиза всегда заполняем прямоугольник без "дыр":
@@ -111,6 +121,13 @@ export function materialFillingTextureLayerStyle(
   material: SketchTextureMaterial | null | undefined,
 ): CSSProperties | undefined {
   return materialTextureLayerStyle(material, { sketchOpacity: SKETCH_FILLING_TEXTURE_OPACITY })
+}
+
+/** Цвет/текстура рамочного профиля на эскизе (шаги 2–8). */
+export function profileFrameTextureLayerStyle(
+  material: SketchTextureMaterial | null | undefined,
+): CSSProperties | undefined {
+  return materialTextureLayerStyle(material, { profileFrame: true })
 }
 
 function blendAspect(defaultAspect: number, targetAspect: number, strength: number) {

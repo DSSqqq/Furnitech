@@ -18,7 +18,8 @@ import {
   seedFrameDimsFromMaterial,
 } from './frameCalcSession'
 import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
-import { facadeSketchBoxStyle, materialTextureLayerStyle } from './sketchFrame'
+import { facadeSketchBoxStyle, profileFrameTextureLayerStyle } from './sketchFrame'
+import { useFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -61,8 +62,7 @@ export function Step3FrameSizes() {
 
   const [profileTypes, setProfileTypes] = useState<CalculatorProfileType[]>([])
   const [typeId, setTypeId] = useState<number | null>(null)
-  const [colorId, setColorId] = useState<number | null>(null)
-  const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
+  const { frameColorMaterial: colorMaterial } = useFrameColorMaterial()
 
   const [heightMm, setHeightMm] = useState(() => {
     const h = lsGet('calc_frame_height_mm')
@@ -80,12 +80,9 @@ export function Step3FrameSizes() {
   useEffect(() => {
     try {
       const t = localStorage.getItem('calc_frame_type_id')
-      const c = localStorage.getItem('calc_frame_color_id')
       setTypeId(t ? Number(t) : null)
-      setColorId(c ? Number(c) : null)
     } catch {
       setTypeId(null)
-      setColorId(null)
     }
   }, [])
 
@@ -117,13 +114,19 @@ export function Step3FrameSizes() {
   }, [])
 
   useEffect(() => {
-    if (!colorId) {
-      setColorMaterial(null)
-      return
-    }
+    const colorId = (() => {
+      try {
+        const c = localStorage.getItem('calc_frame_color_id')
+        if (!c) return null
+        const n = Number(c)
+        return Number.isFinite(n) && n > 0 ? n : null
+      } catch {
+        return null
+      }
+    })()
+    if (!colorId) return
     fetchMaterial(colorId)
       .then((m) => {
-        setColorMaterial(m)
         seedFrameDimsFromMaterial(m)
         const saved = readFrameDimsMm()
         if (saved.h != null && saved.w != null) {
@@ -136,7 +139,7 @@ export function Step3FrameSizes() {
         setWidthMm(String(defaults.widthMm))
       })
       .catch((e) => setErr(String(e)))
-  }, [colorId])
+  }, [colorMaterial])
 
   const selectedType = useMemo(
     () => profileTypes.find((t) => t.id === typeId) ?? null,
@@ -200,7 +203,7 @@ export function Step3FrameSizes() {
     widthN <= limits.effectiveMaxW &&
     (limits.minW <= 0 || widthN >= limits.minW)
 
-  const sketchFrameStyle = useMemo(() => materialTextureLayerStyle(colorMaterial), [colorMaterial])
+  const sketchFrameStyle = useMemo(() => profileFrameTextureLayerStyle(colorMaterial), [colorMaterial])
 
   return (
     <div className="frame3">
