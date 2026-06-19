@@ -2,7 +2,45 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-19 — цвет рамки профиля на эскизе (шаги 3–8), как на шаге 2.
+**Последнее обновление:** 2026-06-19 — ускорение загрузки калькулятора на проде (кэш справочников, дедупликация запросов, ленивый PDF, контекст вложенных сериализаторов).
+
+### Изменения 2026-06-19 (производительность — загрузка справочников и UI калькулятора на проде)
+
+#### Проблема (прод)
+
+На проде (Vercel + Render + Supabase) материалы и «элементы» долго грузились на шагах 1–8. Локально быстро, т.к. нет задержек Render (cold start) и Supabase. Корневые причины (по убыванию влияния):
+
+1. **Дублирующиеся тяжёлые запросы на каждом шаге.** На шаге 3 (и аналогично 4–7): **`useFrameColorMaterial`** дёргал **`fetchCalculatorProfileTypes()`** (полный каталог типов со всеми цветами и вложенными summary материалов) + **`fetchMaterial(colorId)`**; тот же **`fetchCalculatorProfileTypes()`** и **`fetchMaterial(colorId)`** повторялись в собственном эффекте шага; блок **`CalcStepPriceTotals`** дополнительно грузил **`fetchMaterialClasses()`** (все страницы), **`fetchCalculationFormulas({active})`** (все страницы), **`fetchCalculatorFillingTypes()`** и ещё раз **`fetchMaterial(colorId/fillId/hingeId)`**. Итого один шаг = до **2×** профиль-типы и **3×** один и тот же материал + полные каталоги классов/формул — и так на каждом шаге заново.
+2. **Единый JS-бандл ~1.09 МБ** (gzip 313 КБ): **jspdf/jspdf-autotable/html2canvas** + шрифт Noto попадали в главный чанк и грузились при первом входе, хотя нужны только на шаге 8.
+3. **Вложенные summary материалов сериализовались без `request`** → относительные **`/media/...`** URL вместо абсолютных (на проде картинки могли не грузиться/идти не на тот origin).
+
+#### Исправление
+
+- **`apiCache.ts`** (новый): кэш ответов в рамках сессии + дедупликация параллельных запросов (**`cachedJson(key, loader, ttl=60s)`**, **`clearApiCache()`**). Любая запись (POST/PATCH/PUT/DELETE) в **`apiFetch`** сбрасывает кэш — данные после правок в админке остаются актуальными.
+- **`api.ts`**: через кэш проходят **`fetchMaterial`**, **`fetchCalculatorProfileTypes`**, **`fetchCalculatorFillingTypes`**, **`fetchCalculatorHingeTypes`**, **`fetchMaterialClasses`**, **`fetchCalculationFormulas`**. Повторные вызовы на том же и следующих шагах берутся из кэша, параллельные — дедуплицируются (1 сетевой запрос вместо 2–3). Поведение и данные идентичны; выбор цвета/наполнения/петель и цены не меняются.
+- **Ленивый PDF**: **`Step8FrameResult.tsx`** и **`orderPdfFromSnapshot.ts`** грузят **`frameClientPdf`** (с jspdf/autotable/шрифтом) через **`import()`** только при формировании PDF. **`vite.config.ts`**: **`manualChunks`** для **react-vendor**. Главный чанк упал с ~1.09 МБ (313 КБ gzip) до **597 КБ (151 КБ gzip)**; PDF-стек (~145 КБ gzip) грузится отложенно.
+- **Backend**: вложенные **`MaterialSummarySerializer`** в **`CalculatorProfileType/Filling/HingeType`**, **`CalculatorProfile`** и **`_serialize_related_items`** теперь получают **`context`** (request) → абсолютные **`texture_image`** URL на проде. Убран лишний **`.select_related()`** на уже prefetch'нутых связях (**`colors`/`materials`/`companion_items`**) — раньше он сбрасывал prefetch и давал N+1 в списках.
+
+#### Ожидаемый эффект
+
+- Шаги 3–7: число сетевых запросов на навигацию между шагами падает кратно (профиль-типы/классы/формулы/материалы — из кэша). На проде с задержкой Render+Supabase это убирает основные «зависания» при загрузке элементов.
+- Первый вход в SPA: initial JS ~ в 2 раза меньше (PDF подгружается только на шаге 8).
+
+#### Остаётся на усмотрение владельца (инфраструктура)
+
+- **Render Free усыпляет сервис** — первый запрос после простоя долгий (cold start). Платный план/health-ping убрал бы холодный старт.
+- **Supabase**: использовать pooler (**`DATABASE_PGBOUNCER=true`**) и держать **`CONN_MAX_AGE`** > 0 для переиспользования соединений; проверить регион Render ↔ Supabase (минимизировать RTT).
+- **Медиа**: раздавать **`card_image*`/`texture_image`** через CDN (Supabase Storage) и добавить размеры/`loading="lazy"`/кэш-заголовки для плиток.
+- **Gzip/Brotli** на ответах API Render (DRF JSON хорошо сжимается).
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Кэш/дедуп запросов | **`frontend/src/apiCache.ts`** (новый), **`frontend/src/api.ts`** |
+| Ленивый PDF / бандл | **`frontend/src/calculator/Step8FrameResult.tsx`**, **`frontend/src/calculator/orderPdfFromSnapshot.ts`**, **`frontend/vite.config.ts`** |
+| Backend сериализаторы | **`backend/materials/serializers.py`** |
+| Документация | **`docs/PROGRESS.md`** |
 
 ### Изменения 2026-06-19 (frontend — цвет рамки на эскизе, шаги 3–8)
 

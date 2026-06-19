@@ -380,25 +380,28 @@ class MaterialSerializer(serializers.ModelSerializer):
     def to_representation(self, instance) -> dict:
         data = super().to_representation(instance)
         data["material_class_ids"] = [c.pk for c in instance.material_classes.all()]
-        data["related_items"] = self._serialize_related_items(instance)
+        data["related_items"] = self._serialize_related_items(instance, self.context)
         req = self.context.get("request")
         data["texture_image"] = self.effective_texture_image_url(instance, req)
         data["texture_library_item"] = instance.texture_item_id
         return data
 
     @staticmethod
-    def _serialize_related_items(instance: Material) -> list:
+    def _serialize_related_items(instance: Material, context: dict | None = None) -> list:
         if not instance.pk:
             return []
         out = []
-        for x in instance.companion_items.all().select_related("related_material", "related_material__uom"):
+        # `companion_items` (+ related_material/uom/texture_item/material_classes)
+        # уже prefetch'нуты во вьюсете — не добавляем select_related, иначе
+        # на каждую строку уходит лишний запрос (N+1) в списке материалов.
+        for x in instance.companion_items.all():
             rel = x.related_material
             line_total = x.quantity * rel.base_price
             out.append(
                 {
                     "id": x.id,
                     "related_material_id": rel.id,
-                    "related_material": MaterialSummarySerializer(rel).data,
+                    "related_material": MaterialSummarySerializer(rel, context=context).data,
                     "quantity": str(x.quantity),
                     "quantity_scale": x.quantity_scale,
                     "line_total": str(line_total),
@@ -580,22 +583,22 @@ class CalculatorProfileSerializer(serializers.ModelSerializer):
         m = getattr(obj, "material", None)
         if not m:
             return None
-        return MaterialSummarySerializer(m).data
+        return MaterialSummarySerializer(m, context=self.context).data
 
     def get_colors(self, obj: CalculatorProfile) -> list:
-        return self._serialize_colors(obj)
+        return self._serialize_colors(obj, self.context)
 
     @staticmethod
-    def _serialize_colors(instance: CalculatorProfile) -> list:
+    def _serialize_colors(instance: CalculatorProfile, context: dict | None = None) -> list:
         if not instance.pk:
             return []
         out = []
-        for x in instance.colors.all().select_related("color_material", "color_material__uom"):
+        for x in instance.colors.all():
             out.append(
                 {
                     "id": x.id,
                     "color_material_id": x.color_material_id,
-                    "color_material": MaterialSummarySerializer(x.color_material).data,
+                    "color_material": MaterialSummarySerializer(x.color_material, context=context).data,
                 }
             )
         return out
@@ -713,12 +716,12 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
         if not obj.pk:
             return []
         out = []
-        for x in obj.colors.all().select_related("color_material", "color_material__uom"):
+        for x in obj.colors.all():
             out.append(
                 {
                     "id": x.id,
                     "color_material_id": x.color_material_id,
-                    "color_material": MaterialSummarySerializer(x.color_material).data,
+                    "color_material": MaterialSummarySerializer(x.color_material, context=self.context).data,
                     "is_new": bool(x.is_new),
                     "is_hit": bool(x.is_hit),
                     "is_sale": bool(x.is_sale),
@@ -815,12 +818,12 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
         if not obj.pk:
             return []
         out = []
-        for x in obj.materials.all().select_related("material", "material__uom"):
+        for x in obj.materials.all():
             out.append(
                 {
                     "id": x.id,
                     "material_id": x.material_id,
-                    "material": MaterialSummarySerializer(x.material).data,
+                    "material": MaterialSummarySerializer(x.material, context=self.context).data,
                 }
             )
         return out
@@ -911,12 +914,12 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
         if not obj.pk:
             return []
         out = []
-        for x in obj.materials.all().select_related("material", "material__uom"):
+        for x in obj.materials.all():
             out.append(
                 {
                     "id": x.id,
                     "material_id": x.material_id,
-                    "material": MaterialSummarySerializer(x.material).data,
+                    "material": MaterialSummarySerializer(x.material, context=self.context).data,
                 }
             )
         return out

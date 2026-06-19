@@ -2,7 +2,6 @@ import { fetchMaterial } from '../api'
 import type { FacadeOrder } from '../api'
 import type { Material } from '../types'
 import type { FrameClientPdfBreakdown, FrameClientPdfInput } from './frameClientPdf'
-import { buildFrameClientPdfBlob, preloadFramePdfFont } from './frameClientPdf'
 import type { HandleHolesPersisted, HingeLayoutPersisted } from './frameCalcSession'
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -139,9 +138,10 @@ export async function openFacadeOrderPdf(order: Pick<FacadeOrder, 'snapshot' | '
   }
 
   try {
-    await preloadFramePdfFont()
+    const pdf = await import('./frameClientPdf')
+    await pdf.preloadFramePdfFont()
     const input = await buildPdfInputFromOrderSnapshot(order.snapshot ?? {}, order.order_number)
-    const { blob } = await buildFrameClientPdfBlob(input)
+    const { blob } = await pdf.buildFrameClientPdfBlob(input)
     const url = URL.createObjectURL(blob)
     preview.location.href = url
     window.setTimeout(() => URL.revokeObjectURL(url), 180_000)

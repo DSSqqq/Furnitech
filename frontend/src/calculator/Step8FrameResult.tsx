@@ -34,7 +34,6 @@ import {
 import './Step2FrameFacade.css'
 import './Step8FrameResult.css'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
-import { buildFrameClientPdfBlob, preloadFramePdfFont } from './frameClientPdf'
 import { useFillingTypeName } from './useFillingTypeName'
 import { CalcPriceBreakdownView } from './CalcPriceBreakdownView'
 import { matchFormulaTotalForFrame } from './calculationFormula'
@@ -172,7 +171,7 @@ export function Step8FrameResult() {
   }, [orderSentModalOpen])
 
   useEffect(() => {
-    void preloadFramePdfFont()
+    void import('./frameClientPdf').then((m) => m.preloadFramePdfFont())
   }, [])
 
   useEffect(() => {
@@ -403,6 +402,7 @@ export function Step8FrameResult() {
   }
 
   async function submitFacadeOrder(): Promise<void> {
+    const { buildFrameClientPdfBlob } = await import('./frameClientPdf')
     const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
     const fd = new FormData()
     fd.append(
@@ -545,6 +545,7 @@ export function Step8FrameResult() {
 
     setPdfBusy(true)
     try {
+      const { buildFrameClientPdfBlob } = await import('./frameClientPdf')
       const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
       const url = URL.createObjectURL(blob)
       preview.location.href = url

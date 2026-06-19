@@ -17,6 +17,9 @@ import type {
 } from './types'
 import { getAccessToken, refreshAccessToken } from './auth'
 import { apiUrl } from './apiBase'
+import { cachedJson, clearApiCache } from './apiCache'
+
+const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 const FIELD_LABELS: Record<string, string> = {
   article: 'Артикул',
@@ -120,6 +123,10 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
       acc = getAccessToken()
       r = await withAuth(acc)
     }
+  }
+  const method = (init.method || 'GET').toUpperCase()
+  if (r.ok && !SAFE_HTTP_METHODS.has(method)) {
+    clearApiCache()
   }
   return r
 }
@@ -372,7 +379,7 @@ export function deleteMaterialClassCategory(id: number) {
 }
 
 /** Все страницы списка классов; при `category` + `subtree` — классы в папке и вложенных. */
-export async function fetchMaterialClasses(
+export function fetchMaterialClasses(
   params?: { category?: number | null; subtree?: boolean }
 ): Promise<{ results: MaterialClass[] }> {
   const sp = new URLSearchParams()
@@ -381,25 +388,28 @@ export async function fetchMaterialClasses(
   }
   if (params?.subtree) sp.set('subtree', '1')
   const q = sp.toString()
-  let path: string | null = `/api/material-classes/${q ? `?${q}` : ''}`
-  const collected: MaterialClass[] = []
-  while (path) {
-    const r = await apiFetch(path)
-    const data = await json<{ results: MaterialClass[]; next: string | null }>(r)
-    for (const row of data.results ?? []) collected.push(row)
-    const nxt = data.next
-    if (!nxt) {
-      path = null
-    } else {
-      try {
-        const u = new URL(nxt)
-        path = u.pathname + u.search
-      } catch {
+  const cacheKey = `material-classes:${q}`
+  return cachedJson(cacheKey, async () => {
+    let path: string | null = `/api/material-classes/${q ? `?${q}` : ''}`
+    const collected: MaterialClass[] = []
+    while (path) {
+      const r = await apiFetch(path)
+      const data = await json<{ results: MaterialClass[]; next: string | null }>(r)
+      for (const row of data.results ?? []) collected.push(row)
+      const nxt = data.next
+      if (!nxt) {
         path = null
+      } else {
+        try {
+          const u = new URL(nxt)
+          path = u.pathname + u.search
+        } catch {
+          path = null
+        }
       }
     }
-  }
-  return { results: collected }
+    return { results: collected }
+  })
 }
 
 /** Одна страница списка классов для быстрых админских списков. */
@@ -514,7 +524,7 @@ export function fetchCalculationFormulas(params?: {
   if (params?.subtree) sp.set('subtree', '1')
   const q = sp.toString()
   const basePath = `/api/calculation-formulas/${q ? `?${q}` : ''}`
-  return (async () => {
+  return cachedJson(`calculation-formulas:${q}`, async () => {
     let path: string | null = basePath
     const collected: CalculationFormula[] = []
     while (path) {
@@ -534,7 +544,7 @@ export function fetchCalculationFormulas(params?: {
       }
     }
     return { results: collected }
-  })()
+  })
 }
 
 export function createCalculationFormula(data: Partial<CalculationFormula>) {
@@ -558,7 +568,9 @@ export function deleteCalculationFormula(id: number) {
 }
 
 export function fetchMaterial(id: number) {
-  return apiFetch(`/api/materials/${id}/`).then((r) => json<Material>(r))
+  return cachedJson(`material:${id}`, () =>
+    apiFetch(`/api/materials/${id}/`).then((r) => json<Material>(r))
+  )
 }
 
 export function createMaterial(data: Record<string, unknown> | FormData) {
@@ -661,7 +673,9 @@ export function deleteCalculatorProfile(id: number) {
 }
 
 export function fetchCalculatorProfileTypes() {
-  return apiFetch('/api/calculator-profile-types/').then((r) => json<{ results: CalculatorProfileType[] }>(r))
+  return cachedJson('calculator-profile-types', () =>
+    apiFetch('/api/calculator-profile-types/').then((r) => json<{ results: CalculatorProfileType[] }>(r))
+  )
 }
 
 export function createCalculatorProfileType(
@@ -712,7 +726,9 @@ export function deleteCalculatorProfileType(id: number) {
 }
 
 export function fetchCalculatorFillingTypes() {
-  return apiFetch('/api/calculator-filling-types/').then((r) => json<{ results: CalculatorFillingType[] }>(r))
+  return cachedJson('calculator-filling-types', () =>
+    apiFetch('/api/calculator-filling-types/').then((r) => json<{ results: CalculatorFillingType[] }>(r))
+  )
 }
 
 export function createCalculatorFillingType(
@@ -763,7 +779,9 @@ export function deleteCalculatorFillingType(id: number) {
 }
 
 export function fetchCalculatorHingeTypes() {
-  return apiFetch('/api/calculator-hinge-types/').then((r) => json<{ results: CalculatorHingeType[] }>(r))
+  return cachedJson('calculator-hinge-types', () =>
+    apiFetch('/api/calculator-hinge-types/').then((r) => json<{ results: CalculatorHingeType[] }>(r))
+  )
 }
 
 export type CalculatorHandleHoleDiametersListResponse = {
