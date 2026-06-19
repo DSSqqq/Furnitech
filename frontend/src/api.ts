@@ -17,7 +17,7 @@ import type {
 } from './types'
 import { getAccessToken, refreshAccessToken } from './auth'
 import { apiUrl } from './apiBase'
-import { cachedJson, clearApiCache } from './apiCache'
+import { cachedJson, clearApiCache, CATALOG_TTL_MS } from './apiCache'
 
 const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
@@ -409,7 +409,7 @@ export function fetchMaterialClasses(
       }
     }
     return { results: collected }
-  })
+  }, CATALOG_TTL_MS)
 }
 
 /** Одна страница списка классов для быстрых админских списков. */
@@ -544,7 +544,7 @@ export function fetchCalculationFormulas(params?: {
       }
     }
     return { results: collected }
-  })
+  }, CATALOG_TTL_MS)
 }
 
 export function createCalculationFormula(data: Partial<CalculationFormula>) {
@@ -673,8 +673,11 @@ export function deleteCalculatorProfile(id: number) {
 }
 
 export function fetchCalculatorProfileTypes() {
-  return cachedJson('calculator-profile-types', () =>
-    apiFetch('/api/calculator-profile-types/').then((r) => json<{ results: CalculatorProfileType[] }>(r))
+  return cachedJson(
+    'calculator-profile-types',
+    () =>
+      apiFetch('/api/calculator-profile-types/').then((r) => json<{ results: CalculatorProfileType[] }>(r)),
+    CATALOG_TTL_MS,
   )
 }
 
@@ -726,8 +729,11 @@ export function deleteCalculatorProfileType(id: number) {
 }
 
 export function fetchCalculatorFillingTypes() {
-  return cachedJson('calculator-filling-types', () =>
-    apiFetch('/api/calculator-filling-types/').then((r) => json<{ results: CalculatorFillingType[] }>(r))
+  return cachedJson(
+    'calculator-filling-types',
+    () =>
+      apiFetch('/api/calculator-filling-types/').then((r) => json<{ results: CalculatorFillingType[] }>(r)),
+    CATALOG_TTL_MS,
   )
 }
 
@@ -779,8 +785,11 @@ export function deleteCalculatorFillingType(id: number) {
 }
 
 export function fetchCalculatorHingeTypes() {
-  return cachedJson('calculator-hinge-types', () =>
-    apiFetch('/api/calculator-hinge-types/').then((r) => json<{ results: CalculatorHingeType[] }>(r))
+  return cachedJson(
+    'calculator-hinge-types',
+    () =>
+      apiFetch('/api/calculator-hinge-types/').then((r) => json<{ results: CalculatorHingeType[] }>(r)),
+    CATALOG_TTL_MS,
   )
 }
 

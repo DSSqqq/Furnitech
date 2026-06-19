@@ -47,7 +47,7 @@ function textureThumb(m: { texture_image?: string | null; texture_color?: string
   if (img) {
     return (
       <div className="tile-thumb tile-thumb--color">
-        <img className="tile-thumb-img" src={img} alt={m.name} />
+        <img className="tile-thumb-img" src={img} alt={m.name} loading="lazy" decoding="async" />
       </div>
     )
   }

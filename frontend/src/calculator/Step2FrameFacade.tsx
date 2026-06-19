@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   createCalculatorProfileType,
   deleteCalculatorProfileType,
+  fetchCalculatorFillingTypes,
+  fetchCalculatorHingeTypes,
   fetchCalculatorProfileTypes,
   fetchCategoryTree,
   fetchMaterial,
@@ -63,7 +65,7 @@ function textureThumb(m: MaterialTextureFields & { name: string }) {
   if (img) {
     return (
       <div className="tile-thumb tile-thumb--color">
-        <img className="tile-thumb-img" src={img} alt={alt} />
+        <img className="tile-thumb-img" src={img} alt={alt} loading="lazy" decoding="async" />
       </div>
     )
   }
@@ -218,6 +220,14 @@ export function Step2FrameFacade() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  // Прогреваем кэш справочников следующих шагов (наполнение — шаг 4, петли — шаг 6),
+  // пока пользователь выбирает профиль и цвет. Ответы кэшируются (CATALOG_TTL_MS),
+  // поэтому переход на эти шаги не ждёт сети. Ошибки игнорируем — не критично.
+  useEffect(() => {
+    void fetchCalculatorFillingTypes().catch(() => null)
+    void fetchCalculatorHingeTypes().catch(() => null)
+  }, [])
 
   // Склейка шагов 2→3 через localStorage (без глобального стора).
   useEffect(() => {

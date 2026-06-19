@@ -2,7 +2,55 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-19 — ускорение загрузки калькулятора на проде (кэш справочников, дедупликация запросов, ленивый PDF, контекст вложенных сериализаторов).
+**Последнее обновление:** 2026-06-19 — второй пасс ускорения прода: GZip на API, лёгкий health-эндпоинт + keep-alive против cold start Render, gunicorn threads/preload, preconnect к бэкенду, ленивые картинки плиток, прогрев и более долгий TTL кэша справочников.
+
+### Изменения 2026-06-19 (производительность — пасс 2: cold start Render, сжатие, перцептивная скорость)
+
+#### Проблема (прод)
+
+После первого пасса (кэш/дедуп запросов, ленивый PDF, контекст сериализаторов — см. ниже) загрузка материалов/элементов на шагах калькулятора оставалась медленной — пользователь ждал **~7 с**. Кэш убрал повторные запросы внутри сессии, но первый запрос после простоя всё равно долгий.
+
+#### Корневые причины (по убыванию влияния)
+
+1. **Cold start Render Free (доминанта).** Сервис засыпает после ~15 мин простоя; первый запрос будит контейнер + Django + соединение к Supabase — это и есть основные секунды ожидания. Раньше **`healthCheckPath`** указывал на тяжёлый **`/api/calculator-profile-types/`** (запрос к БД), keep-alive отсутствовал.
+2. **Ответы API не сжимались.** Справочники (типы профиля/наполнения/петель с вложенными summary материалов и текстурами) шли несжатым JSON по медленному каналу до Render.
+3. **Сериализация очереди запросов.** Gunicorn `--workers 2` без потоков: параллельные GET справочников на шаге стояли в очереди к 2 воркерам, пока каждый ждал ответ Supabase.
+4. **Старт TLS/DNS к бэкенду откладывался** до первого `fetch` (фронт на Vercel, бэк на Render — разные origin).
+5. **Картинки плиток** грузились без `loading="lazy"`; TTL кэша справочников 60 с — при паузе >60 с между шагами шёл повторный тяжёлый запрос.
+
+#### Исправление (код)
+
+- **GZip:** добавлен **`django.middleware.gzip.GZipMiddleware`** (после CORS, до Common) — JSON-ответы API сжимаются.
+- **Health/keep-alive:** новый лёгкий **`/healthz`** (и алиасы `/healthz/`, `/api/ping/`) **без обращения к БД** (`backend/config/urls.py`). **`render.yaml`**: `healthCheckPath` → **`/healthz`**. Добавлен workflow **`.github/workflows/keepalive.yml`** (cron каждые 10 мин, пинг по переменной репозитория **`BACKEND_HEALTHCHECK_URL`**; без переменной шаг пропускается).
+- **Gunicorn:** start command → `--workers 2 --threads 4 --timeout 120 --preload` (одновременная обработка параллельных GET; быстрее старт и меньше RAM на Free).
+- **Preconnect:** в **`main.tsx`** ранний `preconnect`/`dns-prefetch` к **`VITE_API_ORIGIN`** — DNS+TLS к Render открываются до первого запроса.
+- **Ленивые картинки:** `loading="lazy"` + `decoding="async"` на плитках (типы профиля/цвета/наполнения/петли, swatch): `calculatorCardTiles.tsx`, `Step2FrameFacade.tsx`, `Step4FrameFilling.tsx`, `FrameHingeCatalog.tsx`, `MaterialCheckSwatch.tsx`.
+- **Кэш справочников:** TTL поднят до **5 мин** (**`CATALOG_TTL_MS`** в `apiCache.ts`) для `fetchCalculatorProfileTypes/FillingTypes/HingeTypes`, `fetchMaterialClasses`, `fetchCalculationFormulas` — запись в админке по-прежнему сбрасывает кэш (`clearApiCache`). На шаге 2 — **прогрев** кэша наполнения (шаг 4) и петель (шаг 6), пока выбирают профиль/цвет.
+
+#### Ожидаемый эффект
+
+- Самый большой выигрыш — от **keep-alive** (`/healthz` + внешний пинг): убирает cold start, т.е. большую часть из ~7 с. Требует **действия владельца** (см. ниже).
+- GZip + потоки + preconnect + ленивые картинки + долгий TTL сокращают и «тёплую» загрузку, и перцептивную задержку при навигации по шагам.
+
+#### Требуется владельцу (инфраструктура — без этого cold start останется)
+
+1. **Включить keep-alive пинг `/healthz`** одним из способов:
+   - **UptimeRobot** (рекомендуется): HTTP(s)-монитор на `https://<render>/healthz`, интервал **5 мин** — самый надёжный.
+   - **GitHub Action** (уже в репозитории): задать переменную репозитория **`BACKEND_HEALTHCHECK_URL`** = `https://<render>/healthz` (Settings → Secrets and variables → Actions → Variables). Учтите, что cron GitHub неточен и отключается после 60 дней без активности.
+   - Постоянный keep-alive расходует ~720 ч/мес — в пределах Free для **одного** сервиса.
+2. **Платный план Render** (Starter) полностью убирает засыпание — радикальное решение, если бюджет позволяет.
+3. **Supabase pooler** (`DATABASE_PGBOUNCER=true`, порт 6543) и регион Render ↔ Supabase рядом (Render `frankfurt` ↔ Supabase EU) — минимизируют RTT соединения к БД. **`CONN_MAX_AGE`** уже 600 (переиспользование соединений).
+4. **Медиа через CDN** (Supabase Storage / кэш-заголовки) — ускоряет картинки плиток на тёплом сервере.
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Backend: GZip, health | **`backend/config/settings.py`**, **`backend/config/urls.py`** |
+| Деплой/инфра | **`render.yaml`**, **`.github/workflows/keepalive.yml`** |
+| Frontend: TTL/прогрев/preconnect | **`frontend/src/apiCache.ts`**, **`frontend/src/api.ts`**, **`frontend/src/main.tsx`**, **`frontend/src/calculator/Step2FrameFacade.tsx`** |
+| Frontend: ленивые картинки | **`frontend/src/calculator/calculatorCardTiles.tsx`**, **`Step4FrameFilling.tsx`**, **`FrameHingeCatalog.tsx`**, **`MaterialCheckSwatch.tsx`** |
+| Документация | **`docs/PROGRESS.md`** |
 
 ### Изменения 2026-06-19 (производительность — загрузка справочников и UI калькулятора на проде)
 

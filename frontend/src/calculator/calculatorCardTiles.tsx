@@ -129,7 +129,9 @@ export function CalculatorCardTileStriped({
   return (
     <div className="tile-thumb-stack">
       <div className="tile-thumb tile-thumb--profile-type">
-        {src ? <img className="tile-thumb-img" src={src} alt={title} /> : null}
+        {src ? (
+          <img className="tile-thumb-img" src={src} alt={title} loading="lazy" decoding="async" />
+        ) : null}
       </div>
       {showStripes && (
         <div className="tile-card-stripes" role="presentation" aria-hidden>
@@ -187,7 +189,13 @@ export function ProfileCardImageTileRow({
           }
         >
           {urls[slot] ? (
-            <img className="frame2-card-image-tile-img" src={urls[slot]} alt="" />
+            <img
+              className="frame2-card-image-tile-img"
+              src={urls[slot]}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <span className="frame2-card-image-tile-placeholder" aria-hidden>
               +

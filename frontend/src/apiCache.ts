@@ -10,6 +10,13 @@ type CacheEntry<T> = { value: T; at: number }
 
 const DEFAULT_TTL_MS = 60_000
 
+/**
+ * Справочники калькулятора (типы профиля/наполнения/петель, классы, формулы) меняются
+ * редко и только из админки — там запись сбрасывает кэш (`clearApiCache`). Более долгий TTL
+ * не даёт перезапрашивать тяжёлые ответы при навигации шаг 2→3→…→8 даже с паузами.
+ */
+export const CATALOG_TTL_MS = 300_000
+
 const store = new Map<string, CacheEntry<unknown>>()
 const inflight = new Map<string, Promise<unknown>>()
 

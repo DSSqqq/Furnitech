@@ -71,7 +71,7 @@ function textureThumb(m: MaterialTextureFields & { name: string }) {
   if (img) {
     return (
       <div className="tile-thumb tile-thumb--color">
-        <img className="tile-thumb-img" src={img} alt={alt} />
+        <img className="tile-thumb-img" src={img} alt={alt} loading="lazy" decoding="async" />
       </div>
     )
   }

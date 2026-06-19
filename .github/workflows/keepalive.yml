@@ -1,0 +1,42 @@
+# Пинг бэкенда на Render, чтобы Free-сервис не «засыпал» (cold start ~десятки секунд).
+# Включите в репозитории переменную BACKEND_HEALTHCHECK_URL (Settings → Secrets and
+# variables → Actions → Variables), например:
+#   https://furnitech-backend.onrender.com/healthz
+# Без переменной шаг просто пропускается (workflow не падает).
+#
+# ВАЖНО: cron в GitHub Actions не гарантирует точность и может задерживаться/отключаться
+# после 60 дней без активности репозитория. Для надёжного keep-alive используйте внешний
+# монитор (UptimeRobot и т.п.) с интервалом 5 минут на тот же /healthz — см. docs/DEPLOY.md.
+
+name: keep-backend-warm
+
+on:
+  schedule:
+    # Каждые 10 минут (Render Free засыпает после ~15 минут простоя).
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        env:
+          URL: ${{ vars.BACKEND_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "BACKEND_HEALTHCHECK_URL не задан — пропускаю пинг."
+            exit 0
+          fi
+          echo "Ping $URL"
+          curl -fsS --max-time 60 --retry 2 --retry-delay 10 "$URL" || {
+            echo "Пинг не удался (сервис мог подниматься из сна)."
+            exit 0
+          }

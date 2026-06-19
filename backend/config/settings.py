@@ -55,6 +55,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    # Сжатие ответов API: справочники калькулятора (типы профиля/наполнения/петель
+    # с вложенными summary материалов и текстурами) хорошо жмутся — заметный выигрыш
+    # на медленном канале до Render. Стоит после CORS, до Common/прочих.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

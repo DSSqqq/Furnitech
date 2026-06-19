@@ -21,7 +21,7 @@ export function MaterialCheckSwatch({
   if (img) {
     return (
       <div className="frame2-check-swatch" title={name} aria-hidden>
-        <img className="frame2-check-swatch-img" src={img} alt="" />
+        <img className="frame2-check-swatch-img" src={img} alt="" loading="lazy" decoding="async" />
       </div>
     )
   }

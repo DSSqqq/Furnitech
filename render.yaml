@@ -9,8 +9,12 @@ services:
     region: frankfurt
     plan: free
     buildCommand: pip install -r requirements.txt && python backend/manage.py collectstatic --noinput && python backend/manage.py migrate
-    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
-    healthCheckPath: /api/calculator-profile-types/
+    # --threads: одновременная обработка нескольких GET (на шаге калькулятор шлёт
+    #   параллельные запросы справочников — без потоков они стоят в очереди к 2 воркерам).
+    # --preload: код грузится один раз до fork воркеров — быстрее старт и меньше RAM на Free.
+    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 --preload
+    # Лёгкий health-check без запроса к БД (был тяжёлый /api/calculator-profile-types/).
+    healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.7"
