@@ -400,29 +400,40 @@
     overscroll-behavior: contain;
   }
 
-  /* Шаг 8: без прокрутки всей области маршрута — скролл только в правой колонке Step8 */
-  /* Шаг 8: без прокрутки всего маршрута — высота задаётся цепочкой flex, скролл в Step8 */
+  /*
+   * Шаг 8 «Итог»: прокрутка документа (html), не внутренние колонки.
+   * overflow-y:auto на scroll-pack / calc-side-panel-scroll в Chrome перехватывает wheel
+   * даже над вкладками и «пустыми» областями — событие не доходит до html.
+   */
+  .calc-panel-shell:has(.calc-routes-wrap--step8) .admin-orders-placeholder,
+  .calc-panel-shell:has(.calc-routes-wrap--step8) .calc,
+  .calc-panel-shell:has(.calc-routes-wrap--step8) .calc-body-with-totals,
+  .calc-panel-shell:has(.calc-routes-wrap--step8) .calc-main-column {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    flex: none;
+  }
+
   .calc-panel-shell .calc-routes-wrap--step8 {
-    overflow: hidden;
+    overflow: visible;
     overscroll-behavior: auto;
-    display: flex;
-    flex-direction: column;
+    display: block;
+    flex: none;
   }
 
   .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-inner,
   .calc-panel-shell .calc-routes-wrap--step8 .calc-routes-step {
-    flex: 1 1 auto;
+    overflow: visible;
+    flex: none;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
 
   .calc-panel-shell #calc-step-panel-8.calc-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    overflow: visible;
+    flex: none;
+    display: block;
   }
 
   /*
@@ -430,9 +441,7 @@
    * Раньше было display:flex + column — панель «Детализация» уезжала под «Итог».
    */
   .calc-panel-shell #calc-step-panel-8 .frame2.step8-result {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     display: grid;
     grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 400px)) minmax(0, 1fr);
     gap: 1.25rem 1.75rem;
@@ -445,7 +454,7 @@
     grid-column: 1;
     grid-row: 1;
     max-height: none;
-    height: 100%;
+    height: auto;
     min-height: 0;
     box-sizing: border-box;
   }
@@ -454,16 +463,15 @@
     grid-column: 2;
     grid-row: 1;
     max-height: none;
-    height: 100%;
+    height: auto;
     min-height: 0;
   }
 
   .calc-panel-shell #calc-step-panel-8 .step8-result__scroll-pack {
-    flex: 1 1 auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    flex: none;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
   }
 }
 

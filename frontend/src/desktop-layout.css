@@ -379,26 +379,26 @@ body {
 }
 
 .step8-result__contact {
-  position: sticky;
-  top: 0;
-  align-self: start;
-  max-height: 920px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.step8-result__contact.calc-side-panel {
   position: static;
   align-self: stretch;
   max-height: none;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.step8-result__contact.calc-side-panel {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.step8-result__contact.calc-side-panel .calc-side-panel-scroll {
+  overflow: visible;
 }
 
 .step8-result__details {
-  max-height: 920px;
+  max-height: none;
 }
 
 .step8-result__scroll-pack {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 }

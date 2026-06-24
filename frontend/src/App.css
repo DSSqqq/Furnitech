@@ -210,6 +210,15 @@
     max-height: 100dvh;
     overflow: hidden;
   }
+
+  /* Шаг 8 «Итог»: прокрутка документа, не внутренние колонки */
+  .public-shell:has(.calc-routes-wrap--step8),
+  .public-shell__main:has(.calc-routes-wrap--step8) {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    flex: none;
+  }
 }
 
 @media (max-width: 1024px) {

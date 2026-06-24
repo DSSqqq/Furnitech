@@ -3203,6 +3203,17 @@ button.admin-primary.admin-modal-confirm:hover {
   .admin-body {
     overflow: hidden;
   }
+
+  /* Шаг 8 калькулятора: wheel должен доходить до html (см. CalculatorPanelShell.css) */
+  .admin:has(.calc-routes-wrap--step8) {
+    overflow: visible;
+    height: auto;
+    max-height: none;
+  }
+
+  #admin-panel-calculator.admin-body:has(.calc-routes-wrap--step8) {
+    overflow: visible;
+  }
 }
 
 .admin-initial-state {

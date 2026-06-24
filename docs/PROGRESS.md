@@ -2,7 +2,38 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-19 — фикс загрузки текстур в базу («+ Текстура») для заказчика: SPA-«админ» (is_staff, не суперпользователь) получал 403 на `POST /api/texture-items/`, т.к. флаг is_staff не даёт model permissions. Теперь роль «админ» добавляет в группу «Редактор материалов»; миграция-бэкфилл выдаёт права существующим staff-админам; ошибки 401/403/413/сети/формата файла показываются понятным текстом.
+**Последнее обновление:** 2026-06-24 — шаг 8 «Итог»: прокрутка страницы (html) работает из любой области наведения в Chrome (вкладки, форма контактов, детализация).
+
+### Изменения 2026-06-24 (frontend — шаг 8 «Итог»: wheel/scroll в Chrome)
+
+#### Симптом
+
+На шаге 8 калькулятора колёсико мыши **не прокручивало страницу** в **Chrome**, если курсор над вкладкой **«Итог»**, блоком **«Контактные данные»** (`.step8-result__contact`) или **«Детализация заказа»** (`.step8-result__scroll-pack`). В других браузерах (в т.ч. встроенном в Cursor) поведение могло казаться нормальным.
+
+#### Корневая причина
+
+На десктопе (≥1025px) шаг 8 держал **внутренние scroll-контейнеры** с `overflow-y: auto` и `overscroll-behavior: contain` (`.step8-result__scroll-pack`, `.calc-side-panel-scroll` в левой колонке) плюс цепочку `overflow: hidden` от `.calc-panel-shell` / `.admin` / `.public-shell`. **Chrome** жёстче перехватывает `wheel` такими контейнерами — событие не доходит до **`html`**, хотя по документации проекта прокрутка документа должна быть единой (см. **`desktop-layout.css`**, [ARCHITECTURE.md](ARCHITECTURE.md)).
+
+#### Исправление
+
+- **`Step8FrameResult.css`:** на десктопе у колонок шага 8 — `overflow: visible`, без `max-height`; левая панель контактов — `height: auto`, без внутреннего scroll в `.calc-side-panel-scroll`.
+- **`CalculatorPanelShell.css`:** при **`:has(.calc-routes-wrap--step8)`** сняты `overflow: hidden` и flex-ловушки высоты по цепочке `.calc` → `#calc-step-panel-8`; `.step8-result__scroll-pack` — `overflow: visible`.
+- **`desktop-layout.css`:** late-overrides step8 — `overflow: visible` (не `overflow-y: auto`).
+- **`AdminApp.css`**, **`App.css`:** для шага 8 — `overflow: visible` у `.admin` / `#admin-panel-calculator` и `.public-shell` (исключение из desktop `overflow: hidden`).
+
+Шаги **1–7** без изменений: внутренний scroll в `.calc-routes-wrap` / `.calc-side-panel-scroll` сохранён.
+
+#### Проверка
+
+- `npm run build` — OK.
+- В Chrome на шаге «Итог»: wheel над вкладками, формой и детализацией прокручивает **страницу** (полоса прокрутки `html`).
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Шаг 8 / scroll | `frontend/src/calculator/Step8FrameResult.css`, `CalculatorPanelShell.css`, `desktop-layout.css`, `AdminApp.css`, `App.css` |
+| Документация | `docs/PROGRESS.md`, `docs/ARCHITECTURE.md` |
 
 ### Изменения 2026-06-19 (фикс: загрузка текстуры в базу падала у заказчика, не у владельца)
 

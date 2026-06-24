@@ -14,7 +14,7 @@
   font-weight: 600;
 }
 
-/* Шаг «Итог»: две колонки; справа — одна прокручиваемая колонка (детали + таблица + кнопки) */
+/* Шаг «Итог»: две колонки; на десктопе прокрутка — документ (html), не внутренние колонки */
 .frame2.step8-result {
   grid-template-columns: minmax(0, var(--calc-steps-tabs-width, 400px)) minmax(0, 1fr);
   gap: 1.25rem 1.75rem;
@@ -40,20 +40,23 @@
 
 @media (min-width: 1025px) {
   .step8-result__contact {
-    position: sticky;
-    top: 0;
-    align-self: start;
-    max-height: min(920px, calc(100dvh - 9.5rem));
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-  }
-
-  .step8-result__contact.calc-side-panel {
     position: static;
     align-self: stretch;
     max-height: none;
-    overflow-y: hidden;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+
+  .step8-result__contact.calc-side-panel {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .step8-result__contact.calc-side-panel .calc-side-panel-scroll {
+    flex: none;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 }
 
@@ -141,13 +144,7 @@
   flex-direction: column;
 }
 
-@media (min-width: 1025px) {
-  .step8-result__details {
-    max-height: min(920px, calc(100dvh - 9.5rem));
-  }
-}
-
-/* Одна область прокрутки для обеих панелей справа и нижних действий */
+/* Правая колонка: контент тянется по высоте, прокрутка — документ (html) */
 .step8-result__scroll-pack {
   display: flex;
   flex-direction: column;
@@ -157,11 +154,15 @@
 }
 
 @media (min-width: 1025px) {
+  .step8-result__details {
+    max-height: none;
+  }
+
   .step8-result__scroll-pack {
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    padding-right: 0.2rem;
+    overflow: visible;
+    overscroll-behavior: auto;
+    flex: none;
+    padding-right: 0;
   }
 }
 
