@@ -41,6 +41,7 @@ import { TileGearMenu } from './TileGearMenu'
 import { resolveMediaUrl, profileFrameTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import { collectCalcCardImageUrls, useCalcImagesPreload } from './calcStepAssetsLoading'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -630,7 +631,13 @@ export function Step4FrameFilling() {
     }
   }
 
-  usePanelLoading('data', loading || !hydrated)
+  const stepAssetsReady = !loading && hydrated
+  const fillingCardImageUrls = useMemo(
+    () => collectCalcCardImageUrls(fillingTypes),
+    [fillingTypes],
+  )
+  const cardImagesLoading = useCalcImagesPreload(fillingCardImageUrls, stepAssetsReady)
+  usePanelLoading('data', loading || !hydrated || cardImagesLoading)
 
   return (
     <>

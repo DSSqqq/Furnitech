@@ -153,7 +153,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
       {err ? <div className="admin-error admin-error--compact">{err}</div> : null}
       {!loading && rows.length === 0 ? (
         <p className="admin-muted">Пока нет заказов из калькулятора.</p>
-      ) : (
+      ) : !loading ? (
         <div className="admin-orders-table-wrap">
           <table className="admin-orders-table">
             <thead>
@@ -248,7 +248,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
     {orderToDelete
       ? createPortal(

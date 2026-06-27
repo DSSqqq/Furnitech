@@ -42,6 +42,7 @@ import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from
 import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import { useCalcMaterialTexturePreload } from './calcStepAssetsLoading'
 import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
@@ -404,7 +405,8 @@ export function Step7FrameHandleHoles() {
     [applyUniformDefaults, handleSide, widthMm, heightMm],
   )
 
-  usePanelLoading('data', colorMaterialLoading)
+  const stepDataLoading = useCalcMaterialTexturePreload(frameColorMaterial, colorMaterialLoading)
+  usePanelLoading('data', stepDataLoading)
 
   return (
     <div className="frame2">

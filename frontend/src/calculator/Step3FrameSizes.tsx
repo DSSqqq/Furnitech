@@ -21,6 +21,9 @@ import { materialTextureLabel, textureLabelDisplayWrap } from './materialTexture
 import { facadeSketchBoxStyle, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import {
+  useCalcMaterialTexturePreload,
+} from './calcStepAssetsLoading'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -63,7 +66,7 @@ export function Step3FrameSizes() {
 
   const [profileTypes, setProfileTypes] = useState<CalculatorProfileType[]>([])
   const [typeId, setTypeId] = useState<number | null>(null)
-  const { frameColorMaterial: colorMaterial } = useFrameColorMaterial()
+  const { frameColorMaterial: colorMaterial, loading: colorMaterialLoading } = useFrameColorMaterial()
 
   const [heightMm, setHeightMm] = useState(() => {
     const h = lsGet('calc_frame_height_mm')
@@ -206,7 +209,8 @@ export function Step3FrameSizes() {
 
   const sketchFrameStyle = useMemo(() => profileFrameTextureLayerStyle(colorMaterial), [colorMaterial])
 
-  usePanelLoading('data', loading)
+  const sketchTextureLoading = useCalcMaterialTexturePreload(colorMaterial, colorMaterialLoading)
+  usePanelLoading('data', loading || sketchTextureLoading)
 
   return (
     <div className="frame3">

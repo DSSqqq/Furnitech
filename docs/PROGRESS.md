@@ -2,7 +2,97 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-24 — шаг 8 «Итог»: прокрутка страницы (html) работает из любой области наведения в Chrome (вкладки, форма контактов, детализация).
+**Последнее обновление:** 2026-06-27 — единый оверлей загрузки на всю панель админки и калькулятора (до полной готовности дерева, списков и шагов).
+
+### Изменения 2026-06-27 (frontend — оверлей загрузки на всю панель)
+
+#### Задача
+
+Пока на экране не догрузились **все** элементы (дерево папок, списки, карточки/плитки шага калькулятора), показывать **один** индикатор загрузки — как в справочниках: **размытие фона** + **спиннер по центру**. Оверлей должен покрывать **всю область панели** (например `#admin-panel-calculator` целиком, включая вкладки шагов), а не отдельную боковую колонку или строку «Загрузка…».
+
+#### Эволюция (2 коммита на `customer`)
+
+| Коммит | Суть |
+|--------|------|
+| **`cf22aaf`** | Первый проход: заменены текстовые «Загрузка…» на локальные **`AdminPanelLoadingOverlay`** в заказах, пользователях и шагах калькулятора; стили вынесены в **`AdminPanelLoadingOverlay.css`**. |
+| **`68a9c3c`** | Архитектура **панельного** оверлея: **`AdminPanelLoadingHost`** агрегирует флаги загрузки от дочерних блоков; локальные оверлеи на карточках шагов убраны. |
+
+#### Архитектура
+
+```
+AdminPanelLoadingHost          ← корень #admin-panel-* (position: relative)
+├── AdminPanelLoadingOverlay   ← absolute inset:0, blur + спиннер (пока active)
+└── PanelLoadingContext
+    └── дочерние компоненты → usePanelLoading(key, bool) / PanelLoadingFlags
+```
+
+- **`AdminPanelLoadingOverlay.tsx`** + **`AdminPanelLoadingOverlay.css`** — визуал оверлея (shade с `backdrop-filter: blur(12px)`, карточка, CSS-спиннер, `prefers-reduced-motion`).
+- **`adminPanelBodyClass(loading, baseClass)`** — добавляет **`admin-body--panel-loading-host`** (`position: relative`) на корень панели.
+- **`AdminPanelLoadingHost.tsx`** — обёртка панели: хранит `Record<key, boolean>`, **`active = any(flags)`**; поддерживает **`forwardRef`** (нужен для **`materialsPanelRef`** в материалах).
+- **`usePanelLoading(key, loading)`** — регистрация флага внутри хоста; **вне хоста — no-op** (безопасно для тестов/модалок).
+- **`PanelLoadingFlags`** — декларативная регистрация **`tree` / `list` / `items` / `route` / `data`** без дублирования хуков в JSX.
+
+Оверлей **не снимается**, пока **хотя бы один** зарегистрированный флаг `true`.
+
+#### Где используется хост
+
+| Панель | ID / класс | Что ждём (флаги) |
+|--------|------------|------------------|
+| **Материалы** | `#admin-panel-materials` | **`tree`** — дерево + refs (UoM, классы); **`list`** — список материалов выбранной папки / «Все папки» |
+| **Текстуры** | `#admin-panel-textures` | **`tree`**, **`items`** — постраничный список текстур |
+| **Классы** | `#admin-panel-classes` | **`tree`**, **`list`** |
+| **Ед. изм.** | `#admin-panel-uom` | **`list`** |
+| **Формулы** | `#admin-panel-calculations` | **`tree`**, **`list`**, **`data`** — загрузка выбранной формулы в редакторе |
+| **Заказы** | `#admin-panel-orders` | **`list`** — таблица заказов |
+| **Пользователи** | `#admin-panel-users` | **`list`** |
+| **Калькулятор (админ)** | `#admin-panel-calculator` | **`data`** — данные активного шага; **`hinges`** — каталог петель (шаг 5); **`route`** — анимация переключения шага (~280 ms) |
+| **Калькулятор (публичный)** | `#public-panel-calculator` | те же флаги шагов через **`CalculatorPage`** |
+
+#### Калькулятор: флаг **`data`** по шагам
+
+| Шаг | Условие снятия оверлея |
+|-----|------------------------|
+| **2** (рамка) | типы профиля загружены **и** сессия localStorage восстановлена (`calcSessionHydrated`) |
+| **3** | `fetchCalculatorProfileTypes` завершён |
+| **4** | типы наполнения **и** `hydrated` |
+| **5** | цвет/профиль (`useFrameColorMaterial`), материал наполнения, строка присадки/петель |
+| **6–7** | `useFrameColorMaterial.loading` |
+| **8** | профиль/цвет + метаданные (`fetchMaterialClasses`, `fetchCalculationFormulas`) |
+
+**`useFrameColorMaterial`** — добавлено поле **`loading: boolean`** (раньше эскиз мог мигать до прихода полного материала).
+
+**Не блокирует панель:** пересчёт суммы в **`CalcPriceTotals`** (`loading` расчёта формулы) — это фоновый пересчёт, не первичная загрузка UI.
+
+#### Материалы: отдельный флаг списка
+
+Раньше оверлей ждал только **`reloadTree()` + `loadRefs()`**. Список материалов грузился **параллельно без индикатора** → пользователь видел пустую таблицу под уже снятым оверлеем.
+
+Добавлен **`materialsListLoading`**: отдельный `useEffect` на **`selected`** (`fetchMaterialsFiltered` / `fetchMaterials` с `subtree`).
+
+#### Стили
+
+- Основные классы — **`AdminPanelLoadingOverlay.css`** (подключается из компонента оверлея; работает и в админке, и на публичном калькуляторе без **`AdminApp.css`**).
+- **`AdminApp.css`**: дублирующие правила **`.admin-panel-loading*`** удалены; оставлен legacy-блок **`.admin-textures-loading*`** (исторический класс; вкладка текстур использует общий оверлей).
+- Селекторы **`#admin-panel-* > .admin-panel-loading { z-index: 50 }`** — оверлей поверх содержимого панели.
+
+#### Доступность
+
+- Оверлей: **`role="status"`**, **`aria-live="polite"`**, **`aria-busy="true"`**, **`aria-label`** (настраивается на хосте, напр. «Загрузка калькулятора»).
+- Контент панели остаётся в DOM под blur (как в справочниках) — без layout shift от замены «Загрузка…» на таблицу.
+
+#### Проверка
+
+- `npm run build` — OK.
+- Деплой на `customer` (`68a9c3c`): визуально — blur на всю `#admin-panel-calculator` до появления плиток; при смене папки материалов — оверлей до загрузки списка; заказы/пользователи — до строк таблицы.
+
+#### Затронутые файлы
+
+| Область | Файлы |
+|---------|--------|
+| Ядро UI загрузки | **`frontend/src/AdminPanelLoadingHost.tsx`**, **`AdminPanelLoadingOverlay.tsx`**, **`AdminPanelLoadingOverlay.css`** |
+| Админка | **`AdminApp.tsx`**, **`AdminTexturesPanel.tsx`**, **`AdminMaterialClassesPanel.tsx`**, **`AdminUomPanel.tsx`**, **`AdminCalculationsPanel.tsx`**, **`AdminOrdersPanel.tsx`**, **`AdminApp.css`** |
+| Калькулятор | **`CalculatorPage.tsx`**, **`Step2FrameFacade.tsx`**, **`Step3FrameSizes.tsx`**, **`Step4FrameFilling.tsx`**, **`Step5FrameSummary.tsx`**, **`Step6FrameHingeLayout.tsx`**, **`Step7FrameHandleHoles.tsx`**, **`Step8FrameResult.tsx`**, **`FrameHingeCatalog.tsx`**, **`useFrameColorMaterial.ts`** |
+| Документация | **`docs/PROGRESS.md`**, **`docs/ARCHITECTURE.md`** |
 
 ### Изменения 2026-06-24 (frontend — шаг 8 «Итог»: wheel/scroll в Chrome)
 
@@ -217,7 +307,7 @@
 
 #### Админка (UI)
 
-- **Загрузка панелей:** общий оверлей **`AdminPanelLoadingOverlay`** + `adminPanelBodyClass` — материалы, текстуры, классы, ЕИ, расчёты (`AdminApp.css`: `.admin-panel-loading`).
+- **Загрузка панелей:** **`AdminPanelLoadingHost`** + **`AdminPanelLoadingOverlay`** — один оверлей на **всю** область `#admin-panel-*` (blur + спиннер), пока **любой** дочерний блок сообщает загрузку через **`usePanelLoading`** / **`PanelLoadingFlags`**. Стили — **`AdminPanelLoadingOverlay.css`**. Панели: материалы (дерево + список), текстуры, классы, ЕИ, формулы, заказы, пользователи, калькулятор (админ и публичный `#public-panel-calculator`). Подробнее — [PROGRESS.md](PROGRESS.md) (2026-06-27).
 - **Подсказки «i» убраны** там, где дублировали очевидный UI или заглушки: «Папки текстур» (`AdminTexturesPanel`), шаг 2 МДФ/ПВХ (`Step2MdfFacade`, `Step2PvcFacade`). На вкладке «Настройки калькулятора» и в карточках клиента подсказки сохранены.
 
 #### PDF и эскиз

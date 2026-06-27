@@ -10,6 +10,7 @@ import {
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import { collectCalcCardImageUrls, useCalcImagesPreload } from './calcStepAssetsLoading'
 import { TexturePickerModal } from '../TexturePickerModal'
 import type { CalculatorHingeType, Material, MaterialCategory, MaterialClass } from '../types'
 import {
@@ -530,7 +531,13 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     }
   }
 
-  usePanelLoading('hinges', loading)
+  const stepAssetsReady = !loading && hydrated
+  const hingeCardImageUrls = useMemo(
+    () => collectCalcCardImageUrls(hingeTypes),
+    [hingeTypes],
+  )
+  const cardImagesLoading = useCalcImagesPreload(hingeCardImageUrls, stepAssetsReady)
+  usePanelLoading('hinges', loading || !hydrated || cardImagesLoading)
 
   return (
     <>

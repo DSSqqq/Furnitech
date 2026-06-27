@@ -411,7 +411,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [folderDeleteModal, setFolderDeleteModal] = useState<MaterialCategory | null>(null)
   const [folderRenameRequest, setFolderRenameRequest] = useState<FolderRenameRequest | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([])
-  const [adminUsersLoading, setAdminUsersLoading] = useState(false)
+  const [adminUsersLoading, setAdminUsersLoading] = useState(true)
   const [adminUsersErr, setAdminUsersErr] = useState<string | null>(null)
   const [staffTogglePending, setStaffTogglePending] = useState<number | null>(null)
   const [userDeleteModal, setUserDeleteModal] = useState<AdminUserRow | null>(null)
@@ -1026,7 +1026,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
     return () => document.removeEventListener('keydown', onKey)
   }, [folderDeleteModal])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (section !== 'users') return
     let cancelled = false
     setAdminUsersLoading(true)
@@ -1702,6 +1702,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               <h2 className="admin-h2">Пользователи</h2>
             </div>
             {adminUsersErr && <div className="admin-error admin-error--compact">{adminUsersErr}</div>}
+            {!adminUsersLoading ? (
             <div className="admin-users-table-wrap">
                 <table className="admin-users-table">
                   <thead>
@@ -1765,6 +1766,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   </tbody>
                 </table>
               </div>
+            ) : null}
           </div>
         </AdminPanelLoadingHost>
       )}

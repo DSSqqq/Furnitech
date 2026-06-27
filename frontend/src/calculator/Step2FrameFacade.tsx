@@ -48,6 +48,11 @@ import {
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import {
+  collectCalcCardImageUrls,
+  useCalcImagesPreload,
+  useCalcMaterialTexturePreload,
+} from './calcStepAssetsLoading'
 import { facadeSketchBoxStyle, profileFrameTextureLayerStyle, resolveMediaUrl } from './sketchFrame'
 import { mergeFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
@@ -690,13 +695,16 @@ export function Step2FrameFacade() {
 
   // Для параметров текстуры (opacity/offset/step/rotate/mirror) нужен полный материал, а не summary из списка цветов.
   const [selectedColorMaterialFull, setSelectedColorMaterialFull] = useState<Material | null>(null)
+  const [selectedColorFullLoading, setSelectedColorFullLoading] = useState(false)
   useEffect(() => {
     let cancel = false
+    if (!selectedColorId) {
+      setSelectedColorMaterialFull(null)
+      setSelectedColorFullLoading(false)
+      return
+    }
+    setSelectedColorFullLoading(true)
     ;(async () => {
-      if (!selectedColorId) {
-        setSelectedColorMaterialFull(null)
-        return
-      }
       try {
         const m = await fetchMaterial(selectedColorId)
         if (!cancel) {
@@ -705,6 +713,8 @@ export function Step2FrameFacade() {
         }
       } catch {
         if (!cancel) setSelectedColorMaterialFull(null)
+      } finally {
+        if (!cancel) setSelectedColorFullLoading(false)
       }
     })()
     return () => {
@@ -742,7 +752,25 @@ export function Step2FrameFacade() {
     return facadeSketchBoxStyle(h, w)
   }, [sketchDimsKey, selectedColorMaterialFull])
 
-  usePanelLoading('data', loading || !calcSessionHydrated)
+  const stepAssetsReady = !loading && calcSessionHydrated
+  const profileCardImageUrls = useMemo(
+    () => collectCalcCardImageUrls(profileTypes),
+    [profileTypes],
+  )
+  const cardImagesLoading = useCalcImagesPreload(profileCardImageUrls, stepAssetsReady)
+  const sketchMaterialLoading = Boolean(selectedColorId) && selectedColorFullLoading
+  const sketchTextureLoading = useCalcMaterialTexturePreload(
+    sketchFrameColorMaterial,
+    sketchMaterialLoading,
+  )
+  usePanelLoading(
+    'data',
+    loading ||
+      !calcSessionHydrated ||
+      cardImagesLoading ||
+      selectedColorFullLoading ||
+      sketchTextureLoading,
+  )
 
   return (
     <>

@@ -15,6 +15,10 @@ import type { CalculationFormula, Material } from '../types'
 import { formatNumberForUi } from '../floatInput'
 import { useCalcPaths } from './calcPathsContext'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import {
+  collectMaterialTextureImageUrls,
+  useCalcImagesPreload,
+} from './calcStepAssetsLoading'
 import { collectCurrencies, computeFramePriceBreakdown } from './framePriceEstimate'
 import {
   type HingeMountSide,
@@ -117,7 +121,9 @@ export function Step8FrameResult() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [metaLoading, setMetaLoading] = useState(true)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [fillMatLoading, setFillMatLoading] = useState(false)
   const [hingeMaterial, setHingeMaterial] = useState<Material | null>(null)
+  const [hingeMatLoading, setHingeMatLoading] = useState(false)
   const [formulasList, setFormulasList] = useState<CalculationFormula[]>([])
   const [classCodesById, setClassCodesById] = useState<Map<number, string>>(() => new Map())
   const [mortiseLine, setMortiseLine] = useState('—')
@@ -238,16 +244,21 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     let cancel = false
+    if (!parsed.fillMatId) {
+      setFillingMaterial(null)
+      setFillMatLoading(false)
+      return
+    }
+    setFillMatLoading(true)
+    const fillMatId = parsed.fillMatId
     ;(async () => {
-      if (!parsed.fillMatId) {
-        setFillingMaterial(null)
-        return
-      }
       try {
-        const m = await fetchMaterial(parsed.fillMatId)
+        const m = await fetchMaterial(fillMatId)
         if (!cancel) setFillingMaterial(m)
       } catch {
         if (!cancel) setFillingMaterial(null)
+      } finally {
+        if (!cancel) setFillMatLoading(false)
       }
     })()
     return () => {
@@ -257,16 +268,21 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     let cancel = false
+    if (!parsed.billHinges || !parsed.hingeMatId) {
+      setHingeMaterial(null)
+      setHingeMatLoading(false)
+      return
+    }
+    setHingeMatLoading(true)
+    const hingeMatId = parsed.hingeMatId
     ;(async () => {
-      if (!parsed.billHinges || !parsed.hingeMatId) {
-        setHingeMaterial(null)
-        return
-      }
       try {
-        const m = await fetchMaterial(parsed.hingeMatId)
+        const m = await fetchMaterial(hingeMatId)
         if (!cancel) setHingeMaterial(m)
       } catch {
         if (!cancel) setHingeMaterial(null)
+      } finally {
+        if (!cancel) setHingeMatLoading(false)
       }
     })()
     return () => {
@@ -578,7 +594,19 @@ export function Step8FrameResult() {
     setAuthWallModalOpen(false)
   }
 
-  usePanelLoading('data', profileLoading || metaLoading)
+  const dataApisReady = !profileLoading && !metaLoading && !fillMatLoading && !hingeMatLoading
+  const summaryTextureUrls = useMemo(
+    () =>
+      collectMaterialTextureImageUrls(
+        [colorMaterial, fillingMaterial, hingeMaterial].filter(Boolean) as Material[],
+      ),
+    [colorMaterial, fillingMaterial, hingeMaterial],
+  )
+  const summaryTexturesLoading = useCalcImagesPreload(summaryTextureUrls, dataApisReady)
+  usePanelLoading(
+    'data',
+    profileLoading || metaLoading || fillMatLoading || hingeMatLoading || summaryTexturesLoading,
+  )
 
   return (
     <>

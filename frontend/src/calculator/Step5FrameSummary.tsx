@@ -16,6 +16,10 @@ import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextu
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { useFillingTypeName } from './useFillingTypeName'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
+import {
+  collectMaterialTextureImageUrls,
+  useCalcImagesPreload,
+} from './calcStepAssetsLoading'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -175,7 +179,19 @@ export function Step5FrameSummary() {
     }
   }, [cfgKey, parsed.hingeMatId, parsed.hingeSource, parsed.hingeTypeId, parsed.mortiseMode])
 
-  usePanelLoading('data', colorMaterialLoading || fillingLoading || mortiseLoading)
+  const sketchMaterialsReady = !colorMaterialLoading && !fillingLoading && !mortiseLoading
+  const sketchTextureUrls = useMemo(
+    () =>
+      collectMaterialTextureImageUrls(
+        [frameColorMaterial, fillingMaterial].filter(Boolean) as Material[],
+      ),
+    [frameColorMaterial, fillingMaterial],
+  )
+  const sketchTexturesLoading = useCalcImagesPreload(sketchTextureUrls, sketchMaterialsReady)
+  usePanelLoading(
+    'data',
+    colorMaterialLoading || fillingLoading || mortiseLoading || sketchTexturesLoading,
+  )
 
   return (
     <div className="frame2">

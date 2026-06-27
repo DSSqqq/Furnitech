@@ -15,6 +15,27 @@
   isolation: isolate;
 }
 
+/* Заказы / пользователи: одна колонка на всю высоту панели — оверлей inset:0 по #admin-panel-orders */
+#admin-panel-orders.admin-body,
+#admin-panel-users.admin-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#admin-panel-orders.admin-body .admin-orders-placeholder--filled,
+#admin-panel-users.admin-body .admin-users-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#admin-panel-orders.admin-body--panel-loading-host,
+#admin-panel-users.admin-body--panel-loading-host {
+  min-height: 12rem;
+}
+
 #admin-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading,
 #admin-panel-materials.admin-body--panel-loading-host > .admin-panel-loading,
 #admin-panel-textures.admin-body--panel-loading-host > .admin-panel-loading,

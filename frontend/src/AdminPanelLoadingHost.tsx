@@ -3,7 +3,7 @@ import {
   forwardRef,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type HTMLAttributes,
@@ -58,7 +58,7 @@ export const AdminPanelLoadingHost = forwardRef<HTMLDivElement, AdminPanelLoadin
 /** Регистрирует флаг загрузки внутри AdminPanelLoadingHost (или no-op вне хоста). */
 export function usePanelLoading(key: string, loading: boolean) {
   const ctx = useContext(PanelLoadingContext)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ctx) return
     ctx.setLoading(key, loading)
     return () => ctx.setLoading(key, false)

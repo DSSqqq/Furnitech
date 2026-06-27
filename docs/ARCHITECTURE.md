@@ -229,20 +229,20 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 |--------|------|
 | `App.tsx` | `/login` (**`LoginRoute`**, **`safePostLoginTarget`** — admin → `/materials`, manager → `/orders`, клиент → `/`); **`AdminRoute`** — staff, superuser или **`is_manager`**; **`AdminApp`** на `/materials/*` … `/users/*` (менеджеру — только **Заказы** и **Калькулятор**); **`PublicShell`** — калькулятор, **`my-orders`**, для staff/manager ссылка в админку. |
 | `PublicClientPages.tsx` | **`ClientMyOrdersPage`** (**`fetchFacadeOrders`**, статусы + **`HintButton`**), **`isPublicCalculatorRoute`**, **`PublicShellOutletContext`**. |
-| `AdminApp.tsx` | Шапка **`admin-header-top`** + **`admin-section-tabs`**; **`ThemeToggle`** (светлая/тёмная тема). Выпадающее **«Справочники»**: **Материалы**, **Текстуры**, **Классы**, **Ед. изм.**, **Формулы**. Сетка **`/materials`** (две колонки); **`/uom`** — **`AdminUomPanel`**; калькулятор **`variant="admin"`**; **«Расчеты»** — **`AdminCalculationsPanel`**; **«Заказы»** — **`AdminOrdersPanel`**. **Материалы:** **`TreeRow`** с **`treeDnD`** (DnD папок, drop материала на папку), **`FolderCreateModal`**, **`applyFolderMove`** / **`applyMaterialMove`**, **`fetchMaterialsFiltered`**, корень **«Все папки»**; без **`MaterialSearchModal`** / **`FolderMoveModal`** на этой вкладке. Список: **`mat-list-row`** (**`draggable`**) / **`mat-list-gear-btn`** (SVG **cog-6-tooth** — шестерёнка карточки); сопутствующие — **`createPortal`** (**`admin-modal--extras`**, **`saveExtras`**); карточка — **`MaterialForm`** в **`section`** с **`admin-modal--material-card`**, **`admin-calculations-modal-surface`**, **`admin-material-card-dialog`** (компактная типографика и поля как у модалки формулы: крестик закрытия, **`FtSelect compact`** для ед. изм., в футере сначала **«Удалить»** **`admin-danger`**, затем **«Сохранить»**). **`MaterialForm`**: **`is_active`** не в UI. |
-| `AdminCalculationsPanel.tsx` | Вкладка **«Расчеты»**: дерево папок формул + список; модалка редактора — три колонки (дерево классов, таблица, keypad), **`input`** наименования и **`input`** поля формулы (посимвольный курсор, **`formulaDisplayExpression`** без пробелов); **`MaterialClassPickerBody`** (**`hidePickChrome`**). **Удаление** — диалог **`admin-modal`**. |
+| `AdminApp.tsx` | Шапка **`admin-header-top`** + **`admin-section-tabs`**; **`ThemeToggle`**. Выпадающее **«Справочники»**: **Материалы**, **Текстуры**, **Классы**, **Ед. изм.**, **Формулы**. Сетка **`/materials`** — обёрнута в **`AdminPanelLoadingHost`** (оверлей на всю панель: дерево + список материалов). **`/uom`** — **`AdminUomPanel`**; калькулятор — **`AdminPanelLoadingHost`** **`#admin-panel-calculator`** + **`CalculatorPage variant="admin"`**; **«Расчеты»** — **`AdminCalculationsPanel`**; **«Заказы»** / **«Пользователи»** — хост + **`AdminOrdersPanel`**. **Материалы:** **`TreeRow`** с **`treeDnD`**, **`FolderCreateModal`**, **`fetchMaterialsFiltered`**, корень **«Все папки»**; список с **`materialsListLoading`**. Карточка — **`MaterialForm`** в portal-модалке. |
+| `AdminCalculationsPanel.tsx` | Вкладка **«Расчеты»**: **`AdminPanelLoadingHost`**; **`PanelLoadingFlags`** **`tree`** + **`list`** + **`data`**; дерево папок формул + список; модалка редактора формулы. |
 | **`MaterialClassPickModal.tsx`** | **`MaterialClassPickerBody`** (дерево **`MaterialClassCategory`** + **`ClassPickListTable`**), **`MaterialClassPickModal`** (портал с поиском и крошками — карточка материала). Встроенный режим формулы: **`hidePickChrome`**, **`shownScopeLabel`** в таблице. Загрузка: один **`fetchMaterialClasses()`** → **`allClasses`**; список в корне — из кэша, по папке — **`subtree`**. |
-| **`AdminMaterialClassesPanel.tsx`** | Вкладка **«Классы»**: дерево папок **`MaterialClassCategory`**, список **`MaterialClass`**; админский список грузится постранично через **`fetchMaterialClassesPage`** (первая страница сразу, далее **«Загрузить ещё»**), полная **`fetchMaterialClasses`** используется вне этой вкладки для pickers/калькулятора; новый класс — модалка (**«+ Класс»**, разметка как **`admin-modal--material-card`**). |
-| **`AdminTexturesPanel.tsx`** | Вкладка **«Текстуры»**: дерево **`TextureCategory`**, список **`TextureItem`**; админский список грузится постранично через **`fetchTextureItemsPage`** для **«База текстур»** и папки с **`subtree`** (следующая страница — **«Загрузить ещё»**); DnD папок и текстур (**`folderMoveDnD`**, **`DND_TEXTURE_ITEM`**). |
-| **`AdminUomPanel.tsx`** | Вкладка **«Ед. изм.»** (`/uom`): плоский список **`UnitOfMeasure`** без дерева папок — колонки **код / сокращение / наименование**; **`fetchUom`**, **`createUom`**, **`updateUom`**, **`deleteUom`**; модалка карточки как у классов; порядок строк — **`sortUomForSelect`**. |
-| `AdminOrdersPanel.tsx` | Таблица заказов и **`FtSelect`** статусов (**в т.ч. «Завершён»**), PDF; без колонки просмотра **`snapshot`**. |
+| **`AdminMaterialClassesPanel.tsx`** | Вкладка **«Классы»**: **`AdminPanelLoadingHost`**; **`PanelLoadingFlags`** **`tree`** + **`list`**; дерево **`MaterialClassCategory`**, постраничный список **`MaterialClass`**. |
+| **`AdminTexturesPanel.tsx`** | Вкладка **«Текстуры»**: **`AdminPanelLoadingHost`**; **`tree`** + **`items`**; дерево **`TextureCategory`**, **`fetchTextureItemsPage`**; DnD (**`folderMoveDnD`**, **`DND_TEXTURE_ITEM`**). |
+| **`AdminUomPanel.tsx`** | Вкладка **«Ед. изм.»**: **`AdminPanelLoadingHost`**; плоский список **`UnitOfMeasure`**. |
+| `AdminOrdersPanel.tsx` | Таблица заказов; **`usePanelLoading('list', …)`** внутри хоста **`#admin-panel-orders`**. |
 | `FolderCreateModal.tsx` | Окно «Создать папку» в стиле Windows-Explorer: левая колонка — дерево с раскрытием, правая — сетка плиток (📁 папки, 📄 материалы из **`fetchMaterials`** с кешем), хлебные крошки, поле имени, кнопки «Отмена» / «Создать»; портал в **`document.body`**, классы **`admin-modal--explorer`** + **`folder-explorer-*`**. |
 | `FolderMoveModal.tsx` | Explorer: DnD **любой** папки (строка дерева, **«Все папки»**, плитка 📁); MIME **`application/x-furnitech-folder-move`** / **`application/x-furnitech-material-move`** из **`folderMoveDnD.ts`**; **`executeFolderMove`** → **`onMove(newParent, movingId)`**; после успеха **без** **`onClose`**; футер **«Закрыть»**. Опционально **`onMoveMaterial`** (📄 → папка). **Текстуры:** без **`onMoveMaterial`**, только папки. На вкладке **«Материалы»** не используется — перенос там **inline** в **`AdminApp`**. |
 | `folderMoveDnD.ts` | **`DND_FOLDER`**, **`DND_MATERIAL`**, **`DND_TEXTURE_ITEM`**, **`isFolderDrag`**, **`isMaterialDrag`**, **`isTextureItemDrag`** — общие для **`AdminApp`**, **`FolderMoveModal`**, **`AdminTexturesPanel`**. |
 | `MaterialSearchModal.tsx` | Поиск материалов в **калькуляторе** (шаги **2**, **4**, **5**): layout как **`#admin-panel-materials`** (**`admin-aside`** + **`mat-list-table`**), без текстовых фильтров. **`mode="multiPick"`** (по умолчанию): чекбоксы, **`Map<id, Material>`**, **«Добавить (N)»**. Корень дерева — **«База материалов»**; список: **`fetchMaterialsFiltered({})`** или **`fetchMaterials(category, { subtree: true })`** (папка **и вложенные**). Стили — **`material-search-modal`**, **`#material-search-modal`** в **`AdminApp.css`**. **`mode="navigate"`** в SPA на вкладке материалов **не** используется. |
 | `MaterialExtrasPanel.tsx` + **`MaterialExtrasPanel.css`** | Сопутствующие (колонка **«Масштаб»**: `quantity_scale`); предпросмотр без габаритов; в админке материалов — внутри модалки **`admin-modal--extras`**. |
 | `api.ts` | `apiFetch` (Bearer при наличии токена) + калькулятор и **`facade-orders`**: **`createFacadeOrder`**, **`fetchFacadeOrders`**, **`patchFacadeOrderStatus`**; **`fetchMaterialsFiltered`**, **`searchMaterials`** (параметр **`search`**); **`fetchUom`** (async, **все страницы** list), **`createUom`**, **`updateUom`**, **`deleteUom`**; **`fetchTextureItems`** / **`fetchMaterialClasses`** — полный обход пагинации для сценариев, где нужен весь справочник; **`fetchTextureItemsPage`** / **`fetchMaterialClassesPage`** — быстрые page-запросы для админских списков. |
-| `CalculatorPage.tsx` | Калькулятор: **`variant`**, **`CalcPathsProvider`**, **`CalculatorPageInner`**; шаги 1–8 без внешней **`calc-card`**; **`syncCalcStepsTabsWidth`** → **`--calc-steps-tabs-width`** (до «Итог») и **`--calc-steps-panel-width`** (до «Шаг 6», для админки); **`CalcPriceTotalsSlotProvider`**; **`calc-body-with-totals--wide`** (одна колонка); шаг 1 — **`step1Facade`** + **`frame2-card-nav`**; шаг **6** — **`isFrameMortiseHingeSelected()`**; шаг 8 — **`calc-routes-wrap--step8`**. |
+| `CalculatorPage.tsx` | Калькулятор: **`variant`**, **`CalcPathsProvider`**, **`CalculatorPageInner`**; публичный режим — **`AdminPanelLoadingHost`** **`#public-panel-calculator`**; **`usePanelLoading('route', routeBusy)`** при смене шага; шаги регистрируют **`usePanelLoading('data', …)`**; **`syncCalcStepsTabsWidth`** → **`--calc-steps-tabs-width`** / **`--calc-steps-panel-width`**; шаг 8 — **`calc-routes-wrap--step8`**. |
 | `calculator/calcPathsContext.tsx` | `step`, `home`, `readOnly`; нормализация пути для вкладок. |
 | `CalculatorPage.css` | **`.calc-side-panel`**, **`.calc-side-panel-scroll`**, **`--calc-steps-tabs-width`**, **`.calc-totals-inline`**, **`.calc-body-with-totals--wide`**, вкладки **`.calc-step-tab`**. |
 | `calculator/frameCalcSession.ts` | Сессия калькулятора; **`parseFramePriceSessionFromConfigKey`**, **`shouldBillProductionHinges`**, **`hingesPerFacadeForPrice`**; петли/ручка/габариты — как раньше. |
@@ -253,7 +253,9 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `calculator/CalcPriceBreakdownView.tsx` | Расшифровка: формула по классам и/или секции профиль/наполнение/петли. |
 | `calculator/CalcPriceTotals.tsx` | **`includeFillingInPrice`** (false на шаге 3), **`includeHingesInPrice`** (шаги 5–8). |
 | `calculator/TileGearMenu.tsx` | Меню ⚙ на плитке типа профиля/наполнения: portal, **`position: fixed`**, **Редактировать** / **Удалить**. |
-| `calculator/useFrameColorMaterial.ts` | **`useFrameColorMaterial`**, **`mergeFrameColorMaterial`** — цвет рамки на эскизе (шаги 3–7): summary из типа профиля + полный материал. |
+| `calculator/useFrameColorMaterial.ts` | **`useFrameColorMaterial`**, **`mergeFrameColorMaterial`** — цвет рамки на эскизе (шаги 3–7); возвращает **`loading`** до завершения первичной загрузки. |
+| **`AdminPanelLoadingHost.tsx`** | Обёртка **`#admin-panel-*`**: агрегирует флаги **`usePanelLoading`** / **`PanelLoadingFlags`**; рендерит **`AdminPanelLoadingOverlay`** на всю панель. |
+| **`AdminPanelLoadingOverlay.tsx`** | Визуал оверлея (blur, спиннер, «Загрузка»); **`adminPanelBodyClass`**. Стили — **`AdminPanelLoadingOverlay.css`**. |
 | `calculator/sketchFrame.ts` | `resolveMediaUrl`, **`facadeSketchBoxStyle`**, **`facadeSketchScaleY`**, **`facadeSketchAspectRatio`**, **`SKETCH_SCALE_HEIGHT_CAP_MM`**, **`materialTextureLayerStyle`**, **`profileFrameTextureLayerStyle`**, **`materialFillingTextureLayerStyle`**, **`SKETCH_FILLING_TEXTURE_OPACITY`**, `sketchFrameInlineStyle`. |
 | `calculator/materialTextureLabel.ts` | Текст подписи для плиток цвета/наполнения: после режима **цвет** — **`texture_library_item_name`**, иначе имя файла **`texture_image`**, иначе **`name`**. |
 | `calculator/Step2FrameFacade.tsx` | Шаг 2: тип профиля и цвет; **`seedFrameDimsFromMaterial`** после **`fetchMaterial`**; эскиз с fallback **`frameDimDefaultsFromMaterial`**. |
@@ -273,7 +275,35 @@ SPA на Vite, **React Router 7**. Часть маршрутов **только 
 | `calculator/pdfSketchDimsDraw.ts` | Размеры в PDF: цепочки (**`CHAIN_DIM_OFFSET_FRAC`**); габарит **ширины** ближе (**`MAIN_WIDTH_DIM_GAP_FRAC`**); **высота** — выноски до **`vCenterX`**; подписи — **`pdfMainLabelPadMm`** / **`pdfMainWidthLabelPadMm`** / цепочки (**`chainKind`**). |
 | `calculator/sketchFrame.ts` | **`resolveMediaUrl`**, **`materialTextureLayerStyle`**, **`sketchMaterialOpacity`**, **`SKETCH_FILLING_TEXTURE_OPACITY`** — общая логика текстур UI и PDF. |
 | `calculator/Step2MdfFacade.tsx` / `Step2PvcFacade.tsx` | Заглушки шага 2 для МДФ/ПВХ. |
-| `index.css` / `App.css` / `AdminApp.css` / **`desktop-layout.css`** | Десктоп-only режим: **`desktop-layout.css`** (min-width 1280, scroll документа); **`mobile.css`** временно не подключается. **`CalculatorPage.css`**: **`calc-side-panel`**, **`--calc-steps-tabs-width`**, **`calc-totals-inline`**. **`#admin-panel-calculator`**: компактный UI, **`--calc-steps-panel-width`**, **`tree-gear-menu--portal`**, шаг 8 — **`step8-result__scroll-pack`**. |
+| `index.css` / `App.css` / `AdminApp.css` / **`desktop-layout.css`** | Десктоп-only режим: **`desktop-layout.css`** (min-width 1280, scroll документа); **`mobile.css`** временно не подключается. **`CalculatorPage.css`**: **`calc-side-panel`**, **`--calc-steps-tabs-width`**, **`calc-totals-inline`**. **`#admin-panel-calculator`**: компактный UI, **`--calc-steps-panel-width`**, **`tree-gear-menu--portal`**, шаг 8 — **`calc-routes-wrap--step8`**. **`AdminPanelLoadingOverlay.css`**: оверлей на **`#admin-panel-*`**. |
+
+### Оверлей загрузки панелей (2026-06-27)
+
+Пока на экране не готов весь контент панели, пользователь видит **один** полноэкранный (в пределах `#admin-panel-*`) оверлей: полупрозрачный фон с **blur**, по центру карточка «Загрузка» и CSS-спиннер.
+
+**Компоненты:**
+
+1. **`AdminPanelLoadingHost`** — корневой `div` панели (`forwardRef`), класс **`admin-body--panel-loading-host`** при активной загрузке.
+2. **`AdminPanelLoadingOverlay`** — absolute `inset: 0`, не участвует в grid/flex-раскладке.
+3. **`usePanelLoading(key, bool)`** — дочерние блоки сообщают о своих async-операциях; оверлей снимается только когда **все** ключи `false`.
+4. **`PanelLoadingFlags`** — сокращение для типовых ключей **`tree`**, **`list`**, **`items`**, **`route`**, **`data`**.
+
+**Типичные ключи по разделам:**
+
+| Ключ | Смысл |
+|------|--------|
+| `tree` | Первичная загрузка дерева папок (+ refs у материалов) |
+| `list` | Список строк (материалы, классы, формулы, заказы, пользователи, ЕИ) |
+| `items` | Постраничный список элементов (текстуры) |
+| `data` | Данные активного шага калькулятора или выбранной формулы |
+| `route` | Краткая блокировка при смене URL шага калькулятора (~280 ms) |
+| `hinges` | Каталог типов петель на шаге 5 |
+
+**Калькулятор:** хост на **`#admin-panel-calculator`** (админ) или **`#public-panel-calculator`** (гость); вкладки шагов **под** оверлеем. Шаги 2–8 вызывают **`usePanelLoading('data', …)`**; шаг 5 дополнительно — **`hinges`** из **`FrameHingeCatalog`**.
+
+**Исключение:** фоновый пересчёт цены в **`CalcPriceTotals`** не регистрируется — не первичная загрузка UI.
+
+Подробный журнал и таблица файлов — [PROGRESS.md](PROGRESS.md) (секция 2026-06-27).
 
 ### Папки (левая колонка)
 
