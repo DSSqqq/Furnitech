@@ -27,6 +27,7 @@ import {
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
 import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
@@ -158,7 +159,7 @@ export function Step6FrameHingeLayout() {
     return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
-  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
+  const { frameColorMaterial, frameTypeName, loading: colorMaterialLoading } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
 
   useEffect(() => {
@@ -274,7 +275,8 @@ export function Step6FrameHingeLayout() {
 
   return (
     <div className="frame2">
-      <section className="frame3-left calc-side-panel">
+      <section className={adminPanelBodyClass(colorMaterialLoading, 'frame3-left calc-side-panel')}>
+        <AdminPanelLoadingOverlay active={colorMaterialLoading} ariaLabel="Загрузка данных фасада" />
         <div className="frame3-title" role="heading" aria-level={3}>
           Расстояния
         </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import type { FacadeOrder, FacadeOrderPaymentStatus, FacadeOrderStatus } from './api'
 import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderPaymentStatus, patchFacadeOrderStatus } from './api'
 import { openFacadeOrderPdf } from './calculator/orderPdfFromSnapshot'
@@ -138,7 +139,8 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
 
   return (
     <>
-    <div className="admin-orders-layout">
+    <div className={adminPanelBodyClass(loading, 'admin-orders-layout')}>
+      <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка заказов" />
       <div className="admin-heading-row">
         <h2 className="admin-h2">Заказы</h2>
         <div className="admin-orders-toolbar">
@@ -148,9 +150,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
         </div>
       </div>
       {err ? <div className="admin-error admin-error--compact">{err}</div> : null}
-      {loading ? (
-        <p className="admin-muted">Загрузка заказов…</p>
-      ) : rows.length === 0 ? (
+      {!loading && rows.length === 0 ? (
         <p className="admin-muted">Пока нет заказов из калькулятора.</p>
       ) : (
         <div className="admin-orders-table-wrap">

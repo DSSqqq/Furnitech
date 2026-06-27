@@ -1663,16 +1663,19 @@ export function AdminApp({ user, onLogout }: AdminProps) {
           </div>
         </div>
       ) : (
-        <div className="admin-body" id="admin-panel-users" role="tabpanel" aria-labelledby="admin-tab-users">
+        <div
+          className={adminPanelBodyClass(adminUsersLoading, 'admin-body')}
+          id="admin-panel-users"
+          role="tabpanel"
+          aria-labelledby="admin-tab-users"
+        >
+          <AdminPanelLoadingOverlay active={adminUsersLoading} ariaLabel="Загрузка пользователей" />
           <div className="admin-orders-placeholder admin-users-page">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Пользователи</h2>
             </div>
             {adminUsersErr && <div className="admin-error admin-error--compact">{adminUsersErr}</div>}
-            {adminUsersLoading ? (
-              <p className="admin-muted">Загрузка списка пользователей…</p>
-            ) : (
-              <div className="admin-users-table-wrap">
+            <div className="admin-users-table-wrap">
                 <table className="admin-users-table">
                   <thead>
                     <tr>
@@ -1735,7 +1738,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   </tbody>
                 </table>
               </div>
-            )}
           </div>
         </div>
       )}

@@ -24,6 +24,7 @@ import { Step6FrameHingeLayout } from './calculator/Step6FrameHingeLayout'
 import { Step7FrameHandleHoles } from './calculator/Step7FrameHandleHoles'
 import { Step8FrameResult } from './calculator/Step8FrameResult'
 import { CalcPriceTotalsSlotProvider, CalcStepPriceTotals } from './calculator/CalcPriceTotals'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
 import './calculator/Step3FrameSizes.css'
 import './calculator/CalculatorPanelShell.css'
 import './CalculatorPage.css'
@@ -332,7 +333,7 @@ function CalculatorPageInner() {
       <div className="calc-body-with-totals calc-body-with-totals--wide">
         <div className="calc-main-column">
           <div
-            className={isStep8FrameResult ? 'calc-routes-wrap calc-routes-wrap--step8' : 'calc-routes-wrap'}
+            className={adminPanelBodyClass(routeBusy, isStep8FrameResult ? 'calc-routes-wrap calc-routes-wrap--step8' : 'calc-routes-wrap')}
           >
             <div className="calc-routes-inner">
               <div key={loc.pathname} className="calc-routes-step">
@@ -457,11 +458,7 @@ function CalculatorPageInner() {
                 })()}
               </div>
             </div>
-            {routeBusy && (
-              <div className="calc-route-shade" role="status" aria-live="polite" aria-label="Переключение шага">
-                <span className="calc-route-shade__spinner" aria-hidden />
-              </div>
-            )}
+            <AdminPanelLoadingOverlay active={routeBusy} ariaLabel="Переключение шага" />
           </div>
         </div>
       </div>

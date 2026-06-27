@@ -1,0 +1,86 @@
+/* Размытие панели + спиннер по центру (справочники, заказы, шаги калькулятора). */
+.admin-body--panel-loading-host {
+  position: relative;
+}
+
+.admin-orders-layout.admin-body--panel-loading-host,
+.admin-users-page.admin-body--panel-loading-host,
+.frame-hinge-catalog.admin-body--panel-loading-host {
+  min-height: 14rem;
+}
+
+.admin-panel-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: auto;
+}
+
+.admin-panel-loading__shade {
+  position: absolute;
+  inset: 0;
+  background: var(--ft-modal-backdrop);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-panel-loading__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  padding: 1.35rem 1.85rem;
+  border-radius: 14px;
+  border: 1px solid var(--ft-accent-border-soft);
+  background: linear-gradient(
+    165deg,
+    var(--ft-modal-surface-start),
+    var(--ft-modal-surface-end)
+  );
+  box-shadow:
+    var(--ft-modal-shadow),
+    inset 0 1px 0 var(--ft-hover-surface-2);
+}
+
+.admin-panel-loading__spinner {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--ft-surface-border);
+  border-top-color: var(--ft-accent-spinner);
+  border-radius: 50%;
+  animation: admin-panel-loading-spin 0.72s linear infinite;
+}
+
+.admin-panel-loading__label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ft-text);
+  opacity: 0.94;
+}
+
+@keyframes admin-panel-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-panel-loading__spinner {
+    animation: none;
+    border-top-color: var(--ft-accent-spinner);
+    opacity: 0.92;
+  }
+
+  .admin-panel-loading__shade {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--ft-modal-backdrop-strong);
+  }
+}

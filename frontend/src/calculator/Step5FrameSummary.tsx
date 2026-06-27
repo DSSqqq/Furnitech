@@ -15,6 +15,7 @@ import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from
 import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { useFillingTypeName } from './useFillingTypeName'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -97,7 +98,7 @@ export function Step5FrameSummary() {
     return facadeSketchScaleY(parsed.heightN)
   }, [parsed.heightN])
 
-  const { frameColorMaterial, frameTypeName } = useFrameColorMaterial()
+  const { frameColorMaterial, frameTypeName, loading: colorMaterialLoading } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
   const [mortiseSketchLine, setMortiseSketchLine] = useState('—')
 
@@ -163,7 +164,8 @@ export function Step5FrameSummary() {
 
   return (
     <div className="frame2">
-      <section className="frame2-card calc-side-panel">
+      <section className={adminPanelBodyClass(colorMaterialLoading, 'frame2-card calc-side-panel')}>
+        <AdminPanelLoadingOverlay active={colorMaterialLoading} ariaLabel="Загрузка данных фасада" />
         <div className="calc-side-panel-scroll">
           <FrameHingeMortisePanel />
           <CalcStepPriceTotals />

@@ -9,6 +9,7 @@ import {
   updateCalculatorHingeType,
 } from '../api'
 import { MaterialSearchModal } from '../MaterialSearchModal'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
 import { TexturePickerModal } from '../TexturePickerModal'
 import type { CalculatorHingeType, Material, MaterialCategory, MaterialClass } from '../types'
 import {
@@ -530,9 +531,9 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
   }
 
   return (
-    <>
+    <div className={adminPanelBodyClass(loading, 'frame-hinge-catalog')}>
+      <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка петель" />
       {err && <div className="admin-error">{err}</div>}
-      {loading && <p className="admin-muted">Загрузка…</p>}
 
       <div className="frame2-card-head">
         <h4 className="frame2-h4">Тип петель</h4>
@@ -1011,6 +1012,6 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
           }}
         />
       )}
-    </>
+    </div>
   )
 }

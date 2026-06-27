@@ -49,12 +49,15 @@ export function mergeFrameColorMaterial(
 export function useFrameColorMaterial(): {
   frameColorMaterial: Material | null
   frameTypeName: string
+  loading: boolean
 } {
   const [frameColorMaterial, setFrameColorMaterial] = useState<Material | null>(null)
   const [frameTypeName, setFrameTypeName] = useState('—')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancel = false
+    setLoading(true)
     ;(async () => {
       const typeId = lsFrameId('calc_frame_type_id')
       const colorId = lsFrameId('calc_frame_color_id')
@@ -84,11 +87,12 @@ export function useFrameColorMaterial(): {
       }
 
       if (!cancel) setFrameColorMaterial(mergeFrameColorMaterial(summary, full))
+      if (!cancel) setLoading(false)
     })()
     return () => {
       cancel = true
     }
   }, [])
 
-  return { frameColorMaterial, frameTypeName }
+  return { frameColorMaterial, frameTypeName, loading }
 }

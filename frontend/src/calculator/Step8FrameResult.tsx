@@ -14,6 +14,7 @@ import { BASE_CURRENCY } from '../currencies'
 import type { CalculationFormula, Material } from '../types'
 import { formatNumberForUi } from '../floatInput'
 import { useCalcPaths } from './calcPathsContext'
+import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
 import { collectCurrencies, computeFramePriceBreakdown } from './framePriceEstimate'
 import {
   type HingeMountSide,
@@ -113,6 +114,7 @@ export function Step8FrameResult() {
 
   const [frameTypeName, setFrameTypeName] = useState('—')
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
   const [hingeMaterial, setHingeMaterial] = useState<Material | null>(null)
   const [formulasList, setFormulasList] = useState<CalculationFormula[]>([])
@@ -207,6 +209,7 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     let cancel = false
+    setProfileLoading(true)
     ;(async () => {
       const tid = localStorage.getItem('calc_frame_type_id')
       const cid = localStorage.getItem('calc_frame_color_id')
@@ -227,6 +230,7 @@ export function Step8FrameResult() {
           /* ignore */
         }
       }
+      if (!cancel) setProfileLoading(false)
     })()
     return () => {
       cancel = true
@@ -577,7 +581,8 @@ export function Step8FrameResult() {
 
   return (
     <>
-    <div className="frame2 step8-result">
+    <div className={adminPanelBodyClass(profileLoading, 'frame2 step8-result')}>
+      <AdminPanelLoadingOverlay active={profileLoading} ariaLabel="Загрузка итога" />
       <section className="step8-result__contact frame2-card calc-side-panel">
         <h3 className="frame3-title">Итог</h3>
         <p className="frame3-sub">

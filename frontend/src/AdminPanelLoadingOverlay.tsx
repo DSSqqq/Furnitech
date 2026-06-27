@@ -1,3 +1,5 @@
+import './AdminPanelLoadingOverlay.css'
+
 type AdminPanelLoadingOverlayProps = {
   active: boolean
   /** Для screen readers, например «Загрузка папок материалов». */
