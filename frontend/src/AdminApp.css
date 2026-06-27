@@ -190,6 +190,25 @@
   min-height: 0;
 }
 
+#admin-panel-orders > .admin-orders-placeholder,
+#admin-panel-users > .admin-orders-placeholder {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1025px) {
+  #admin-panel-orders.admin-body,
+  #admin-panel-users.admin-body,
+  #admin-panel-orders.admin-body.admin-body--panel-loading-host,
+  #admin-panel-users.admin-body.admin-body--panel-loading-host {
+    min-height: calc(100dvh - 108px);
+  }
+}
+
 .admin-orders-placeholder--filled {
   display: flex;
   flex-direction: column;
