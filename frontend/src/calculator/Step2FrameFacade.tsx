@@ -47,7 +47,7 @@ import {
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import { facadeSketchBoxStyle, profileFrameTextureLayerStyle, resolveMediaUrl } from './sketchFrame'
 import { mergeFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
@@ -742,11 +742,12 @@ export function Step2FrameFacade() {
     return facadeSketchBoxStyle(h, w)
   }, [sketchDimsKey, selectedColorMaterialFull])
 
+  usePanelLoading('data', loading || !calcSessionHydrated)
+
   return (
     <>
       <div className="frame2">
-        <section className={adminPanelBodyClass(loading, 'frame2-card calc-side-panel')}>
-          <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка типов профиля" />
+        <section className="frame2-card calc-side-panel">
           <div className="admin-heading-row calc-card-title-row">
             <div className="frame3-title" role="heading" aria-level={3}>
               Выберите тип профиля и цвет

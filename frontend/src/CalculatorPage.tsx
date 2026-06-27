@@ -24,7 +24,7 @@ import { Step6FrameHingeLayout } from './calculator/Step6FrameHingeLayout'
 import { Step7FrameHandleHoles } from './calculator/Step7FrameHandleHoles'
 import { Step8FrameResult } from './calculator/Step8FrameResult'
 import { CalcPriceTotalsSlotProvider, CalcStepPriceTotals } from './calculator/CalcPriceTotals'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { AdminPanelLoadingHost, usePanelLoading } from './AdminPanelLoadingHost'
 import './calculator/Step3FrameSizes.css'
 import './calculator/CalculatorPanelShell.css'
 import './CalculatorPage.css'
@@ -121,6 +121,8 @@ function CalculatorPageInner() {
     const id = window.setTimeout(() => setRouteBusy(false), CALC_ROUTE_TRANSITION_MS)
     return () => window.clearTimeout(id)
   }, [loc.pathname])
+
+  usePanelLoading('route', routeBusy)
 
   useEffect(() => {
     if (isStep1) setStep1Facade(null)
@@ -333,7 +335,7 @@ function CalculatorPageInner() {
       <div className="calc-body-with-totals calc-body-with-totals--wide">
         <div className="calc-main-column">
           <div
-            className={adminPanelBodyClass(routeBusy, isStep8FrameResult ? 'calc-routes-wrap calc-routes-wrap--step8' : 'calc-routes-wrap')}
+            className={isStep8FrameResult ? 'calc-routes-wrap calc-routes-wrap--step8' : 'calc-routes-wrap'}
           >
             <div className="calc-routes-inner">
               <div key={loc.pathname} className="calc-routes-step">
@@ -458,7 +460,6 @@ function CalculatorPageInner() {
                 })()}
               </div>
             </div>
-            <AdminPanelLoadingOverlay active={routeBusy} ariaLabel="Переключение шага" />
           </div>
         </div>
       </div>
@@ -482,9 +483,13 @@ export function CalculatorPage({ variant = 'admin' }: CalculatorPageProps) {
   )
   if (variant === 'public') {
     return (
-      <div className="calc-panel-shell" id="public-panel-calculator">
+      <AdminPanelLoadingHost
+        className="calc-panel-shell"
+        id="public-panel-calculator"
+        ariaLabel="Загрузка калькулятора"
+      >
         <div className="admin-orders-placeholder">{inner}</div>
-      </div>
+      </AdminPanelLoadingHost>
     )
   }
   return inner

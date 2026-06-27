@@ -31,7 +31,7 @@ import {
   type AdminUserRow,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { AdminPanelLoadingHost, PanelLoadingFlags } from './AdminPanelLoadingHost'
 import { AdminOrdersPanel } from './AdminOrdersPanel'
 import { AdminCalculationsPanel } from './AdminCalculationsPanel'
 import { AdminMaterialClassesPanel } from './AdminMaterialClassesPanel'
@@ -399,6 +399,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [uom, setUom] = useState<UnitOfMeasure[]>([])
   const [mclasses, setMclasses] = useState<MaterialClass[]>([])
   const [loading, setLoading] = useState(true)
+  const [materialsListLoading, setMaterialsListLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
   const [extrasTarget, setExtrasTarget] = useState<Material | null>(null)
@@ -545,15 +546,25 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   }, [reloadTree, loadRefs])
 
   useEffect(() => {
-    if (selected == null) {
-      fetchMaterialsFiltered({})
-        .then((r) => setMaterials(r.results))
-        .catch((e) => setErr(String(e)))
-      return
+    let cancelled = false
+    setMaterialsListLoading(true)
+    const req =
+      selected == null
+        ? fetchMaterialsFiltered({})
+        : fetchMaterials(selected, { subtree: true })
+    req
+      .then((r) => {
+        if (!cancelled) setMaterials(r.results)
+      })
+      .catch((e) => {
+        if (!cancelled) setErr(String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setMaterialsListLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-    fetchMaterials(selected, { subtree: true })
-      .then((r) => setMaterials(r.results))
-      .catch((e) => setErr(String(e)))
   }, [selected])
 
   useEffect(() => {
@@ -1259,32 +1270,40 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       {err && section === 'materials' && <div className="admin-error">{err}</div>}
       {isManager ? (
         section === 'calculator' ? (
-          <div
+          <AdminPanelLoadingHost
             className="admin-body calc-panel-shell"
             id="admin-panel-calculator"
             role="tabpanel"
             aria-labelledby="admin-tab-calculator"
+            ariaLabel="Загрузка калькулятора"
           >
             <div className="admin-orders-placeholder">
               <CalculatorPage variant="admin" />
             </div>
-          </div>
+          </AdminPanelLoadingHost>
         ) : (
-          <div className="admin-body" id="admin-panel-orders" role="tabpanel" aria-labelledby="admin-tab-orders">
+          <AdminPanelLoadingHost
+            className="admin-body"
+            id="admin-panel-orders"
+            role="tabpanel"
+            aria-labelledby="admin-tab-orders"
+            ariaLabel="Загрузка заказов"
+          >
             <div className="admin-orders-placeholder admin-orders-placeholder--filled">
               <AdminOrdersPanel canDelete={false} />
             </div>
-          </div>
+          </AdminPanelLoadingHost>
         )
       ) : section === 'materials' ? (
-        <div
+        <AdminPanelLoadingHost
           ref={materialsPanelRef}
-          className={adminPanelBodyClass(loading)}
+          className="admin-body"
           id="admin-panel-materials"
           role="tabpanel"
           aria-labelledby="admin-tab-materials"
+          ariaLabel="Загрузка материалов"
         >
-          <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка папок материалов" />
+          <PanelLoadingFlags tree={loading} list={materialsListLoading} />
           <aside className="admin-aside">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Папки материалов</h2>
@@ -1636,20 +1655,21 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               </div>,
               document.body
             )}
-        </div>
+        </AdminPanelLoadingHost>
       ) : section === 'textures' ? (
         <AdminTexturesPanel />
       ) : section === 'calculator' ? (
-        <div
+        <AdminPanelLoadingHost
           className="admin-body calc-panel-shell"
           id="admin-panel-calculator"
           role="tabpanel"
           aria-labelledby="admin-tab-calculator"
+          ariaLabel="Загрузка калькулятора"
         >
           <div className="admin-orders-placeholder">
             <CalculatorPage variant="admin" />
           </div>
-        </div>
+        </AdminPanelLoadingHost>
       ) : section === 'classes' ? (
         <AdminMaterialClassesPanel />
       ) : section === 'uom' ? (
@@ -1657,19 +1677,26 @@ export function AdminApp({ user, onLogout }: AdminProps) {
       ) : section === 'calculations' ? (
         <AdminCalculationsPanel />
       ) : section === 'orders' ? (
-        <div className="admin-body" id="admin-panel-orders" role="tabpanel" aria-labelledby="admin-tab-orders">
+        <AdminPanelLoadingHost
+          className="admin-body"
+          id="admin-panel-orders"
+          role="tabpanel"
+          aria-labelledby="admin-tab-orders"
+          ariaLabel="Загрузка заказов"
+        >
           <div className="admin-orders-placeholder admin-orders-placeholder--filled">
             <AdminOrdersPanel />
           </div>
-        </div>
+        </AdminPanelLoadingHost>
       ) : (
-        <div
-          className={adminPanelBodyClass(adminUsersLoading, 'admin-body')}
+        <AdminPanelLoadingHost
+          className="admin-body"
           id="admin-panel-users"
           role="tabpanel"
           aria-labelledby="admin-tab-users"
+          ariaLabel="Загрузка пользователей"
         >
-          <AdminPanelLoadingOverlay active={adminUsersLoading} ariaLabel="Загрузка пользователей" />
+          <PanelLoadingFlags list={adminUsersLoading} />
           <div className="admin-orders-placeholder admin-users-page">
             <div className="admin-heading-row">
               <h2 className="admin-h2">Пользователи</h2>
@@ -1739,7 +1766,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 </table>
               </div>
           </div>
-        </div>
+        </AdminPanelLoadingHost>
       )}
     </div>
     {folderCreateOpen ? (

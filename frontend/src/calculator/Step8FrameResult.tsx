@@ -14,7 +14,7 @@ import { BASE_CURRENCY } from '../currencies'
 import type { CalculationFormula, Material } from '../types'
 import { formatNumberForUi } from '../floatInput'
 import { useCalcPaths } from './calcPathsContext'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import { collectCurrencies, computeFramePriceBreakdown } from './framePriceEstimate'
 import {
   type HingeMountSide,
@@ -115,6 +115,7 @@ export function Step8FrameResult() {
   const [frameTypeName, setFrameTypeName] = useState('—')
   const [colorMaterial, setColorMaterial] = useState<Material | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [metaLoading, setMetaLoading] = useState(true)
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
   const [hingeMaterial, setHingeMaterial] = useState<Material | null>(null)
   const [formulasList, setFormulasList] = useState<CalculationFormula[]>([])
@@ -178,30 +179,28 @@ export function Step8FrameResult() {
 
   useEffect(() => {
     let cancel = false
-    fetchMaterialClasses()
-      .then((r) => {
-        if (cancel) return
-        const m = new Map<number, string>()
-        for (const c of r.results ?? []) m.set(c.id, c.code)
-        setClassCodesById(m)
-      })
-      .catch(() => {
-        if (!cancel) setClassCodesById(new Map())
-      })
-    return () => {
-      cancel = true
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancel = false
-    fetchCalculationFormulas({ active: true })
-      .then((r) => {
-        if (!cancel) setFormulasList(r.results ?? [])
-      })
-      .catch(() => {
-        if (!cancel) setFormulasList([])
-      })
+    setMetaLoading(true)
+    void Promise.all([
+      fetchMaterialClasses()
+        .then((r) => {
+          if (cancel) return
+          const m = new Map<number, string>()
+          for (const c of r.results ?? []) m.set(c.id, c.code)
+          setClassCodesById(m)
+        })
+        .catch(() => {
+          if (!cancel) setClassCodesById(new Map())
+        }),
+      fetchCalculationFormulas({ active: true })
+        .then((r) => {
+          if (!cancel) setFormulasList(r.results ?? [])
+        })
+        .catch(() => {
+          if (!cancel) setFormulasList([])
+        }),
+    ]).finally(() => {
+      if (!cancel) setMetaLoading(false)
+    })
     return () => {
       cancel = true
     }
@@ -579,10 +578,11 @@ export function Step8FrameResult() {
     setAuthWallModalOpen(false)
   }
 
+  usePanelLoading('data', profileLoading || metaLoading)
+
   return (
     <>
-    <div className={adminPanelBodyClass(profileLoading, 'frame2 step8-result')}>
-      <AdminPanelLoadingOverlay active={profileLoading} ariaLabel="Загрузка итога" />
+    <div className="frame2 step8-result">
       <section className="step8-result__contact frame2-card calc-side-panel">
         <h3 className="frame3-title">Итог</h3>
         <p className="frame3-sub">

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { AdminPanelLoadingHost, PanelLoadingFlags } from './AdminPanelLoadingHost'
 import {
   createTextureCategory,
   createTextureItem,
@@ -975,13 +975,13 @@ export function AdminTexturesPanel() {
 
   return (
     <>
-      <div
-        className={adminPanelBodyClass(loading)}
+      <AdminPanelLoadingHost
         id="admin-panel-textures"
         role="tabpanel"
         aria-labelledby="admin-tab-textures"
+        ariaLabel="Загрузка текстур"
       >
-        <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка папок текстур" />
+        <PanelLoadingFlags tree={loading} items={itemsLoading} />
         {err && <div className="admin-error">{err}</div>}
         <aside className="admin-aside">
           <div className="admin-heading-row">
@@ -1298,7 +1298,7 @@ export function AdminTexturesPanel() {
               document.body
             )
           : null}
-      </div>
+      </AdminPanelLoadingHost>
       {folderCreateOpen ? (
         <FolderCreateModal
           tree={tree}

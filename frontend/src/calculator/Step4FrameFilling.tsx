@@ -40,7 +40,7 @@ import {
 import { TileGearMenu } from './TileGearMenu'
 import { resolveMediaUrl, profileFrameTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -630,11 +630,12 @@ export function Step4FrameFilling() {
     }
   }
 
+  usePanelLoading('data', loading || !hydrated)
+
   return (
     <>
       <div className="frame2">
-        <section className={adminPanelBodyClass(loading, 'frame2-card calc-side-panel')}>
-          <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка типов наполнения" />
+        <section className="frame2-card calc-side-panel">
           <div className="admin-heading-row calc-card-title-row">
             <div className="frame3-title" role="heading" aria-level={3}>
               Выберите тип наполнения

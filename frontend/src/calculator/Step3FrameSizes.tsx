@@ -20,7 +20,7 @@ import {
 import { materialTextureLabel, textureLabelDisplayWrap } from './materialTextureLabel'
 import { facadeSketchBoxStyle, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -206,10 +206,11 @@ export function Step3FrameSizes() {
 
   const sketchFrameStyle = useMemo(() => profileFrameTextureLayerStyle(colorMaterial), [colorMaterial])
 
+  usePanelLoading('data', loading)
+
   return (
     <div className="frame3">
-      <section className={adminPanelBodyClass(loading, 'frame3-left calc-side-panel')}>
-        <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка размеров фасада" />
+      <section className="frame3-left calc-side-panel">
         <div className="frame3-title" role="heading" aria-level={3}>
           Укажите габаритные размеры
         </div>

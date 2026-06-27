@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { usePanelLoading } from './AdminPanelLoadingHost'
 import type { FacadeOrder, FacadeOrderPaymentStatus, FacadeOrderStatus } from './api'
 import { deleteFacadeOrder, fetchFacadeOrders, patchFacadeOrderPaymentStatus, patchFacadeOrderStatus } from './api'
 import { openFacadeOrderPdf } from './calculator/orderPdfFromSnapshot'
@@ -137,10 +137,11 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
       .finally(() => setDeletePending(false))
   }
 
+  usePanelLoading('list', loading)
+
   return (
     <>
-    <div className={adminPanelBodyClass(loading, 'admin-orders-layout')}>
-      <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка заказов" />
+    <div className="admin-orders-layout">
       <div className="admin-heading-row">
         <h2 className="admin-h2">Заказы</h2>
         <div className="admin-orders-toolbar">

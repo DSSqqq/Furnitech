@@ -41,7 +41,7 @@ import {
 import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from './materialTextureLabel'
 import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import { HingeChainDimLayer, sketchMainDimPlacement, useHingeChainSketchDims } from './hingeChainSketchDims'
 import { useFillingTypeName } from './useFillingTypeName'
 import './Step2FrameFacade.css'
@@ -404,10 +404,11 @@ export function Step7FrameHandleHoles() {
     [applyUniformDefaults, handleSide, widthMm, heightMm],
   )
 
+  usePanelLoading('data', colorMaterialLoading)
+
   return (
     <div className="frame2">
-      <section className={adminPanelBodyClass(colorMaterialLoading, 'frame3-left calc-side-panel')}>
-        <AdminPanelLoadingOverlay active={colorMaterialLoading} ariaLabel="Загрузка данных фасада" />
+      <section className="frame3-left calc-side-panel">
         <div className="frame3-title" role="heading" aria-level={3}>
           Отверстия под ручку
         </div>

@@ -22,7 +22,7 @@ import {
   updateCalculationFormulaCategory,
 } from './api'
 import { AdminFolderToolbarIcon } from './AdminFolderToolbarIcon'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { AdminPanelLoadingHost, PanelLoadingFlags } from './AdminPanelLoadingHost'
 import type {
   CalculationFormula,
   CalculationFormulaCategory,
@@ -1046,13 +1046,14 @@ export function AdminCalculationsPanel() {
 
   return (
     <>
-      <div
-        className={adminPanelBodyClass(treeLoading, 'admin-body admin-calculations')}
+      <AdminPanelLoadingHost
+        className="admin-body admin-calculations"
         id="admin-panel-calculations"
         role="tabpanel"
         aria-labelledby="admin-tab-calculations"
+        ariaLabel="Загрузка формул"
       >
-        <AdminPanelLoadingOverlay active={treeLoading} ariaLabel="Загрузка папок формул" />
+        <PanelLoadingFlags tree={treeLoading} list={listLoading} data={loading} />
         <aside className="admin-aside admin-calculations-list">
           <div className="admin-heading-row">
             <h2 className="admin-h2">Папки формул</h2>
@@ -1220,7 +1221,7 @@ export function AdminCalculationsPanel() {
             </div>
           </main>
         </div>
-      </div>
+      </AdminPanelLoadingHost>
 
       {editorOpen
         ? createPortal(

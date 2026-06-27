@@ -3,10 +3,28 @@
   position: relative;
 }
 
-.admin-orders-layout.admin-body--panel-loading-host,
-.admin-users-page.admin-body--panel-loading-host,
-.frame-hinge-catalog.admin-body--panel-loading-host {
-  min-height: 14rem;
+#admin-panel-calculator.admin-body--panel-loading-host,
+#admin-panel-materials.admin-body--panel-loading-host,
+#admin-panel-textures.admin-body--panel-loading-host,
+#admin-panel-classes.admin-body--panel-loading-host,
+#admin-panel-uom.admin-body--panel-loading-host,
+#admin-panel-calculations.admin-body--panel-loading-host,
+#admin-panel-orders.admin-body--panel-loading-host,
+#admin-panel-users.admin-body--panel-loading-host,
+#public-panel-calculator.admin-body--panel-loading-host {
+  isolation: isolate;
+}
+
+#admin-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-materials.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-textures.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-classes.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-uom.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-calculations.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-orders.admin-body--panel-loading-host > .admin-panel-loading,
+#admin-panel-users.admin-body--panel-loading-host > .admin-panel-loading,
+#public-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading {
+  z-index: 50;
 }
 
 .admin-panel-loading {

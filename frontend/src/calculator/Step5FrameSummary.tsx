@@ -15,7 +15,7 @@ import { materialTextureLabel, sketchFillingLine, textureLabelDisplayWrap } from
 import { materialFillingTextureLayerStyle, facadeSketchScaleY, profileFrameTextureLayerStyle } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { useFillingTypeName } from './useFillingTypeName'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from '../AdminPanelLoadingOverlay'
+import { usePanelLoading } from '../AdminPanelLoadingHost'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
 
@@ -100,20 +100,26 @@ export function Step5FrameSummary() {
 
   const { frameColorMaterial, frameTypeName, loading: colorMaterialLoading } = useFrameColorMaterial()
   const [fillingMaterial, setFillingMaterial] = useState<Material | null>(null)
+  const [fillingLoading, setFillingLoading] = useState(false)
   const [mortiseSketchLine, setMortiseSketchLine] = useState('—')
+  const [mortiseLoading, setMortiseLoading] = useState(false)
 
   useEffect(() => {
     let cancel = false
+    if (!parsed.fillMatId) {
+      setFillingMaterial(null)
+      setFillingLoading(false)
+      return
+    }
+    setFillingLoading(true)
     ;(async () => {
-      if (!parsed.fillMatId) {
-        setFillingMaterial(null)
-        return
-      }
       try {
-        const m = await fetchMaterial(parsed.fillMatId)
+        const m = await fetchMaterial(parsed.fillMatId!)
         if (!cancel) setFillingMaterial(m)
       } catch {
         if (!cancel) setFillingMaterial(null)
+      } finally {
+        if (!cancel) setFillingLoading(false)
       }
     })()
     return () => {
@@ -124,21 +130,26 @@ export function Step5FrameSummary() {
   useEffect(() => {
     if (parsed.mortiseMode !== 'hinge') {
       setMortiseSketchLine('Не требуется')
+      setMortiseLoading(false)
       return
     }
     if (parsed.hingeSource === 'customer') {
       setMortiseSketchLine('Петли заказчика (уточнить детали и стоимость у сотрудника)')
+      setMortiseLoading(false)
       return
     }
     if (parsed.hingeSource !== 'production') {
       setMortiseSketchLine('—')
+      setMortiseLoading(false)
       return
     }
     if (parsed.hingeTypeId == null || parsed.hingeMatId == null) {
       setMortiseSketchLine('Петли производства — выберите тип и модель')
+      setMortiseLoading(false)
       return
     }
     let cancel = false
+    setMortiseLoading(true)
     ;(async () => {
       try {
         const r = await fetchCalculatorHingeTypes()
@@ -155,6 +166,8 @@ export function Step5FrameSummary() {
         }
       } catch {
         if (!cancel) setMortiseSketchLine('—')
+      } finally {
+        if (!cancel) setMortiseLoading(false)
       }
     })()
     return () => {
@@ -162,10 +175,11 @@ export function Step5FrameSummary() {
     }
   }, [cfgKey, parsed.hingeMatId, parsed.hingeSource, parsed.hingeTypeId, parsed.mortiseMode])
 
+  usePanelLoading('data', colorMaterialLoading || fillingLoading || mortiseLoading)
+
   return (
     <div className="frame2">
-      <section className={adminPanelBodyClass(colorMaterialLoading, 'frame2-card calc-side-panel')}>
-        <AdminPanelLoadingOverlay active={colorMaterialLoading} ariaLabel="Загрузка данных фасада" />
+      <section className="frame2-card calc-side-panel">
         <div className="calc-side-panel-scroll">
           <FrameHingeMortisePanel />
           <CalcStepPriceTotals />

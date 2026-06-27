@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState } from 'react'
-import { AdminPanelLoadingOverlay, adminPanelBodyClass } from './AdminPanelLoadingOverlay'
+import { AdminPanelLoadingHost, PanelLoadingFlags } from './AdminPanelLoadingHost'
 import { createUom, deleteUom, fetchUom, updateUom } from './api'
 import { sortUomForSelect } from './uomSelectOrder'
 import type { UnitOfMeasure } from './types'
@@ -138,13 +138,13 @@ export function AdminUomPanel() {
 
   return (
     <>
-      <div
-        className={adminPanelBodyClass(loading)}
+      <AdminPanelLoadingHost
         id="admin-panel-uom"
         role="tabpanel"
         aria-labelledby="admin-tab-uom"
+        ariaLabel="Загрузка единиц измерения"
       >
-        <AdminPanelLoadingOverlay active={loading} ariaLabel="Загрузка единиц измерения" />
+        <PanelLoadingFlags list={loading} />
         <div className="admin-main-col">
           <main className="admin-main">
             <div className="admin-main-scroll">
@@ -207,7 +207,7 @@ export function AdminUomPanel() {
             </div>
           </main>
         </div>
-      </div>
+      </AdminPanelLoadingHost>
 
       {editing
         ? createPortal(
