@@ -3,7 +3,6 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Q
 
 
 class RoundingMode(models.TextChoices):
@@ -275,9 +274,8 @@ class Material(models.Model):
     article = models.CharField(
         "Артикул",
         max_length=128,
-        blank=True,
         db_index=True,
-        help_text="Артикул / внутренний код (для сопоставления с учётом, в т.ч. 1С).",
+        help_text="Артикул / внутренний код (для сопоставления с учётом, в т.ч. 1С). Уникален в каталоге.",
     )
     material_classes = models.ManyToManyField(
         MaterialClass,
@@ -472,8 +470,11 @@ class Material(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["article"],
-                name="materials_material_article_nonempty_uniq",
-                condition=~Q(article=""),
+                name="materials_material_article_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["category", "name"],
+                name="materials_material_category_name_uniq",
             ),
         ]
 
@@ -484,6 +485,11 @@ class Material(models.Model):
         from django.core.exceptions import ValidationError
 
         self.article = (self.article or "").strip()
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise ValidationError({"name": "Укажите наименование."})
+        if not self.article:
+            raise ValidationError({"article": "Укажите артикул."})
         if self.rounding_mode == RoundingMode.CEIL_MULTIPLE and (
             self.rounding_multiple is None or self.rounding_multiple <= 0
         ):
@@ -494,17 +500,24 @@ class Material(models.Model):
             raise ValidationError(
                 {"excess_coefficient": "Коэффициент избытка должен быть положительным."}
             )
-        if self.article:
-            qs = Material.objects.filter(article=self.article)
-            if self.pk is not None:
-                qs = qs.exclude(pk=self.pk)
-            if qs.exists():
-                raise ValidationError(
-                    {"article": "Материал с таким артикулом уже существует."}
-                )
+        qs_article = Material.objects.filter(article=self.article)
+        if self.pk is not None:
+            qs_article = qs_article.exclude(pk=self.pk)
+        if qs_article.exists():
+            raise ValidationError(
+                {"article": "Материал с таким артикулом уже существует."}
+            )
+        qs_name = Material.objects.filter(category_id=self.category_id, name=self.name)
+        if self.pk is not None:
+            qs_name = qs_name.exclude(pk=self.pk)
+        if qs_name.exists():
+            raise ValidationError(
+                {"name": "Материал с таким наименованием уже есть в этой папке."}
+            )
 
     def save(self, *args, **kwargs) -> None:
         self.article = (self.article or "").strip()
+        self.name = (self.name or "").strip()
         super().save(*args, **kwargs)
 
 

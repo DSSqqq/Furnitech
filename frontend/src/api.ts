@@ -34,9 +34,27 @@ const IMAGE_FIELD_LABELS: Record<string, string> = {
   texture_image: 'Изображение',
 }
 
-/** Перевод частых англоязычных сообщений DRF/Django про файл изображения. */
+/** Перевод типовых сообщений DRF/Django в понятный русский текст. */
 function localizeFieldMessage(field: string, raw: string): string {
   const t = raw.trim()
+  if (
+    field === 'non_field_errors' ||
+    field === 'name' ||
+    field === 'article'
+  ) {
+    if (/category.*name|name.*category|уникальн/i.test(t) && /name|наименован/i.test(t)) {
+      return 'В этой папке уже есть материал с таким наименованием. Укажите другое наименование.'
+    }
+    if (/article|артикул/i.test(t) && /unique|уникальн|already exists|уже/i.test(t)) {
+      return 'Материал с таким артикулом уже есть. Укажите другой артикул.'
+    }
+    if (/must make a unique set|уникальн.*набор|массив с уникальными/i.test(t)) {
+      if (/category.*name|name.*category/i.test(t)) {
+        return 'В этой папке уже есть материал с таким наименованием. Укажите другое наименование.'
+      }
+      return 'Укажите уникальные артикул и наименование — такая комбинация уже есть в каталоге.'
+    }
+  }
   if (field === 'image' || field === 'texture_image') {
     if (/not a valid image|corrupted image|valid image/i.test(t)) {
       return 'Файл не распознан как изображение. Используйте JPG, PNG или WebP (форматы вроде HEIC с iPhone не поддерживаются — пересохраните в JPG/PNG).'
@@ -79,6 +97,9 @@ function statusFallbackMessage(status: number): string | null {
   if (status === 413) {
     return 'Файл слишком большой. Уменьшите размер изображения (например до 2–5 МБ) и повторите загрузку.'
   }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'Сервер сейчас недоступен или просыпается после простоя (это занимает 30–60 секунд на бесплатном плане). Подождите минуту и повторите попытку.'
+  }
   return null
 }
 
@@ -105,6 +126,25 @@ async function parseJsonError(r: Response): Promise<never> {
     // в понятное сообщение, не сбивая на «перезапустите backend».
     const statusMsg = statusFallbackMessage(r.status)
     if (statusMsg) throw new Error(statusMsg)
+
+    // В production-сборке (Vercel) пользователь — не разработчик: инструкции про
+    // runserver/migrate его только пугают. Показываем человекочитаемое сообщение.
+    if (!import.meta.env.DEV) {
+      if (r.status >= 500) {
+        throw new Error(
+          'Не удалось сохранить: на сервере произошла ошибка. Чаще всего при загрузке файлов это значит, что не настроено постоянное хранилище изображений (Supabase Storage) или не применены обновления базы. Сообщите администратору сайта — нужно проверить настройки бэкенда на сервере.'
+        )
+      }
+      if (r.status === 404) {
+        throw new Error(
+          'Запрос не найден на сервере (404). Возможно, бэкенд недоступен или развёрнута устаревшая версия. Сообщите администратору сайта.'
+        )
+      }
+      throw new Error(
+        `Сервер вернул неожиданный ответ (${r.status}). Повторите попытку позже или сообщите администратору сайта.`
+      )
+    }
+
     if (r.status === 404 && u.includes('calculator-profile-types')) {
       throw new Error(
         'На сервере :8000 нет маршрута /api/calculator-profile-types/ (запущен старый Django или другая копия проекта). Сделайте: 1) Ctrl+C — остановить все runserver; 2) из корня Furnitech: .\\.venv\\Scripts\\python.exe backend\\manage.py migrate; 3) .\\.venv\\Scripts\\python.exe backend\\manage.py runserver; 4) проверка: py scripts\\check_calculator_api_route.py (должно вывести /api/calculator-profile-types/).'
@@ -115,7 +155,7 @@ async function parseJsonError(r: Response): Promise<never> {
     }
     const migrateHint =
       r.status === 500
-        ? ' Сначала выполните из корня проекта: py backend\\manage.py migrate (нужна миграция materials.0021_*), затем снова py backend\\manage.py runserver.'
+        ? ' Сначала выполните из корня проекта: py backend\\manage.py migrate, затем снова py backend\\manage.py runserver.'
         : ''
     throw new Error(
       `Сервер вернул HTML вместо JSON (${r.status}). Остановите все старые runserver на :8000, поднимите backend из актуального кода репозитория и перезапустите сервер.${migrateHint}`
@@ -134,7 +174,9 @@ async function parseJsonError(r: Response): Promise<never> {
       if (!(r.status === 403 && isGenericDeny && statusMsg)) msg = d
     } else if (Array.isArray(d)) msg = d.map(String).join(', ')
     else if (j.non_field_errors && Array.isArray(j.non_field_errors)) {
-      msg = j.non_field_errors.map(String).join(', ')
+      msg = j.non_field_errors
+        .map((line) => localizeFieldMessage('non_field_errors', String(line)))
+        .join(' ')
     } else {
       const flat = formatFieldErrors(j)
       if (flat) msg = flat

@@ -1550,7 +1550,9 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                               }}
                             >
                               <span className="mat-list-cell mat-list-cell-article">{dashIfEmpty(m.article)}</span>
-                              <span className="mat-list-cell mat-list-cell-name">{m.name}</span>
+                              <span className="mat-list-cell mat-list-cell-name" title={m.name || undefined}>
+                                {dashIfEmpty(m.name)}
+                              </span>
                               <span className="mat-list-cell mat-list-cell-uom">
                                 {m.uom?.short_name || m.uom?.name || '—'}
                               </span>
@@ -1603,9 +1605,6 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               <div
                 className="admin-modal-backdrop"
                 role="presentation"
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setEditing(null)
-                }}
               >
                 <section
                   className="admin-panel admin-panel--in-material-modal admin-calculations-modal-surface admin-modal--material-card admin-material-card-dialog"
@@ -2063,6 +2062,16 @@ function MaterialForm({
       setLocalErr('Сначала добавьте единицы измерения в справочнике «Ед. изм.».')
       return
     }
+    const nameTrim = form.name.trim()
+    const articleTrim = form.article.trim()
+    if (!nameTrim) {
+      setLocalErr('Укажите наименование.')
+      return
+    }
+    if (!articleTrim) {
+      setLocalErr('Укажите артикул.')
+      return
+    }
     setSaving(true)
     setLocalErr(null)
 
@@ -2080,8 +2089,8 @@ function MaterialForm({
 
     const baseBody: Record<string, unknown> = {
       category: categoryId,
-      name: form.name,
-      article: form.article,
+      name: nameTrim,
+      article: articleTrim,
       uom_id: form.uom_id,
       base_price: commitDecimalForApi(form.base_price),
       base_currency: BASE_CURRENCY,
@@ -2136,7 +2145,7 @@ function MaterialForm({
       setRelatedItems(materialExtrasInitRelated(m))
       onClose()
     })
-      .catch((e) => setLocalErr(String(e)))
+      .catch((e) => setLocalErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setSaving(false))
   }
 
@@ -2148,7 +2157,7 @@ function MaterialForm({
     setSaving(true)
     deleteMaterial(material.id)
       .then(() => onDeleted(material.id))
-      .catch((e) => setLocalErr(String(e)))
+      .catch((e) => setLocalErr(e instanceof Error ? e.message : String(e)))
       .finally(() => setSaving(false))
   }
 
@@ -2217,11 +2226,12 @@ function MaterialForm({
             />
           </label>
           <label className="field">
-            <span>Артикул</span>
+            <span>Артикул *</span>
             <input
               className="admin-input"
               value={form.article}
               onChange={(e) => setField('article', e.target.value)}
+              required
             />
           </label>
 

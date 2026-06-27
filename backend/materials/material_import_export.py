@@ -776,6 +776,10 @@ def apply_materials_table_row(
         if material is None and not article_clean:
             material = Material.objects.filter(category=category, name=r.name.strip()).first()
         if material is None:
+            if not article_clean:
+                errors.append(f"Строка {line_no}: не указан артикул (обязателен для нового материала)")
+                stats["skipped"] = stats.get("skipped", 0) + 1
+                return
             material = Material(
                 category=category,
                 name=r.name.strip() or article_clean or "Без имени",

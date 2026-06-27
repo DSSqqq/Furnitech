@@ -348,6 +348,8 @@ class MaterialSerializer(serializers.ModelSerializer):
             "updated_at",
             "last_synced_at",
         )
+        # Свои validate_article / validate — без generic non_field_errors от DRF.
+        validators = []
 
     def get_texture_library_item_name(self, obj: Material) -> str | None:
         if obj.texture_item_id and obj.texture_item:
@@ -367,15 +369,57 @@ class MaterialSerializer(serializers.ModelSerializer):
     def validate_article(self, value: str) -> str:
         v = (value or "").strip()
         if not v:
-            return ""
+            raise serializers.ValidationError("Укажите артикул.")
         qs = Material.objects.filter(article=v)
         if self.instance is not None:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError(
-                "Материал с таким артикулом уже существует."
+                "Материал с таким артикулом уже есть. Укажите другой артикул."
             )
         return v
+
+    def validate_name(self, value: str) -> str:
+        v = (value or "").strip()
+        if not v:
+            raise serializers.ValidationError("Укажите наименование.")
+        return v
+
+    def validate(self, attrs: dict) -> dict:
+        attrs = super().validate(attrs)
+        name = attrs.get("name")
+        if name is None and self.instance is not None:
+            name = self.instance.name
+        name = (name or "").strip()
+        category = attrs.get("category")
+        if category is None and self.instance is not None:
+            category = self.instance.category
+        if category is not None and name:
+            qs = Material.objects.filter(category=category, name=name)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {
+                        "name": "В этой папке уже есть материал с таким наименованием. Укажите другое наименование.",
+                    }
+                )
+        return attrs
+
+    @staticmethod
+    def _material_integrity_error(exc: IntegrityError) -> serializers.ValidationError:
+        msg = str(exc).lower()
+        if "article" in msg or "materials_material_article" in msg:
+            return serializers.ValidationError(
+                {"article": "Материал с таким артикулом уже есть. Укажите другой артикул."}
+            )
+        if "category" in msg and "name" in msg:
+            return serializers.ValidationError(
+                {
+                    "name": "В этой папке уже есть материал с таким наименованием. Укажите другое наименование.",
+                }
+            )
+        raise exc
 
     def to_representation(self, instance) -> dict:
         data = super().to_representation(instance)
@@ -475,11 +519,7 @@ class MaterialSerializer(serializers.ModelSerializer):
         try:
             material = super().create(validated_data)
         except IntegrityError as e:
-            if "article" in str(e).lower():
-                raise serializers.ValidationError(
-                    {"article": "Материал с таким артикулом уже существует."}
-                ) from e
-            raise
+            raise self._material_integrity_error(e) from e
         if m2m_ids:
             ids = [int(x) for x in m2m_ids]
             qs = MaterialClass.objects.filter(pk__in=ids)
@@ -504,11 +544,7 @@ class MaterialSerializer(serializers.ModelSerializer):
         try:
             material = super().update(instance, validated_data)
         except IntegrityError as e:
-            if "article" in str(e).lower():
-                raise serializers.ValidationError(
-                    {"article": "Материал с таким артикулом уже существует."}
-                ) from e
-            raise
+            raise self._material_integrity_error(e) from e
         if m2m_ids is not None:
             ids = [int(x) for x in m2m_ids]
             if not ids:
