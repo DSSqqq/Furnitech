@@ -699,16 +699,34 @@ def apply_calculator_card_image_texture_exclusivity(validated_data: dict) -> Non
             validated_data[texture_field] = None
 
 
+def apply_profile_card_image_texture_exclusivity(validated_data: dict) -> None:
+    pairs = (
+        ("card_image", "card_texture"),
+        ("card_image_2", "card_texture_2"),
+        ("card_image_3", "card_texture_3"),
+        ("card_image_4", "card_texture_4"),
+        ("card_image_5", "card_texture_5"),
+        ("card_image_6", "card_texture_6"),
+    )
+    for image_field, texture_field in pairs:
+        if validated_data.get(image_field):
+            validated_data[texture_field] = None
+
+
 class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
     colors = serializers.SerializerMethodField(read_only=True)
     card_image = serializers.ImageField(required=False, allow_null=True)
     card_image_2 = serializers.ImageField(required=False, allow_null=True)
     card_image_3 = serializers.ImageField(required=False, allow_null=True)
     card_image_4 = serializers.ImageField(required=False, allow_null=True)
+    card_image_5 = serializers.ImageField(required=False, allow_null=True)
+    card_image_6 = serializers.ImageField(required=False, allow_null=True)
     card_texture_image = serializers.SerializerMethodField()
     card_texture_2_image = serializers.SerializerMethodField()
     card_texture_3_image = serializers.SerializerMethodField()
     card_texture_4_image = serializers.SerializerMethodField()
+    card_texture_5_image = serializers.SerializerMethodField()
+    card_texture_6_image = serializers.SerializerMethodField()
 
     class Meta:
         model = CalculatorProfileType
@@ -728,6 +746,12 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             "card_image_4",
             "card_texture_4",
             "card_texture_4_image",
+            "card_image_5",
+            "card_texture_5",
+            "card_texture_5_image",
+            "card_image_6",
+            "card_texture_6",
+            "card_texture_6_image",
             "is_active",
             "sort_order",
             "colors",
@@ -747,6 +771,12 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
 
     def get_card_texture_4_image(self, obj: CalculatorProfileType) -> str | None:
         return calculator_card_texture_image_url(obj, "card_texture_4", self.context.get("request"))
+
+    def get_card_texture_5_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_5", self.context.get("request"))
+
+    def get_card_texture_6_image(self, obj: CalculatorProfileType) -> str | None:
+        return calculator_card_texture_image_url(obj, "card_texture_6", self.context.get("request"))
 
     def get_colors(self, obj: CalculatorProfileType) -> list:
         if not obj.pk:
@@ -784,7 +814,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
-        apply_calculator_card_image_texture_exclusivity(validated_data)
+        apply_profile_card_image_texture_exclusivity(validated_data)
         colors = MaterialSerializer._list_from_request_key(self.initial_data, "colors")
         if colors is None:
             colors = []
@@ -793,7 +823,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
         return profile_type
 
     def update(self, instance, validated_data):
-        apply_calculator_card_image_texture_exclusivity(validated_data)
+        apply_profile_card_image_texture_exclusivity(validated_data)
         colors = MaterialSerializer._list_from_request_key(self.initial_data, "colors")
         profile_type = super().update(instance, validated_data)
         if colors is not None:

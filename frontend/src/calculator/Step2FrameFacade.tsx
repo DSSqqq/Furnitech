@@ -34,17 +34,21 @@ import {
 } from './materialTextureLabel'
 import {
   CalculatorCardTileStriped,
-  appendCalcCardImagesToFormData,
-  appendCalcCardTexturesToFormData,
+  PROFILE_CARD_IMAGE_SLOT_COUNT,
+  appendProfileCardImagesToFormData,
+  appendProfileCardTexturesToFormData,
   calcCardImageGridSlots,
   calcCardImageTileUrls,
   calcCardImageUrlsFromEntity,
-  emptyCalcCardImageFiles,
-  emptyCalcCardTextureIds,
-  type CalcCardImageFiles,
-  type CalcCardImageUrls,
-  type CalcCardTextureIds,
+  emptyCardImageUrls,
+  emptyProfileCardImageFiles,
+  emptyProfileCardTextureIds,
 } from './calculatorCardTiles'
+import {
+  resetCardImageArrays,
+  useCardFilePreviewUrls,
+  useCardImageFormHandlers,
+} from './cardImageFormHelpers'
 import { TileGearMenu } from './TileGearMenu'
 import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
 import { ProfileTypeFormGrid } from './CalculatorTypeFormGrid'
@@ -113,13 +117,11 @@ export function Step2FrameFacade() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createTypeName, setCreateTypeName] = useState('')
-  const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [createCardTextures, setCreateCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const cardImageInputRef0 = useRef<HTMLInputElement>(null)
-  const cardImageInputRef1 = useRef<HTMLInputElement>(null)
-  const cardImageInputRef2 = useRef<HTMLInputElement>(null)
-  const cardImageInputRef3 = useRef<HTMLInputElement>(null)
+  const [createCardFiles, setCreateCardFiles] = useState<(File | null)[]>(emptyProfileCardImageFiles())
+  const [createCardTextures, setCreateCardTextures] = useState<(number | null)[]>(emptyProfileCardTextureIds())
+  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<string[]>(
+    emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT),
+  )
 
   const [createColorsHit, setCreateColorsHit] = useState<Material[]>([])
   const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
@@ -127,13 +129,11 @@ export function Step2FrameFacade() {
 
   const [editTypeId, setEditTypeId] = useState<number | null>(null)
   const [editTypeName, setEditTypeName] = useState('')
-  const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [editCardTextures, setEditCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [editCardTextureUrls, setEditCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const editImageInputRef0 = useRef<HTMLInputElement>(null)
-  const editImageInputRef1 = useRef<HTMLInputElement>(null)
-  const editImageInputRef2 = useRef<HTMLInputElement>(null)
-  const editImageInputRef3 = useRef<HTMLInputElement>(null)
+  const [editCardFiles, setEditCardFiles] = useState<(File | null)[]>(emptyProfileCardImageFiles())
+  const [editCardTextures, setEditCardTextures] = useState<(number | null)[]>(emptyProfileCardTextureIds())
+  const [editCardTextureUrls, setEditCardTextureUrls] = useState<string[]>(
+    emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT),
+  )
   const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
   const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
 
@@ -358,30 +358,8 @@ export function Step2FrameFacade() {
     })
   }, [createColorsHit, editColorsHit, texByMaterialId])
 
-  const createPreview0 = useMemo(
-    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
-    [createCardFiles[0]],
-  )
-  const createPreview1 = useMemo(
-    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
-    [createCardFiles[1]],
-  )
-  const createPreview2 = useMemo(
-    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
-    [createCardFiles[2]],
-  )
-  const createPreview3 = useMemo(
-    () => (createCardFiles[3] ? URL.createObjectURL(createCardFiles[3]) : ''),
-    [createCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [createPreview0, createPreview1, createPreview2, createPreview3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [createPreview0, createPreview1, createPreview2, createPreview3])
+  const createPreviewUrls = useCardFilePreviewUrls(createCardFiles)
+  const editPreviewUrls = useCardFilePreviewUrls(editCardFiles)
 
   const editingType = useMemo(
     () => (editTypeId != null ? profileTypes.find((p) => p.id === editTypeId) ?? null : null),
@@ -389,64 +367,57 @@ export function Step2FrameFacade() {
   )
 
   const editSlotExistingResolved = useMemo(() => {
-    if (!editingType) return calcCardImageUrlsFromEntity({})
-    return calcCardImageUrlsFromEntity(editingType)
+    if (!editingType) return emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT)
+    return calcCardImageUrlsFromEntity(editingType, PROFILE_CARD_IMAGE_SLOT_COUNT)
   }, [editingType])
-
-  const editBlob0 = useMemo(
-    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
-    [editCardFiles[0]],
-  )
-  const editBlob1 = useMemo(
-    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
-    [editCardFiles[1]],
-  )
-  const editBlob2 = useMemo(
-    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
-    [editCardFiles[2]],
-  )
-  const editBlob3 = useMemo(
-    () => (editCardFiles[3] ? URL.createObjectURL(editCardFiles[3]) : ''),
-    [editCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [editBlob0, editBlob1, editBlob2, editBlob3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [editBlob0, editBlob1, editBlob2, editBlob3])
 
   const editCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         editCardFiles,
-        [editBlob0, editBlob1, editBlob2, editBlob3],
+        editPreviewUrls,
         editSlotExistingResolved,
         editCardTextureUrls,
       ),
-    [
-      editBlob0,
-      editBlob1,
-      editBlob2,
-      editBlob3,
-      editCardFiles,
-      editCardTextureUrls,
-      editSlotExistingResolved,
-    ],
+    [editPreviewUrls, editCardFiles, editCardTextureUrls, editSlotExistingResolved],
   )
 
   const createCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         createCardFiles,
-        [createPreview0, createPreview1, createPreview2, createPreview3],
-        ['', '', '', ''],
+        createPreviewUrls,
+        emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT),
         createCardTextureUrls,
       ),
-    [createCardFiles, createPreview0, createPreview1, createPreview2, createPreview3, createCardTextureUrls],
+    [createCardFiles, createPreviewUrls, createCardTextureUrls],
   )
+
+  const openCreateTexturePicker = useCallback((slot: number) => {
+    setTexturePickerTarget({ mode: 'create', slot })
+  }, [])
+
+  const openEditTexturePicker = useCallback((slot: number) => {
+    setTexturePickerTarget({ mode: 'edit', slot })
+  }, [])
+
+  const createCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: PROFILE_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: createCardTileUrls,
+    setFiles: setCreateCardFiles,
+    setTextures: setCreateCardTextures,
+    setTextureUrls: setCreateCardTextureUrls,
+    onOpenTexturePicker: openCreateTexturePicker,
+  })
+
+  const editCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: PROFILE_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: editCardTileUrls,
+    setFiles: setEditCardFiles,
+    setTextures: setEditCardTextures,
+    setTextureUrls: setEditCardTextureUrls,
+    onOpenTexturePicker: openEditTexturePicker,
+  })
 
   const openEditType = (t: CalculatorProfileType) => {
     closeMaterialSearch()
@@ -454,12 +425,10 @@ export function Step2FrameFacade() {
     setErr(null)
     setEditTypeId(t.id)
     setEditTypeName(t.name)
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    setEditCardFiles(emptyProfileCardImageFiles())
+    setEditCardTextures(emptyProfileCardTextureIds())
+    setEditCardTextureUrls(emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT))
+    editCardImageHandlers.resetCardFileInput()
     const m: Record<number, ColorFlags> = {}
     for (const c of t.colors ?? []) {
       m[c.color_material_id] = {
@@ -481,12 +450,10 @@ export function Step2FrameFacade() {
     closeMaterialSearch()
     setEditTypeId(null)
     setEditTypeName('')
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    setEditCardFiles(emptyProfileCardImageFiles())
+    setEditCardTextures(emptyProfileCardTextureIds())
+    setEditCardTextureUrls(emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT))
+    editCardImageHandlers.resetCardFileInput()
     setEditColors({})
     setEditColorsHit([])
     setErr(null)
@@ -496,12 +463,15 @@ export function Step2FrameFacade() {
     closeMaterialSearch()
     setCreateOpen(false)
     setCreateTypeName('')
-    setCreateCardFiles(emptyCalcCardImageFiles())
-    setCreateCardTextures(emptyCalcCardTextureIds())
-    setCreateCardTextureUrls(['', '', '', ''])
-    for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      PROFILE_CARD_IMAGE_SLOT_COUNT,
+      setCreateCardFiles,
+      setCreateCardTextures,
+      setCreateCardTextureUrls,
+      emptyProfileCardImageFiles,
+      emptyProfileCardTextureIds,
+    )
+    createCardImageHandlers.resetCardFileInput()
     setCreateColorsHit([])
     setCreateColors({})
     setErr(null)
@@ -528,8 +498,8 @@ export function Step2FrameFacade() {
       fd.append('is_active', String(t.is_active))
       fd.append('sort_order', String(t.sort_order))
       fd.append('colors', JSON.stringify(colors))
-      appendCalcCardImagesToFormData(fd, editCardFiles)
-      appendCalcCardTexturesToFormData(fd, editCardTextures)
+      appendProfileCardImagesToFormData(fd, editCardFiles)
+      appendProfileCardTexturesToFormData(fd, editCardTextures)
       const updated = await updateCalculatorProfileType(editTypeId, fd)
       setProfileTypes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
       closeEditType()
@@ -557,8 +527,8 @@ export function Step2FrameFacade() {
       fd.append('is_active', 'true')
       fd.append('sort_order', String(profileTypes.length))
       fd.append('colors', JSON.stringify(colors))
-      appendCalcCardImagesToFormData(fd, createCardFiles)
-      appendCalcCardTexturesToFormData(fd, createCardTextures)
+      appendProfileCardImagesToFormData(fd, createCardFiles)
+      appendProfileCardTexturesToFormData(fd, createCardTextures)
       const created = await createCalculatorProfileType(fd)
       setProfileTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
@@ -604,16 +574,19 @@ export function Step2FrameFacade() {
     if (!profileTypes.some((p) => p.id === editTypeId)) {
       setEditTypeId(null)
       setEditTypeName('')
-      setEditCardFiles(emptyCalcCardImageFiles())
-      setEditCardTextures(emptyCalcCardTextureIds())
-      setEditCardTextureUrls(['', '', '', ''])
-      for (const r of [editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
+      resetCardImageArrays(
+        PROFILE_CARD_IMAGE_SLOT_COUNT,
+        setEditCardFiles,
+        setEditCardTextures,
+        setEditCardTextureUrls,
+        emptyProfileCardImageFiles,
+        emptyProfileCardTextureIds,
+      )
+      editCardImageHandlers.resetCardFileInput()
       setEditColors({})
       setEditColorsHit([])
     }
-  }, [editTypeId, profileTypes])
+  }, [editTypeId, profileTypes, editCardImageHandlers])
 
   const selectedType = useMemo(
     () => profileTypes.find((p) => p.id === selectedTypeId) ?? null,
@@ -834,7 +807,7 @@ export function Step2FrameFacade() {
                     <CalculatorCardTileStriped
                       title={title}
                       versionKey={t.id}
-                      {...calcCardImageGridSlots(t)}
+                      {...calcCardImageGridSlots(t, PROFILE_CARD_IMAGE_SLOT_COUNT)}
                     />
                     <div className="tile-title">{title}</div>
                     <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
@@ -1052,26 +1025,12 @@ export function Step2FrameFacade() {
             onTypeNameChange={setCreateTypeName}
             namePlaceholder="Название типа профиля…"
             cardImageLabel="Изображения для карточки"
-            onCardFileChange={(slot, file) => {
-              setCreateCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setCreateCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setCreateCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
             cardTileUrls={createCardTileUrls}
-            cardInputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
+            onAddCardImage={createCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={createCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={createCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={createCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={createCardImageHandlers.onCardFileInputChange}
             onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
             colorsHit={createColorsHit}
             selectedColors={createColors}
@@ -1109,27 +1068,13 @@ export function Step2FrameFacade() {
             typeName={editTypeName}
             onTypeNameChange={setEditTypeName}
             namePlaceholder="Название типа профиля…"
-            cardImageLabel="Карточка: до 4 фото"
-            onCardFileChange={(slot, file) => {
-              setEditCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setEditCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setEditCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
+            cardImageLabel="Карточка: до 6 фото"
             cardTileUrls={editCardTileUrls}
-            cardInputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
+            onAddCardImage={editCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={editCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={editCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={editCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={editCardImageHandlers.onCardFileInputChange}
             onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
             colorsHit={editColorsHit}
             selectedColors={editColors}
@@ -1161,17 +1106,17 @@ export function Step2FrameFacade() {
             const applyUrls = mode === 'create' ? setCreateCardTextureUrls : setEditCardTextureUrls
             const applyFiles = mode === 'create' ? setCreateCardFiles : setEditCardFiles
             applyIds((prev) => {
-              const next: CalcCardTextureIds = [...prev]
+              const next = [...prev]
               next[slot] = item.id
               return next
             })
             applyUrls((prev) => {
-              const next: CalcCardImageUrls = [...prev]
+              const next = [...prev]
               next[slot] = item.image ?? ''
               return next
             })
             applyFiles((prev) => {
-              const next: CalcCardImageFiles = [...prev]
+              const next = [...prev]
               next[slot] = null
               return next
             })

@@ -591,13 +591,313 @@
   max-width: min(960px, 96vw);
 }
 
-.calculator-type-form-modal-body .frame2-create-grid {
+/* Не наследовать 2-колоночную сетку карточки материала — форма типа сама двухколоночная */
+.admin-modal--material-card.calculator-type-form-modal .calculator-type-form-modal-body.mat-form-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
   margin-top: 0.15rem;
+  grid-template-columns: unset;
+}
+
+.admin-modal--material-card.calculator-type-form-modal
+  .calculator-type-form-modal-body.mat-form-tab-panel
+  > .calculator-type-form-modal-content {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.calculator-type-form-modal-content {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0 0.35rem;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-grid {
+  display: grid;
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+  box-sizing: border-box;
+  gap: 1rem;
+  column-gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: unset;
+  grid-template-areas: unset;
+  align-items: stretch;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  grid-area: auto;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--ft-border);
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+  background: var(--ft-hover-surface-2);
+}
+
+.calculator-type-form-modal-body .frame2-block-title {
+  margin-bottom: 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--ft-border);
+  font-weight: 800;
+  color: var(--ft-accent-2);
+  font-family: var(--ft-font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: calc(var(--mat-scroll-fs, 0.82rem) * 0.96);
+}
+
+.calculator-type-form-modal-body .frame2-file-row {
+  margin-top: 0;
+}
+
+.calculator-type-form-modal-body .frame2-file-label {
+  font-size: var(--mat-scroll-fs);
+  font-weight: 600;
+  color: var(--ft-muted);
+}
+
+.calculator-type-form-modal-body .frame2-card-image-tile-row {
+  margin-top: 0;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-card-images-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-card-images-toolbar .frame2-colors-for-card-label {
+  margin-top: 0;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-section--images .frame2-checklist {
+  flex: 1 1 auto;
+  min-height: 5.5rem;
+  max-height: min(36vh, 260px);
+  margin-top: 0;
+  overflow-y: auto;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-section--images {
+  min-height: 11.5rem;
+}
+
+.calculator-type-form-card-image-row {
+  cursor: default;
+}
+
+.calculator-type-form-card-image-row:hover:not(.frame2-checkrow--disabled) {
+  border-color: var(--ft-accent-glow);
+  background: var(--ft-hover-surface-6);
+}
+
+.calculator-type-form-card-image-replace {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.calculator-type-form-card-image-replace:hover .frame2-check-name {
+  text-decoration: underline;
+}
+
+.calculator-type-form-card-image-remove.admin-primary {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.1rem 0.5rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+  box-shadow: none;
+}
+
+/* Material checklist rows: article + name share remaining space equally */
+.calculator-type-form-section--materials .frame2-checkrow .frame2-check-article,
+.calculator-type-form-section--materials .frame2-checkrow .frame2-check-name-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+}
+
+.calculator-type-form-section--materials .frame2-checkrow .frame2-check-name {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.frame2-checkrow-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.frame2-checkrow-gear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ft-border-strong);
+  background: var(--ft-btn-primary-bg);
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+  font: inherit;
+  padding: 0.1rem 0.35rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  cursor: pointer;
+  color: var(--ft-btn-primary-text);
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.frame2-checkrow-gear-btn:hover,
+.frame2-checkrow-gear-btn[aria-expanded='true'] {
+  background: var(--ft-btn-primary-bg-hover);
+  border-color: var(--ft-btn-primary-border-hover);
+}
+
+.frame2-checkrow-gear-btn--active {
+  border-color: var(--ft-accent-border-hover);
+  background: var(--ft-accent-bg-soft);
+  color: var(--ft-accent-2);
+}
+
+.frame2-checkrow-gear-btn--active:hover,
+.frame2-checkrow-gear-btn--active[aria-expanded='true'] {
+  background: var(--ft-accent-bg-hover);
+  border-color: var(--ft-accent-border-strong);
+}
+
+.frame2-checkrow-gear-ico {
+  font-size: 1em;
+  line-height: var(--mat-scroll-lh);
+  display: block;
+}
+
+.frame2-flags-popover {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 9.5rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  border-radius: 8px;
+  box-shadow: var(--ft-shadow-2);
+  box-sizing: border-box;
+}
+
+.frame2-flags-popover .frame2-flag {
+  font-size: 0.82rem;
+  color: var(--ft-config-muted);
+  font-weight: 700;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.frame2-flags-popover .frame2-flag input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--ft-accent-2, #cbb079);
+}
+
+.calculator-type-form-modal-body .calculator-type-form-card-image-row .calculator-type-form-card-image-remove.admin-primary {
+  margin-left: auto;
+}
+
+.frame2-checkrow > .calculator-type-form-card-image-remove.admin-primary {
+  margin-left: auto;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-materials-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-materials-toolbar .frame2-colors-for-card-label {
+  margin-top: 0;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-materials-toolbar .frame2-material-search-row {
+  flex-shrink: 0;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-materials-toolbar .frame2-material-tree-search-btn {
+  width: auto;
+  min-width: 5.5rem;
 }
 
 .calculator-type-form-modal-body .frame2-checklist {
-  max-height: min(38vh, 300px);
+  flex: 1 1 auto;
+  min-height: 5.5rem;
+  max-height: min(36vh, 260px);
+  margin-top: 0;
   overflow-y: auto;
+}
+
+.calculator-type-form-modal-body .calculator-type-form-section--materials {
+  min-height: 11.5rem;
+}
+
+.calculator-type-form-modal-actions.admin-row.mat-form-actions {
+  flex-shrink: 0;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ft-border);
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .calculator-type-form-modal-body .calculator-type-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calculator-type-form-modal-body .calculator-type-form-materials-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .calculator-type-form-modal-body .calculator-type-form-materials-toolbar .frame2-material-tree-search-btn {
+    width: 100%;
+  }
 }
 
 /* Создать папку (explorer): та же карточка, что у текстуры — флекс-колонка и скролл внутри дерева */

@@ -23,6 +23,7 @@ import {
   type MaterialTextureFields,
 } from './materialTextureLabel'
 import {
+  CALC_CARD_IMAGE_SLOT_COUNT,
   CalculatorCardTileStriped,
   appendCalcCardImagesToFormData,
   appendCalcCardTexturesToFormData,
@@ -31,10 +32,13 @@ import {
   calcCardImageUrlsFromEntity,
   emptyCalcCardImageFiles,
   emptyCalcCardTextureIds,
-  type CalcCardImageFiles,
-  type CalcCardImageUrls,
-  type CalcCardTextureIds,
+  emptyCardImageUrls,
 } from './calculatorCardTiles'
+import {
+  resetCardImageArrays,
+  useCardFilePreviewUrls,
+  useCardImageFormHandlers,
+} from './cardImageFormHelpers'
 import { TileGearMenu } from './TileGearMenu'
 import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
 import { MaterialTypeFormGrid } from './CalculatorTypeFormGrid'
@@ -129,25 +133,17 @@ export function Step4FrameFilling() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
-  const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [createCardTextures, setCreateCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const fillingCardInputRef0 = useRef<HTMLInputElement>(null)
-  const fillingCardInputRef1 = useRef<HTMLInputElement>(null)
-  const fillingCardInputRef2 = useRef<HTMLInputElement>(null)
-  const fillingCardInputRef3 = useRef<HTMLInputElement>(null)
+  const [createCardFiles, setCreateCardFiles] = useState<(File | null)[]>(emptyCalcCardImageFiles())
+  const [createCardTextures, setCreateCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
+  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
-  const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [editCardTextures, setEditCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [editCardTextureUrls, setEditCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const editFillingCardInputRef0 = useRef<HTMLInputElement>(null)
-  const editFillingCardInputRef1 = useRef<HTMLInputElement>(null)
-  const editFillingCardInputRef2 = useRef<HTMLInputElement>(null)
-  const editFillingCardInputRef3 = useRef<HTMLInputElement>(null)
+  const [editCardFiles, setEditCardFiles] = useState<(File | null)[]>(emptyCalcCardImageFiles())
+  const [editCardTextures, setEditCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
+  const [editCardTextureUrls, setEditCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [editFillingMatHit, setEditFillingMatHit] = useState<Material[]>([])
   const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
 
@@ -316,30 +312,8 @@ export function Step4FrameFilling() {
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, fillingTypes, selectedMaterialId])
 
-  const createPreview0 = useMemo(
-    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
-    [createCardFiles[0]],
-  )
-  const createPreview1 = useMemo(
-    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
-    [createCardFiles[1]],
-  )
-  const createPreview2 = useMemo(
-    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
-    [createCardFiles[2]],
-  )
-  const createPreview3 = useMemo(
-    () => (createCardFiles[3] ? URL.createObjectURL(createCardFiles[3]) : ''),
-    [createCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [createPreview0, createPreview1, createPreview2, createPreview3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [createPreview0, createPreview1, createPreview2, createPreview3])
+  const createPreviewUrls = useCardFilePreviewUrls(createCardFiles)
+  const editPreviewUrls = useCardFilePreviewUrls(editCardFiles)
 
   const editingFilling = useMemo(
     () => (editFillingId != null ? fillingTypes.find((p) => p.id === editFillingId) ?? null : null),
@@ -347,67 +321,63 @@ export function Step4FrameFilling() {
   )
 
   const editFillingSlotExistingResolved = useMemo(() => {
-    if (!editingFilling) return calcCardImageUrlsFromEntity({})
+    if (!editingFilling) return emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT)
     return calcCardImageUrlsFromEntity(editingFilling)
   }, [editingFilling])
-
-  const editBlob0 = useMemo(
-    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
-    [editCardFiles[0]],
-  )
-  const editBlob1 = useMemo(
-    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
-    [editCardFiles[1]],
-  )
-  const editBlob2 = useMemo(
-    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
-    [editCardFiles[2]],
-  )
-  const editBlob3 = useMemo(
-    () => (editCardFiles[3] ? URL.createObjectURL(editCardFiles[3]) : ''),
-    [editCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [editBlob0, editBlob1, editBlob2, editBlob3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [editBlob0, editBlob1, editBlob2, editBlob3])
 
   const editFillingCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         editCardFiles,
-        [editBlob0, editBlob1, editBlob2, editBlob3],
+        editPreviewUrls,
         editFillingSlotExistingResolved,
         editCardTextureUrls,
       ),
-    [editBlob0, editBlob1, editBlob2, editBlob3, editCardFiles, editCardTextureUrls, editFillingSlotExistingResolved],
+    [editPreviewUrls, editCardFiles, editCardTextureUrls, editFillingSlotExistingResolved],
   )
 
   const createCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         createCardFiles,
-        [createPreview0, createPreview1, createPreview2, createPreview3],
-        ['', '', '', ''],
+        createPreviewUrls,
+        emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT),
         createCardTextureUrls,
       ),
-    [createCardFiles, createPreview0, createPreview1, createPreview2, createPreview3, createCardTextureUrls],
+    [createCardFiles, createPreviewUrls, createCardTextureUrls],
   )
+
+  const createCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: CALC_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: createCardTileUrls,
+    setFiles: setCreateCardFiles,
+    setTextures: setCreateCardTextures,
+    setTextureUrls: setCreateCardTextureUrls,
+    onOpenTexturePicker: (slot) => setTexturePickerTarget({ mode: 'create', slot }),
+  })
+
+  const editCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: CALC_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: editFillingCardTileUrls,
+    setFiles: setEditCardFiles,
+    setTextures: setEditCardTextures,
+    setTextureUrls: setEditCardTextureUrls,
+    onOpenTexturePicker: (slot) => setTexturePickerTarget({ mode: 'edit', slot }),
+  })
 
   const closeEditFilling = () => {
     closeMaterialSearch()
     setEditFillingId(null)
     setEditFillingName('')
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setEditCardFiles,
+      setEditCardTextures,
+      setEditCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    editCardImageHandlers.resetCardFileInput()
     setEditFillingMatIds({})
     setEditFillingMatHit([])
     setErr(null)
@@ -417,12 +387,15 @@ export function Step4FrameFilling() {
     closeMaterialSearch()
     setCreateOpen(false)
     setCreateName('')
-    setCreateCardFiles(emptyCalcCardImageFiles())
-    setCreateCardTextures(emptyCalcCardTextureIds())
-    setCreateCardTextureUrls(['', '', '', ''])
-    for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setCreateCardFiles,
+      setCreateCardTextures,
+      setCreateCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    createCardImageHandlers.resetCardFileInput()
     setCreateMatHit([])
     setCreateMatIds({})
     setErr(null)
@@ -434,12 +407,15 @@ export function Step4FrameFilling() {
     setErr(null)
     setEditFillingId(t.id)
     setEditFillingName(t.name)
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setEditCardFiles,
+      setEditCardTextures,
+      setEditCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    editCardImageHandlers.resetCardFileInput()
     const ids: Record<number, true> = {}
     for (const m of t.materials ?? []) ids[m.material_id] = true
     setEditFillingMatIds(ids)
@@ -538,16 +514,19 @@ export function Step4FrameFilling() {
     if (!fillingTypes.some((p) => p.id === editFillingId)) {
       setEditFillingId(null)
       setEditFillingName('')
-      setEditCardFiles(emptyCalcCardImageFiles())
-      setEditCardTextures(emptyCalcCardTextureIds())
-      setEditCardTextureUrls(['', '', '', ''])
-      for (const r of [editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
+      resetCardImageArrays(
+        CALC_CARD_IMAGE_SLOT_COUNT,
+        setEditCardFiles,
+        setEditCardTextures,
+        setEditCardTextureUrls,
+        emptyCalcCardImageFiles,
+        emptyCalcCardTextureIds,
+      )
+      editCardImageHandlers.resetCardFileInput()
       setEditFillingMatIds({})
       setEditFillingMatHit([])
     }
-  }, [editFillingId, fillingTypes])
+  }, [editFillingId, fillingTypes, editCardImageHandlers])
 
   const selectedType = useMemo(
     () => fillingTypes.find((p) => p.id === selectedTypeId) ?? null,
@@ -951,28 +930,12 @@ export function Step4FrameFilling() {
             onTypeNameChange={setCreateName}
             namePlaceholder="Например: Лакобель, Мателюкс…"
             cardImageLabel="Изображения для карточки"
-            cardFiles={createCardFiles}
-            onCardFileChange={(slot, file) => {
-              setCreateCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setCreateCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setCreateCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
             cardTileUrls={createCardTileUrls}
-            cardInputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
-            cardAriaLabel="Фото карточки наполнения, до четырёх"
+            onAddCardImage={createCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={createCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={createCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={createCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={createCardImageHandlers.onCardFileInputChange}
             materialsBlockTitle="Материалы"
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
@@ -1008,28 +971,12 @@ export function Step4FrameFilling() {
             onTypeNameChange={setEditFillingName}
             namePlaceholder="Название…"
             cardImageLabel="Карточка: до 4 фото"
-            cardFiles={editCardFiles}
-            onCardFileChange={(slot, file) => {
-              setEditCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setEditCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setEditCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
             cardTileUrls={editFillingCardTileUrls}
-            cardInputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
-            cardAriaLabel="Фото карточки наполнения, до четырёх"
+            onAddCardImage={editCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={editCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={editCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={editCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={editCardImageHandlers.onCardFileInputChange}
             materialsBlockTitle="Материалы"
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
@@ -1066,17 +1013,17 @@ export function Step4FrameFilling() {
             const applyUrls = mode === 'create' ? setCreateCardTextureUrls : setEditCardTextureUrls
             const applyFiles = mode === 'create' ? setCreateCardFiles : setEditCardFiles
             applyIds((prev) => {
-              const next: CalcCardTextureIds = [...prev]
+              const next = [...prev]
               next[slot] = item.id
               return next
             })
             applyUrls((prev) => {
-              const next: CalcCardImageUrls = [...prev]
+              const next = [...prev]
               next[slot] = item.image ?? ''
               return next
             })
             applyFiles((prev) => {
-              const next: CalcCardImageFiles = [...prev]
+              const next = [...prev]
               next[slot] = null
               return next
             })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calcCardImageUrlsFromEntity, type CalcCardImageEntity } from './calculatorCardTiles'
+import { calcCardImageUrlsFromEntity, PROFILE_CARD_IMAGE_SLOT_COUNT, type CalcCardImageEntity } from './calculatorCardTiles'
 import { resolveMediaUrl } from './sketchFrame'
 
 function preloadImage(url: string): Promise<void> {
@@ -19,7 +19,7 @@ function preloadImage(url: string): Promise<void> {
 export function collectCalcCardImageUrls(entities: readonly CalcCardImageEntity[]): string[] {
   const out = new Set<string>()
   for (const entity of entities) {
-    for (const u of calcCardImageUrlsFromEntity(entity)) {
+    for (const u of calcCardImageUrlsFromEntity(entity, PROFILE_CARD_IMAGE_SLOT_COUNT)) {
       const t = (u ?? '').trim()
       if (t) out.add(t)
     }

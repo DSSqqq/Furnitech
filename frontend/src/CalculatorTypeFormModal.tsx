@@ -80,8 +80,8 @@ export function CalculatorTypeFormModal({
           </div>
           {error ? <div className="admin-error">{error}</div> : null}
           <div className="mat-form-tab-panel calculator-type-form-modal-body" role="region" aria-label={title}>
-            {children}
-            <div className="admin-row mat-form-actions">
+            <div className="calculator-type-form-modal-content">{children}</div>
+            <div className="admin-row mat-form-actions calculator-type-form-modal-actions">
               <button type="button" className="admin-secondary" disabled={busy} onClick={onClose}>
                 Отмена
               </button>

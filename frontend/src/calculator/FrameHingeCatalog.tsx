@@ -19,6 +19,7 @@ import {
   notifyFrameCalcSession,
 } from './frameCalcSession'
 import {
+  CALC_CARD_IMAGE_SLOT_COUNT,
   CalculatorCardTileStriped,
   appendCalcCardImagesToFormData,
   appendCalcCardTexturesToFormData,
@@ -27,10 +28,13 @@ import {
   calcCardImageUrlsFromEntity,
   emptyCalcCardImageFiles,
   emptyCalcCardTextureIds,
-  type CalcCardImageFiles,
-  type CalcCardImageUrls,
-  type CalcCardTextureIds,
+  emptyCardImageUrls,
 } from './calculatorCardTiles'
+import {
+  resetCardImageArrays,
+  useCardFilePreviewUrls,
+  useCardImageFormHandlers,
+} from './cardImageFormHelpers'
 import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
 import { MaterialTypeFormGrid } from './CalculatorTypeFormGrid'
 import { materialTextureLabel, type MaterialTextureFields } from './materialTextureLabel'
@@ -79,25 +83,17 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
-  const [createCardFiles, setCreateCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [createCardTextures, setCreateCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const hingeCardInputRef0 = useRef<HTMLInputElement>(null)
-  const hingeCardInputRef1 = useRef<HTMLInputElement>(null)
-  const hingeCardInputRef2 = useRef<HTMLInputElement>(null)
-  const hingeCardInputRef3 = useRef<HTMLInputElement>(null)
+  const [createCardFiles, setCreateCardFiles] = useState<(File | null)[]>(emptyCalcCardImageFiles())
+  const [createCardTextures, setCreateCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
+  const [createCardTextureUrls, setCreateCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
   const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
 
   const [editHingeId, setEditHingeId] = useState<number | null>(null)
   const [editHingeName, setEditHingeName] = useState('')
-  const [editCardFiles, setEditCardFiles] = useState<CalcCardImageFiles>(emptyCalcCardImageFiles())
-  const [editCardTextures, setEditCardTextures] = useState<CalcCardTextureIds>(emptyCalcCardTextureIds())
-  const [editCardTextureUrls, setEditCardTextureUrls] = useState<CalcCardImageUrls>(['', '', '', ''])
-  const editHingeCardInputRef0 = useRef<HTMLInputElement>(null)
-  const editHingeCardInputRef1 = useRef<HTMLInputElement>(null)
-  const editHingeCardInputRef2 = useRef<HTMLInputElement>(null)
-  const editHingeCardInputRef3 = useRef<HTMLInputElement>(null)
+  const [editCardFiles, setEditCardFiles] = useState<(File | null)[]>(emptyCalcCardImageFiles())
+  const [editCardTextures, setEditCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
+  const [editCardTextureUrls, setEditCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [editHingeMatHit, setEditHingeMatHit] = useState<Material[]>([])
   const [editHingeMatIds, setEditHingeMatIds] = useState<Record<number, true>>({})
 
@@ -259,30 +255,8 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, hingeTypes, selectedMaterialId])
 
-  const createPreview0 = useMemo(
-    () => (createCardFiles[0] ? URL.createObjectURL(createCardFiles[0]) : ''),
-    [createCardFiles[0]],
-  )
-  const createPreview1 = useMemo(
-    () => (createCardFiles[1] ? URL.createObjectURL(createCardFiles[1]) : ''),
-    [createCardFiles[1]],
-  )
-  const createPreview2 = useMemo(
-    () => (createCardFiles[2] ? URL.createObjectURL(createCardFiles[2]) : ''),
-    [createCardFiles[2]],
-  )
-  const createPreview3 = useMemo(
-    () => (createCardFiles[3] ? URL.createObjectURL(createCardFiles[3]) : ''),
-    [createCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [createPreview0, createPreview1, createPreview2, createPreview3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [createPreview0, createPreview1, createPreview2, createPreview3])
+  const createPreviewUrls = useCardFilePreviewUrls(createCardFiles)
+  const editPreviewUrls = useCardFilePreviewUrls(editCardFiles)
 
   const editingHinge = useMemo(
     () => (editHingeId != null ? hingeTypes.find((p) => p.id === editHingeId) ?? null : null),
@@ -290,67 +264,63 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
   )
 
   const editHingeSlotExistingResolved = useMemo(() => {
-    if (!editingHinge) return calcCardImageUrlsFromEntity({})
+    if (!editingHinge) return emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT)
     return calcCardImageUrlsFromEntity(editingHinge)
   }, [editingHinge])
-
-  const editBlob0 = useMemo(
-    () => (editCardFiles[0] ? URL.createObjectURL(editCardFiles[0]) : ''),
-    [editCardFiles[0]],
-  )
-  const editBlob1 = useMemo(
-    () => (editCardFiles[1] ? URL.createObjectURL(editCardFiles[1]) : ''),
-    [editCardFiles[1]],
-  )
-  const editBlob2 = useMemo(
-    () => (editCardFiles[2] ? URL.createObjectURL(editCardFiles[2]) : ''),
-    [editCardFiles[2]],
-  )
-  const editBlob3 = useMemo(
-    () => (editCardFiles[3] ? URL.createObjectURL(editCardFiles[3]) : ''),
-    [editCardFiles[3]],
-  )
-
-  useEffect(() => {
-    return () => {
-      for (const u of [editBlob0, editBlob1, editBlob2, editBlob3]) {
-        if (u) URL.revokeObjectURL(u)
-      }
-    }
-  }, [editBlob0, editBlob1, editBlob2, editBlob3])
 
   const editHingeCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         editCardFiles,
-        [editBlob0, editBlob1, editBlob2, editBlob3],
+        editPreviewUrls,
         editHingeSlotExistingResolved,
         editCardTextureUrls,
       ),
-    [editBlob0, editBlob1, editBlob2, editBlob3, editCardFiles, editCardTextureUrls, editHingeSlotExistingResolved],
+    [editPreviewUrls, editCardFiles, editCardTextureUrls, editHingeSlotExistingResolved],
   )
 
   const createCardTileUrls = useMemo(
     () =>
       calcCardImageTileUrls(
         createCardFiles,
-        [createPreview0, createPreview1, createPreview2, createPreview3],
-        ['', '', '', ''],
+        createPreviewUrls,
+        emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT),
         createCardTextureUrls,
       ),
-    [createCardFiles, createPreview0, createPreview1, createPreview2, createPreview3, createCardTextureUrls],
+    [createCardFiles, createPreviewUrls, createCardTextureUrls],
   )
+
+  const createCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: CALC_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: createCardTileUrls,
+    setFiles: setCreateCardFiles,
+    setTextures: setCreateCardTextures,
+    setTextureUrls: setCreateCardTextureUrls,
+    onOpenTexturePicker: (slot) => setTexturePickerTarget({ mode: 'create', slot }),
+  })
+
+  const editCardImageHandlers = useCardImageFormHandlers({
+    maxSlots: CALC_CARD_IMAGE_SLOT_COUNT,
+    tileUrls: editHingeCardTileUrls,
+    setFiles: setEditCardFiles,
+    setTextures: setEditCardTextures,
+    setTextureUrls: setEditCardTextureUrls,
+    onOpenTexturePicker: (slot) => setTexturePickerTarget({ mode: 'edit', slot }),
+  })
 
   const closeEditHinge = () => {
     closeMaterialSearch()
     setEditHingeId(null)
     setEditHingeName('')
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setEditCardFiles,
+      setEditCardTextures,
+      setEditCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    editCardImageHandlers.resetCardFileInput()
     setEditHingeMatIds({})
     setEditHingeMatHit([])
     setErr(null)
@@ -360,12 +330,15 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     closeMaterialSearch()
     setCreateOpen(false)
     setCreateName('')
-    setCreateCardFiles(emptyCalcCardImageFiles())
-    setCreateCardTextures(emptyCalcCardTextureIds())
-    setCreateCardTextureUrls(['', '', '', ''])
-    for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setCreateCardFiles,
+      setCreateCardTextures,
+      setCreateCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    createCardImageHandlers.resetCardFileInput()
     setCreateMatHit([])
     setCreateMatIds({})
     setErr(null)
@@ -377,12 +350,15 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     setErr(null)
     setEditHingeId(t.id)
     setEditHingeName(t.name)
-    setEditCardFiles(emptyCalcCardImageFiles())
-    setEditCardTextures(emptyCalcCardTextureIds())
-    setEditCardTextureUrls(['', '', '', ''])
-    for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]) {
-      if (r.current) r.current.value = ''
-    }
+    resetCardImageArrays(
+      CALC_CARD_IMAGE_SLOT_COUNT,
+      setEditCardFiles,
+      setEditCardTextures,
+      setEditCardTextureUrls,
+      emptyCalcCardImageFiles,
+      emptyCalcCardTextureIds,
+    )
+    editCardImageHandlers.resetCardFileInput()
     const ids: Record<number, true> = {}
     for (const m of t.materials ?? []) ids[m.material_id] = true
     setEditHingeMatIds(ids)
@@ -465,16 +441,19 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     if (!hingeTypes.some((p) => p.id === editHingeId)) {
       setEditHingeId(null)
       setEditHingeName('')
-      setEditCardFiles(emptyCalcCardImageFiles())
-      setEditCardTextures(emptyCalcCardTextureIds())
-      setEditCardTextureUrls(['', '', '', ''])
-      for (const r of [editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
+      resetCardImageArrays(
+        CALC_CARD_IMAGE_SLOT_COUNT,
+        setEditCardFiles,
+        setEditCardTextures,
+        setEditCardTextureUrls,
+        emptyCalcCardImageFiles,
+        emptyCalcCardTextureIds,
+      )
+      editCardImageHandlers.resetCardFileInput()
       setEditHingeMatIds({})
       setEditHingeMatHit([])
     }
-  }, [editHingeId, hingeTypes])
+  }, [editHingeId, hingeTypes, editCardImageHandlers])
 
   const selectedType = useMemo(
     () => hingeTypes.find((p) => p.id === selectedTypeId) ?? null,
@@ -738,28 +717,12 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
             onTypeNameChange={setCreateName}
             namePlaceholder="Например: Петля 110°, накладная…"
             cardImageLabel="Изображения для карточки"
-            cardFiles={createCardFiles}
-            onCardFileChange={(slot, file) => {
-              setCreateCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setCreateCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setCreateCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
             cardTileUrls={createCardTileUrls}
-            cardInputRefs={[hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
-            cardAriaLabel="Фото карточки типа петель, до четырёх"
+            onAddCardImage={createCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={createCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={createCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={createCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={createCardImageHandlers.onCardFileInputChange}
             materialsBlockTitle="Материалы (петли)"
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
@@ -795,28 +758,12 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
             onTypeNameChange={setEditHingeName}
             namePlaceholder="Название…"
             cardImageLabel="Карточка: до 4 фото"
-            cardFiles={editCardFiles}
-            onCardFileChange={(slot, file) => {
-              setEditCardFiles((prev) => {
-                const next: CalcCardImageFiles = [...prev]
-                next[slot] = file
-                return next
-              })
-              setEditCardTextures((prev) => {
-                const next: CalcCardTextureIds = [...prev]
-                next[slot] = null
-                return next
-              })
-              setEditCardTextureUrls((prev) => {
-                const next: CalcCardImageUrls = [...prev]
-                next[slot] = ''
-                return next
-              })
-            }}
             cardTileUrls={editHingeCardTileUrls}
-            cardInputRefs={[editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]}
-            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
-            cardAriaLabel="Фото карточки типа петель, до четырёх"
+            onAddCardImage={editCardImageHandlers.onAddCardImage}
+            onRemoveCardImage={editCardImageHandlers.onRemoveCardImage}
+            onReplaceCardImage={editCardImageHandlers.onReplaceCardImage}
+            cardFileInputRef={editCardImageHandlers.cardFileInputRef}
+            onCardFileInputChange={editCardImageHandlers.onCardFileInputChange}
             materialsBlockTitle="Материалы"
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
@@ -853,17 +800,17 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
             const applyUrls = mode === 'create' ? setCreateCardTextureUrls : setEditCardTextureUrls
             const applyFiles = mode === 'create' ? setCreateCardFiles : setEditCardFiles
             applyIds((prev) => {
-              const next: CalcCardTextureIds = [...prev]
+              const next = [...prev]
               next[slot] = item.id
               return next
             })
             applyUrls((prev) => {
-              const next: CalcCardImageUrls = [...prev]
+              const next = [...prev]
               next[slot] = item.image ?? ''
               return next
             })
             applyFiles((prev) => {
-              const next: CalcCardImageFiles = [...prev]
+              const next = [...prev]
               next[slot] = null
               return next
             })

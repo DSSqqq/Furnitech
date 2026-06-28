@@ -225,6 +225,12 @@ export type CalculatorProfileType = {
   card_image_4?: string | null
   card_texture_4?: number | null
   card_texture_4_image?: string | null
+  card_image_5?: string | null
+  card_texture_5?: number | null
+  card_texture_5_image?: string | null
+  card_image_6?: string | null
+  card_texture_6?: number | null
+  card_texture_6_image?: string | null
   is_active: boolean
   sort_order: number
   colors: CalculatorProfileTypeColorDto[]

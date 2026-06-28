@@ -691,6 +691,36 @@ class CalculatorProfileType(models.Model):
         null=True,
         blank=True,
     )
+    card_image_5 = models.ImageField(
+        "Картинка 5 (файл)",
+        upload_to="profile_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_5 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_5",
+        verbose_name="Картинка 5 из базы текстур",
+        null=True,
+        blank=True,
+    )
+    card_image_6 = models.ImageField(
+        "Картинка 6 (файл)",
+        upload_to="profile_types/",
+        max_length=300,
+        null=True,
+        blank=True,
+    )
+    card_texture_6 = models.ForeignKey(
+        TextureItem,
+        on_delete=models.SET_NULL,
+        related_name="profile_type_card_6",
+        verbose_name="Картинка 6 из базы текстур",
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField("Активен", default=True)
     sort_order = models.PositiveIntegerField("Порядок", default=0)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,12 +1,21 @@
-import type { RefObject } from 'react'
+import { useState, type RefObject, type ChangeEvent } from 'react'
 import type { Material } from '../types'
 import { MaterialCheckSwatch } from './MaterialCheckSwatch'
 import { materialTextureLabel, type MaterialTextureFields } from './materialTextureLabel'
 import {
-  ProfileCardImageTileRow,
-  type CalcCardImageFiles,
-  type CalcCardImageUrls,
+  CALC_CARD_IMAGE_SLOT_COUNT,
+  CardImageChecklist,
+  PROFILE_CARD_IMAGE_SLOT_COUNT,
 } from './calculatorCardTiles'
+import { MaterialColorFlagsGear, type ProfileColorFlags } from './materialColorFlagsGear'
+
+export type { ProfileColorFlags }
+
+const CHECKLIST_TEXT_MAX = 10
+
+function truncateChecklistText(text: string, maxLen = CHECKLIST_TEXT_MAX): string {
+  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text
+}
 
 function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
@@ -21,17 +30,12 @@ export type MaterialTypeFormGridProps = {
   onTypeNameChange: (value: string) => void
   namePlaceholder: string
   cardImageLabel: string
-  cardFiles: CalcCardImageFiles
-  onCardFileChange: (slot: number, file: File | null) => void
-  cardTileUrls: CalcCardImageUrls
-  cardInputRefs: [
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-  ]
-  onPickTextureSlot: (slot: number) => void
-  cardAriaLabel?: string
+  cardTileUrls: readonly string[]
+  onAddCardImage: () => void
+  onRemoveCardImage: (slot: number) => void
+  onReplaceCardImage: (slot: number) => void
+  cardFileInputRef: RefObject<HTMLInputElement | null>
+  onCardFileInputChange: (e: ChangeEvent<HTMLInputElement>) => void
   materialsBlockTitle: string
   materialsListLabel: string
   onOpenMaterialSearch: () => void
@@ -48,11 +52,12 @@ export function MaterialTypeFormGrid({
   onTypeNameChange,
   namePlaceholder,
   cardImageLabel,
-  onCardFileChange,
   cardTileUrls,
-  cardInputRefs,
-  onPickTextureSlot,
-  cardAriaLabel,
+  onAddCardImage,
+  onRemoveCardImage,
+  onReplaceCardImage,
+  cardFileInputRef,
+  onCardFileInputChange,
   materialsBlockTitle,
   materialsListLabel,
   onOpenMaterialSearch,
@@ -62,8 +67,8 @@ export function MaterialTypeFormGrid({
   texByMaterialId,
 }: MaterialTypeFormGridProps) {
   return (
-    <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-      <div className="frame2-block frame2-create-tl">
+    <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim calculator-type-form-grid">
+      <div className="frame2-block frame2-create-tl calculator-type-form-section calculator-type-form-section--images">
         <div className="frame2-block-title">{typeBlockTitle}</div>
         <input
           className="admin-input"
@@ -71,65 +76,74 @@ export function MaterialTypeFormGrid({
           onChange={(e) => onTypeNameChange(e.target.value)}
           placeholder={namePlaceholder}
         />
-        <div className="frame2-file-row">
-          <div className="frame2-file-label-row">
-            <span className="frame2-file-label">{cardImageLabel}</span>
-          </div>
-          {cardInputRefs.map((refEl, slot) => (
-            <input
-              key={slot}
-              id={`${idPrefix}-card-image-${slot}`}
-              ref={refEl}
-              className="frame2-file-input frame2-file-input--sr"
-              type="file"
-              accept="image/*"
-              onChange={(e) => onCardFileChange(slot, e.target.files?.[0] ?? null)}
-            />
-          ))}
-        </div>
-        <ProfileCardImageTileRow
+        <CardImageChecklist
+          idPrefix={idPrefix}
+          label={cardImageLabel}
           urls={cardTileUrls}
-          inputRefs={cardInputRefs}
-          onPickSlot={onPickTextureSlot}
-          groupAriaLabel={cardAriaLabel}
+          maxSlots={CALC_CARD_IMAGE_SLOT_COUNT}
+          onAdd={onAddCardImage}
+          onRemove={onRemoveCardImage}
+          onReplace={onReplaceCardImage}
+          fileInputRef={cardFileInputRef}
+          onFileInputChange={onCardFileInputChange}
         />
       </div>
 
-      <div className="frame2-block frame2-create-tr">
+      <div className="frame2-block frame2-create-tr calculator-type-form-section calculator-type-form-section--materials">
         <div className="frame2-block-title">{materialsBlockTitle}</div>
-        <div className="frame2-material-search-row">
-          <button type="button" className="admin-secondary frame2-material-tree-search-btn" onClick={onOpenMaterialSearch}>
-            Поиск
-          </button>
-        </div>
-        <div className="frame2-file-row frame2-colors-for-card-label">
-          <div className="frame2-file-label-row">
-            <span className="frame2-file-label">{materialsListLabel}</span>
+        <div className="calculator-type-form-materials-toolbar">
+          <div className="frame2-file-row frame2-colors-for-card-label">
+            <div className="frame2-file-label-row">
+              <span className="frame2-file-label">{materialsListLabel}</span>
+            </div>
+          </div>
+          <div className="frame2-material-search-row">
+            <button type="button" className="admin-secondary frame2-material-tree-search-btn" onClick={onOpenMaterialSearch}>
+              Поиск
+            </button>
           </div>
         </div>
         {materialsHit.length > 0 && (
           <ul className="frame2-checklist">
-            {materialsHit.map((m) => (
-              <li key={m.id}>
-                <label
-                  className={['frame2-checkrow', selectedMaterialIds[m.id] ? 'frame2-checkrow--checked' : '']
-                    .filter(Boolean)
-                    .join(' ')}
-                  title={matLabel(m)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedMaterialIds[m.id] === true}
-                    onChange={() => onToggleMaterial(m.id)}
-                  />
-                  <span className="frame2-check-article">{m.article || '—'}</span>
-                  <MaterialCheckSwatch name={materialTextureLabel(m)} material={m} texExtra={texByMaterialId[m.id]} />
-                  <span className="frame2-check-name-wrap">
-                    <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                  </span>
-                </label>
-              </li>
-            ))}
+            {materialsHit.map((m) => {
+              const checked = selectedMaterialIds[m.id] === true
+              const articleFull = m.article || '—'
+              const nameFull = materialTextureLabel(m)
+              return (
+                <li key={m.id}>
+                  <div
+                    className={['frame2-checkrow', checked ? 'frame2-checkrow--checked' : ''].filter(Boolean).join(' ')}
+                    title={matLabel(m)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleMaterial(m.id)}
+                    />
+                    <MaterialCheckSwatch name={nameFull} material={m} texExtra={texByMaterialId[m.id]} />
+                    <span className="frame2-check-article" title={articleFull}>
+                      {truncateChecklistText(articleFull)}
+                    </span>
+                    <span className="frame2-check-name-wrap">
+                      <span className="frame2-check-name" title={nameFull}>
+                        {truncateChecklistText(nameFull)}
+                      </span>
+                    </span>
+                    {checked ? (
+                      <button
+                        type="button"
+                        className="calculator-type-form-card-image-remove admin-primary"
+                        aria-label={`Удалить ${matLabel(m)}`}
+                        title={`Удалить ${matLabel(m)}`}
+                        onClick={() => onToggleMaterial(m.id)}
+                      >
+                        Удалить
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
         {Object.keys(selectedMaterialIds).length > 0 && (
@@ -140,23 +154,18 @@ export function MaterialTypeFormGrid({
   )
 }
 
-export type ProfileColorFlags = { is_new: boolean; is_hit: boolean; is_sale: boolean }
-
 export type ProfileTypeFormGridProps = {
   idPrefix: string
   typeName: string
   onTypeNameChange: (value: string) => void
   namePlaceholder: string
   cardImageLabel: string
-  onCardFileChange: (slot: number, file: File | null) => void
-  cardTileUrls: CalcCardImageUrls
-  cardInputRefs: [
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-    RefObject<HTMLInputElement | null>,
-  ]
-  onPickTextureSlot: (slot: number) => void
+  cardTileUrls: readonly string[]
+  onAddCardImage: () => void
+  onRemoveCardImage: (slot: number) => void
+  onReplaceCardImage: (slot: number) => void
+  cardFileInputRef: RefObject<HTMLInputElement | null>
+  onCardFileInputChange: (e: ChangeEvent<HTMLInputElement>) => void
   onOpenMaterialSearch: () => void
   colorsHit: Material[]
   selectedColors: Record<number, ProfileColorFlags>
@@ -171,10 +180,12 @@ export function ProfileTypeFormGrid({
   onTypeNameChange,
   namePlaceholder,
   cardImageLabel,
-  onCardFileChange,
   cardTileUrls,
-  cardInputRefs,
-  onPickTextureSlot,
+  onAddCardImage,
+  onRemoveCardImage,
+  onReplaceCardImage,
+  cardFileInputRef,
+  onCardFileInputChange,
   onOpenMaterialSearch,
   colorsHit,
   selectedColors,
@@ -182,9 +193,11 @@ export function ProfileTypeFormGrid({
   onToggleColorFlag,
   texByMaterialId,
 }: ProfileTypeFormGridProps) {
+  const [openFlagsMaterialId, setOpenFlagsMaterialId] = useState<number | null>(null)
+
   return (
-    <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-      <div className="frame2-block frame2-create-tl">
+    <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim calculator-type-form-grid">
+      <div className="frame2-block frame2-create-tl calculator-type-form-section calculator-type-form-section--images">
         <div className="frame2-block-title">Тип профиля</div>
         <input
           className="admin-input"
@@ -192,35 +205,31 @@ export function ProfileTypeFormGrid({
           onChange={(e) => onTypeNameChange(e.target.value)}
           placeholder={namePlaceholder}
         />
-        <div className="frame2-file-row">
-          <div className="frame2-file-label-row">
-            <span className="frame2-file-label">{cardImageLabel}</span>
-          </div>
-          {cardInputRefs.map((refEl, slot) => (
-            <input
-              key={slot}
-              id={`${idPrefix}-card-image-${slot}`}
-              ref={refEl}
-              className="frame2-file-input frame2-file-input--sr"
-              type="file"
-              accept="image/*"
-              onChange={(e) => onCardFileChange(slot, e.target.files?.[0] ?? null)}
-            />
-          ))}
-        </div>
-        <ProfileCardImageTileRow urls={cardTileUrls} inputRefs={cardInputRefs} onPickSlot={onPickTextureSlot} />
+        <CardImageChecklist
+          idPrefix={idPrefix}
+          label={cardImageLabel}
+          urls={cardTileUrls}
+          maxSlots={PROFILE_CARD_IMAGE_SLOT_COUNT}
+          onAdd={onAddCardImage}
+          onRemove={onRemoveCardImage}
+          onReplace={onReplaceCardImage}
+          fileInputRef={cardFileInputRef}
+          onFileInputChange={onCardFileInputChange}
+        />
       </div>
 
-      <div className="frame2-block frame2-create-tr">
+      <div className="frame2-block frame2-create-tr calculator-type-form-section calculator-type-form-section--materials">
         <div className="frame2-block-title">Цвета (материалы)</div>
-        <div className="frame2-material-search-row">
-          <button type="button" className="admin-secondary frame2-material-tree-search-btn" onClick={onOpenMaterialSearch}>
-            Поиск
-          </button>
-        </div>
-        <div className="frame2-file-row frame2-colors-for-card-label">
-          <div className="frame2-file-label-row">
-            <span className="frame2-file-label">Цвета для карточки</span>
+        <div className="calculator-type-form-materials-toolbar">
+          <div className="frame2-file-row frame2-colors-for-card-label">
+            <div className="frame2-file-label-row">
+              <span className="frame2-file-label">Цвета для карточки</span>
+            </div>
+          </div>
+          <div className="frame2-material-search-row">
+            <button type="button" className="admin-secondary frame2-material-tree-search-btn" onClick={onOpenMaterialSearch}>
+              Поиск
+            </button>
           </div>
         </div>
         {colorsHit.length > 0 && (
@@ -228,6 +237,8 @@ export function ProfileTypeFormGrid({
             {colorsHit.map((m) => {
               const checked = selectedColors[m.id] != null
               const flags = selectedColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
+              const articleFull = m.article || '—'
+              const nameFull = materialTextureLabel(m)
               return (
                 <li key={m.id}>
                   <div
@@ -235,40 +246,40 @@ export function ProfileTypeFormGrid({
                     title={matLabel(m)}
                   >
                     <input type="checkbox" checked={checked} onChange={() => onToggleColor(m.id)} />
-                    <span className="frame2-check-article">{m.article || '—'}</span>
-                    <MaterialCheckSwatch name={materialTextureLabel(m)} material={m} texExtra={texByMaterialId[m.id]} />
-                    <span className="frame2-check-name-wrap">
-                      <span className="frame2-check-name">{materialTextureLabel(m)}</span>
+                    <MaterialCheckSwatch name={nameFull} material={m} texExtra={texByMaterialId[m.id]} />
+                    <span className="frame2-check-article" title={articleFull}>
+                      {truncateChecklistText(articleFull)}
                     </span>
+                    <span className="frame2-check-name-wrap">
+                      <span className="frame2-check-name" title={nameFull}>
+                        {truncateChecklistText(nameFull)}
+                      </span>
+                    </span>
+                    {checked ? (
+                      <div className="frame2-checkrow-actions">
+                        <MaterialColorFlagsGear
+                          flags={flags}
+                          onToggleFlag={(flag) => onToggleColorFlag(m.id, flag)}
+                          open={openFlagsMaterialId === m.id}
+                          onToggle={(e) => {
+                            e.stopPropagation()
+                            setOpenFlagsMaterialId((prev) => (prev === m.id ? null : m.id))
+                          }}
+                          onClose={() => setOpenFlagsMaterialId(null)}
+                          ariaLabel={`Метки: ${matLabel(m)}`}
+                        />
+                        <button
+                          type="button"
+                          className="calculator-type-form-card-image-remove admin-primary"
+                          aria-label={`Удалить ${matLabel(m)}`}
+                          title={`Удалить ${matLabel(m)}`}
+                          onClick={() => onToggleColor(m.id)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                  {checked && (
-                    <div className="frame2-flags">
-                      <label className="frame2-flag">
-                        <input
-                          type="checkbox"
-                          checked={flags.is_new}
-                          onChange={() => onToggleColorFlag(m.id, 'is_new')}
-                        />{' '}
-                        New
-                      </label>
-                      <label className="frame2-flag">
-                        <input
-                          type="checkbox"
-                          checked={flags.is_hit}
-                          onChange={() => onToggleColorFlag(m.id, 'is_hit')}
-                        />{' '}
-                        Hit
-                      </label>
-                      <label className="frame2-flag">
-                        <input
-                          type="checkbox"
-                          checked={flags.is_sale}
-                          onChange={() => onToggleColorFlag(m.id, 'is_sale')}
-                        />{' '}
-                        Sale
-                      </label>
-                    </div>
-                  )}
                 </li>
               )
             })}
