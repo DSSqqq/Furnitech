@@ -402,6 +402,8 @@ export function AdminApp({ user, onLogout }: AdminProps) {
   const [materialsListLoading, setMaterialsListLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [editing, setEditing] = useState<Material | 'new' | null>(null)
+  /** Полная карточка-источник для «Дублировать» (форма создания с предзаполнением). */
+  const [duplicateFrom, setDuplicateFrom] = useState<Material | null>(null)
   const [extrasTarget, setExtrasTarget] = useState<Material | null>(null)
   const [extrasRelated, setExtrasRelated] = useState<RelatedItemState[]>([])
   const [extrasBasePrice, setExtrasBasePrice] = useState('0')
@@ -1495,6 +1497,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   }
                   onClick={() => {
                     setExtrasTarget(null)
+                    setDuplicateFrom(null)
                     setEditing('new')
                   }}
                 >
@@ -1502,7 +1505,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                 </button>
                 {editing ? (
                   <p className="admin-material-card-context" aria-live="polite">
-                    {editing === 'new' ? 'Новый материал' : (editing as Material).name.trim() || '—'}
+                    {editing === 'new'
+                      ? duplicateFrom
+                        ? `Копия: ${duplicateFrom.name.trim() || '—'}`
+                        : 'Новый материал'
+                      : (editing as Material).name.trim() || '—'}
                   </p>
                 ) : null}
                 <div
@@ -1619,7 +1626,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             ) : null}
           </div>
           {editing &&
-            (editing !== 'new' || selected != null) &&
+            (editing !== 'new' || selected != null || duplicateFrom != null) &&
             createPortal(
               <div
                 className="admin-modal-backdrop"
@@ -1633,15 +1640,34 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MaterialForm
-                    key={editing === 'new' ? 'new' : (editing as Material).id}
+                    key={
+                      editing === 'new'
+                        ? duplicateFrom
+                          ? `duplicate-${duplicateFrom.id}`
+                          : 'new'
+                        : (editing as Material).id
+                    }
                     uomList={uom}
                     mclassesList={mclasses}
-                    categoryId={editing === 'new' ? (selected as number) : (editing as Material).category}
+                    categoryId={
+                      editing === 'new'
+                        ? (duplicateFrom?.category ?? (selected as number))
+                        : (editing as Material).category
+                    }
                     material={editing === 'new' ? null : editing}
-                    onClose={() => setEditing(null)}
+                    duplicateFrom={editing === 'new' ? duplicateFrom : null}
+                    onClose={() => {
+                      setEditing(null)
+                      setDuplicateFrom(null)
+                    }}
+                    onDuplicate={(source) => {
+                      setDuplicateFrom(source)
+                      setEditing('new')
+                    }}
                     onDeleted={(id) => {
                       setMaterials((prev) => prev.filter((m) => m.id !== id))
                       setEditing(null)
+                      setDuplicateFrom(null)
                       setExtrasTarget((et) => (et?.id === id ? null : et))
                     }}
                     onSaved={(m) => {
@@ -1649,6 +1675,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
                         if (editing === 'new') return [...prev, m]
                         return prev.map((x) => (x.id === m.id ? m : x))
                       })
+                      setDuplicateFrom(null)
                     }}
                   />
                 </section>
@@ -1876,74 +1903,87 @@ const PRICING_CALC_FLAGS: { mode: Exclude<PricingCalcMode, ''>; label: string }[
   { mode: 'piece', label: 'Штуки' },
 ]
 
+function buildMaterialFormFields(
+  source: Material | null | undefined,
+  uomList: UnitOfMeasure[],
+  options?: { clearIdentity?: boolean },
+) {
+  const clearIdentity = options?.clearIdentity ?? false
+  return {
+    name: clearIdentity ? '' : (source?.name ?? ''),
+    article: clearIdentity ? '' : (source?.article ?? ''),
+    uom_id: (source as any)?.uom_id ?? (source as any)?.uom?.id ?? (uomList[0]?.id ?? 0),
+    base_price: formatDecimalStringForInput(String(source?.base_price ?? '0'), DECIMAL_FRACTION_DIGITS),
+    note: source?.note ?? '',
+    rounding_mode: (source?.rounding_mode ?? 'none') as RoundingMode,
+    rounding_multiple: source?.rounding_multiple ?? '',
+    excess_coefficient: formatDecimalStringForInput(String(source?.excess_coefficient ?? '1'), 6),
+    material_class_ids: normalizeMaterialClassIds(source?.material_class_ids),
+    thickness: formatDecimalStringForInput(String(source?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
+    min_length: formatDecimalStringForInput(String((source as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
+    max_length: formatDecimalStringForInput(String(source?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
+    min_width: formatDecimalStringForInput(String((source as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
+    max_width: formatDecimalStringForInput(String(source?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
+    pricing_calc_mode: (source?.pricing_calc_mode ?? '') as PricingCalcMode,
+    texture_mode: (source?.texture_mode ?? 'texture') as string,
+    texture_color: source?.texture_color ?? '#ffffff',
+    texture_image: source?.texture_image ?? null,
+    tex_offset_x: formatDecimalStringForInput(String(source?.tex_offset_x ?? '0'), DECIMAL_FRACTION_DIGITS),
+    tex_offset_y: formatDecimalStringForInput(String(source?.tex_offset_y ?? '0'), DECIMAL_FRACTION_DIGITS),
+    tex_step_x: formatDecimalStringForInput(String(source?.tex_step_x ?? '100'), DECIMAL_FRACTION_DIGITS),
+    tex_step_y: formatDecimalStringForInput(String(source?.tex_step_y ?? '100'), DECIMAL_FRACTION_DIGITS),
+    tex_opacity: formatDecimalStringForInput(String(source?.tex_opacity ?? '1'), 3),
+    tex_mirror: source?.tex_mirror ?? false,
+    tex_specular_sharpness: formatDecimalStringForInput(String(source?.tex_specular_sharpness ?? '0.5'), 3),
+    tex_specular_brightness: formatDecimalStringForInput(String(source?.tex_specular_brightness ?? '0.35'), 3),
+    tex_rotation_deg: formatDecimalStringForInput(String(source?.tex_rotation_deg ?? '0'), 2),
+  }
+}
+
 function MaterialForm({
   uomList,
   mclassesList,
   categoryId,
   material,
+  duplicateFrom,
   onClose,
   onDeleted,
   onSaved,
+  onDuplicate,
 }: {
   uomList: UnitOfMeasure[]
   mclassesList: MaterialClass[]
   categoryId: number
   material: Material | null
+  duplicateFrom?: Material | null
   onClose: () => void
   onDeleted: (id: number) => void
   onSaved: (m: Material) => void
+  onDuplicate: (source: Material) => void
 }) {
   const materialUomSelectId = useId().replace(/:/g, '')
+  const formSource = duplicateFrom ?? material
   const [activeTab, setActiveTab] = useState<'general' | 'texture'>('general')
   const [uomOptions, setUomOptions] = useState<UnitOfMeasure[]>(() => sortUomForSelect(uomList))
   const [uomLoading, setUomLoading] = useState(uomList.length === 0)
   const [materialDeleteOpen, setMaterialDeleteOpen] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [texturePickerOpen, setTexturePickerOpen] = useState(false)
   const [textureLibraryItemId, setTextureLibraryItemId] = useState<number | null>(
-    material?.texture_library_item ?? null
+    formSource?.texture_library_item ?? null
   )
   const [textureLibraryItemName, setTextureLibraryItemName] = useState(
-    material?.texture_library_item_name ?? ''
+    formSource?.texture_library_item_name ?? ''
   )
   const [textureClearRequested, setTextureClearRequested] = useState(false)
-  const [form, setForm] = useState({
-    name: material?.name ?? '',
-    article: material?.article ?? '',
-    uom_id: (material as any)?.uom_id ?? (material as any)?.uom?.id ?? (uomList[0]?.id ?? 0),
-    base_price: formatDecimalStringForInput(String(material?.base_price ?? '0'), DECIMAL_FRACTION_DIGITS),
-    note: material?.note ?? '',
-    rounding_mode: (material?.rounding_mode ?? 'none') as RoundingMode,
-    rounding_multiple: material?.rounding_multiple ?? '',
-    excess_coefficient: formatDecimalStringForInput(
-      String(material?.excess_coefficient ?? '1'),
-      6
-    ),
-    material_class_ids: normalizeMaterialClassIds(material?.material_class_ids),
-    thickness: formatDecimalStringForInput(String(material?.thickness ?? '0'), DECIMAL_FRACTION_DIGITS),
-    min_length: formatDecimalStringForInput(String((material as any)?.min_length ?? '0'), DECIMAL_FRACTION_DIGITS),
-    max_length: formatDecimalStringForInput(String(material?.max_length ?? '0'), DECIMAL_FRACTION_DIGITS),
-    min_width: formatDecimalStringForInput(String((material as any)?.min_width ?? '0'), DECIMAL_FRACTION_DIGITS),
-    max_width: formatDecimalStringForInput(String(material?.max_width ?? '0'), DECIMAL_FRACTION_DIGITS),
-    pricing_calc_mode: (material?.pricing_calc_mode ?? '') as PricingCalcMode,
-
-    texture_mode: (material?.texture_mode ?? 'texture') as string,
-    texture_color: material?.texture_color ?? '#ffffff',
-    texture_image: material?.texture_image ?? null,
-    tex_offset_x: formatDecimalStringForInput(String(material?.tex_offset_x ?? '0'), DECIMAL_FRACTION_DIGITS),
-    tex_offset_y: formatDecimalStringForInput(String(material?.tex_offset_y ?? '0'), DECIMAL_FRACTION_DIGITS),
-    tex_step_x: formatDecimalStringForInput(String(material?.tex_step_x ?? '100'), DECIMAL_FRACTION_DIGITS),
-    tex_step_y: formatDecimalStringForInput(String(material?.tex_step_y ?? '100'), DECIMAL_FRACTION_DIGITS),
-    tex_opacity: formatDecimalStringForInput(String(material?.tex_opacity ?? '1'), 3),
-    tex_mirror: material?.tex_mirror ?? false,
-    tex_specular_sharpness: formatDecimalStringForInput(String(material?.tex_specular_sharpness ?? '0.5'), 3),
-    tex_specular_brightness: formatDecimalStringForInput(String(material?.tex_specular_brightness ?? '0.35'), 3),
-    tex_rotation_deg: formatDecimalStringForInput(String(material?.tex_rotation_deg ?? '0'), 2),
-  })
+  const [form, setForm] = useState(() =>
+    buildMaterialFormFields(formSource, uomList, { clearIdentity: duplicateFrom != null && material == null })
+  )
   const [saving, setSaving] = useState(false)
   const [localErr, setLocalErr] = useState<string | null>(null)
   const [classPickOpen, setClassPickOpen] = useState(false)
   const [relatedItems, setRelatedItems] = useState<RelatedItemState[]>(() =>
-    materialExtrasInitRelated(material)
+    materialExtrasInitRelated(formSource)
   )
   const matClassInputRef = useRef<HTMLDivElement>(null)
   const matClassRowRef = useRef<HTMLDivElement>(null)
@@ -2192,13 +2232,29 @@ function MaterialForm({
       .finally(() => setSaving(false))
   }
 
+  const startDuplicate = () => {
+    if (material == null || duplicating || saving) return
+    setDuplicating(true)
+    setLocalErr(null)
+    fetchMaterial(material.id)
+      .then((full) => onDuplicate(full))
+      .catch((e) => setLocalErr(e instanceof Error ? e.message : String(e)))
+      .finally(() => setDuplicating(false))
+  }
+
+  const formActionsBusy = saving || duplicating
+
   return (
     <>
     <div className="mat-form">
       <div className="mat-form-head">
         <div className="admin-heading-row mat-form-title-line">
           <h3 id="material-card-dialog-title" className="admin-h2">
-            {material ? form.name.trim() || 'Без названия' : 'Новый материал'}
+            {material
+              ? form.name.trim() || 'Без названия'
+              : duplicateFrom
+                ? 'Новый материал (копия)'
+                : 'Новый материал'}
           </h3>
         </div>
         <button
@@ -2206,7 +2262,7 @@ function MaterialForm({
           className="admin-primary admin-modal-head-icon-close"
           aria-label="Закрыть"
           title="Закрыть"
-          disabled={saving}
+          disabled={formActionsBusy}
           onClick={onClose}
         >
           {MODAL_CLOSE_X_SVG}
@@ -2556,19 +2612,29 @@ function MaterialForm({
 
           <div className="admin-row mat-form-actions">
             {material && (
-              <button
-                type="button"
-                className="admin-secondary admin-danger"
-                disabled={saving}
-                onClick={() => setMaterialDeleteOpen(true)}
-              >
-                Удалить
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="admin-secondary"
+                  disabled={formActionsBusy}
+                  onClick={startDuplicate}
+                >
+                  {duplicating ? 'Копирование…' : 'Дублировать'}
+                </button>
+                <button
+                  type="button"
+                  className="admin-secondary admin-danger"
+                  disabled={formActionsBusy}
+                  onClick={() => setMaterialDeleteOpen(true)}
+                >
+                  Удалить
+                </button>
+              </>
             )}
             <button
               type="button"
               className="admin-primary"
-              disabled={saving}
+              disabled={formActionsBusy}
               onClick={save}
             >
               {saving ? 'Сохранение…' : 'Сохранить'}
@@ -2716,19 +2782,29 @@ function MaterialForm({
 
               <div className="admin-row mat-form-actions">
                 {material && (
-                  <button
-                    type="button"
-                    className="admin-secondary admin-danger"
-                    disabled={saving}
-                    onClick={() => setMaterialDeleteOpen(true)}
-                  >
-                    Удалить
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      disabled={formActionsBusy}
+                      onClick={startDuplicate}
+                    >
+                      {duplicating ? 'Копирование…' : 'Дублировать'}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-secondary admin-danger"
+                      disabled={formActionsBusy}
+                      onClick={() => setMaterialDeleteOpen(true)}
+                    >
+                      Удалить
+                    </button>
+                  </>
                 )}
                 <button
                   type="button"
                   className="admin-primary"
-                  disabled={saving}
+                  disabled={formActionsBusy}
                   onClick={save}
                 >
                   {saving ? 'Сохранение…' : 'Сохранить'}
