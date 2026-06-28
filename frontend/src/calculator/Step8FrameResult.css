@@ -339,9 +339,8 @@
   line-height: 1.45;
 }
 
-.step8-modal--success .step8-modal__actions {
+.step8-modal--success .admin-row.mat-form-actions {
   margin-top: 1.15rem;
-  display: flex;
   justify-content: center;
 }
 

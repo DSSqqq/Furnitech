@@ -1829,7 +1829,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               Папка «{folderDeleteModal.name}» будет удалена безвозвратно вместе со всем содержимым: все вложенные
               папки и все материалы в этой папке и в подпапках. Продолжить?
             </p>
-            <div className="admin-modal-actions">
+            <div className="admin-row mat-form-actions">
               <button
                 type="button"
                 className="admin-secondary"
@@ -1839,7 +1839,7 @@ export function AdminApp({ user, onLogout }: AdminProps) {
               </button>
               <button
                 type="button"
-                className="admin-primary admin-modal-confirm"
+                className="admin-primary"
                 onClick={confirmDeleteFolder}
               >
                 Удалить
@@ -1867,11 +1867,11 @@ export function AdminApp({ user, onLogout }: AdminProps) {
             <p className="admin-modal-text">
               Учётная запись «{userDeleteModal.username}» будет удалена безвозвратно. Продолжить?
             </p>
-            <div className="admin-modal-actions">
+            <div className="admin-row mat-form-actions">
               <button type="button" className="admin-secondary" onClick={cancelDeleteUser}>
                 Отмена
               </button>
-              <button type="button" className="admin-primary admin-modal-confirm" onClick={confirmDeleteUser}>
+              <button type="button" className="admin-primary" onClick={confirmDeleteUser}>
                 Удалить
               </button>
             </div>
@@ -2839,13 +2839,13 @@ function MaterialForm({
               Материал «{material.name}» будет удалён безвозвратно везде, где используется: в
               справочнике, в калькуляторе (цвета, наполнение и др.), в связанных записях. Продолжить?
             </p>
-            <div className="admin-modal-actions">
+            <div className="admin-row mat-form-actions">
               <button type="button" className="admin-secondary" onClick={cancelMaterialDelete}>
                 Отмена
               </button>
               <button
                 type="button"
-                className="admin-primary admin-modal-confirm"
+                className="admin-primary"
                 onClick={confirmRemoveMaterial}
               >
                 Удалить

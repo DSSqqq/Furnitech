@@ -16,7 +16,6 @@ import type { CalculatorFillingType, Material, MaterialCategory, MaterialClass }
 import { useCalcPaths } from './calcPathsContext'
 import { CalcStepPriceTotals } from './CalcPriceTotals'
 import { isFrameStep2Ready, notifyFrameCalcSession, readCalculatorPriceConfigKey, subscribeFrameCalcSession } from './frameCalcSession'
-import { MaterialCheckSwatch } from './MaterialCheckSwatch'
 import {
   materialTextureLabel,
   sketchFillingLine,
@@ -25,7 +24,6 @@ import {
 } from './materialTextureLabel'
 import {
   CalculatorCardTileStriped,
-  ProfileCardImageTileRow,
   appendCalcCardImagesToFormData,
   appendCalcCardTexturesToFormData,
   calcCardImageGridSlots,
@@ -38,12 +36,20 @@ import {
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
+import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
+import { MaterialTypeFormGrid } from './CalculatorTypeFormGrid'
 import { resolveMediaUrl, profileFrameTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
 import { collectCalcCardImageUrls, useCalcImagesPreload } from './calcStepAssetsLoading'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 
 function asNum(s: string) {
   const t = s.trim().replace(',', '.')
@@ -404,6 +410,22 @@ export function Step4FrameFilling() {
     }
     setEditFillingMatIds({})
     setEditFillingMatHit([])
+    setErr(null)
+  }
+
+  const closeCreateFilling = () => {
+    closeMaterialSearch()
+    setCreateOpen(false)
+    setCreateName('')
+    setCreateCardFiles(emptyCalcCardImageFiles())
+    setCreateCardTextures(emptyCalcCardTextureIds())
+    setCreateCardTextureUrls(['', '', '', ''])
+    for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
+      if (r.current) r.current.value = ''
+    }
+    setCreateMatHit([])
+    setCreateMatIds({})
+    setErr(null)
   }
 
   const openEditFilling = (t: CalculatorFillingType) => {
@@ -474,17 +496,7 @@ export function Step4FrameFilling() {
       const created = await createCalculatorFillingType(fd)
       setFillingTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
-      setCreateOpen(false)
-      setCreateName('')
-      setCreateCardFiles(emptyCalcCardImageFiles())
-      setCreateCardTextures(emptyCalcCardTextureIds())
-      setCreateCardTextureUrls(['', '', '', ''])
-      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
-      setCreateMatHit([])
-      setCreateMatIds({})
-      closeMaterialSearch()
+      closeCreateFilling()
     } catch (e) {
       setErr(String(e))
     }
@@ -654,10 +666,8 @@ export function Step4FrameFilling() {
                   className="admin-primary"
                   onClick={() => {
                     setErr(null)
-                    setCreateOpen((was) => {
-                      if (!was) closeEditFilling()
-                      return !was
-                    })
+                    closeEditFilling()
+                    setCreateOpen(true)
                   }}
                 >
                   + Добавить тип наполнения
@@ -666,288 +676,9 @@ export function Step4FrameFilling() {
             ) : null}
           </div>
 
-          {err && <div className="admin-error">{err}</div>}
+          {err && !createOpen && editFillingId == null && <div className="admin-error">{err}</div>}
 
           <div className="calc-side-panel-scroll">
-          {!readOnly && createOpen && (
-            <div className="frame2-create">
-              <div className="frame2-create-head">
-                <div className="frame2-create-title">Создание типа наполнения</div>
-                <div className="frame2-actions">
-                  <button
-                    type="button"
-                    className="admin-secondary"
-                    onClick={() => {
-                      closeMaterialSearch()
-                      setCreateOpen(false)
-                      setCreateName('')
-                      setCreateCardFiles(emptyCalcCardImageFiles())
-                      setCreateCardTextures(emptyCalcCardTextureIds())
-                      setCreateCardTextureUrls(['', '', '', ''])
-                      for (const r of [fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]) {
-                        if (r.current) r.current.value = ''
-                      }
-                      setCreateMatHit([])
-                      setCreateMatIds({})
-                    }}
-                  >
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" onClick={submitCreate}>
-                    Создать
-                  </button>
-                </div>
-              </div>
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-                <div className="frame2-block frame2-create-tl">
-                  <div className="frame2-block-title">Тип наполнения</div>
-                  <input
-                    className="admin-input"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    placeholder="Например: Лакобель, Мателюкс…"
-                  />
-                  <div className="frame2-file-row">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки</span>
-                    </div>
-                    {(
-                      [
-                        [0, fillingCardInputRef0],
-                        [1, fillingCardInputRef1],
-                        [2, fillingCardInputRef2],
-                        [3, fillingCardInputRef3],
-                      ] as const
-                    ).map(([slot, refEl]) => (
-                      <input
-                        key={slot}
-                        id={`filling-type-card-image-${slot}`}
-                        ref={refEl}
-                        className="frame2-file-input frame2-file-input--sr"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          setCreateCardFiles((prev) => {
-                            const next: CalcCardImageFiles = [...prev]
-                            next[slot] = e.target.files?.[0] ?? null
-                            return next
-                          })
-                          setCreateCardTextures((prev) => {
-                            const next: CalcCardTextureIds = [...prev]
-                            next[slot] = null
-                            return next
-                          })
-                          setCreateCardTextureUrls((prev) => {
-                            const next: CalcCardImageUrls = [...prev]
-                            next[slot] = ''
-                            return next
-                          })
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <ProfileCardImageTileRow
-                    urls={createCardTileUrls}
-                    inputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]}
-                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
-                    groupAriaLabel="Фото карточки наполнения, до четырёх"
-                  />
-                </div>
-
-                <div className="frame2-block frame2-create-tr">
-                  <div className="frame2-block-title">Материалы</div>
-                  <div className="frame2-material-search-row">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-material-tree-search-btn"
-                      onClick={() => void openMaterialTreeSearch('create')}
-                    >
-                      Поиск
-                    </button>
-                  </div>
-                  <div className="frame2-file-row frame2-colors-for-card-label">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Материалы для карточки</span>
-                    </div>
-                  </div>
-                  {createMatHit.length > 0 && (
-                    <ul className="frame2-checklist">
-                      {createMatHit.map((m) => (
-                        <li key={m.id}>
-                          <label
-                            className={[
-                              'frame2-checkrow',
-                              createMatIds[m.id] ? 'frame2-checkrow--checked' : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            title={matLabel(m)}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={createMatIds[m.id] === true}
-                              onChange={() =>
-                                setCreateMatIds((prev) => {
-                                  const next = { ...prev }
-                                  if (next[m.id]) delete next[m.id]
-                                  else next[m.id] = true
-                                  return next
-                                })
-                              }
-                            />
-                            <span className="frame2-check-article">{m.article || '—'}</span>
-                            <MaterialCheckSwatch
-                              name={materialTextureLabel(m)}
-                              material={m}
-                              texExtra={texByMaterialId[m.id]}
-                            />
-                            <span className="frame2-check-name-wrap">
-                              <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                            </span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {Object.keys(createMatIds).length > 0 && (
-                    <div className="admin-muted">Выбрано материалов: {Object.keys(createMatIds).length}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!readOnly && editFillingId != null && editingFilling && (
-            <div className="frame2-create">
-              <div className="frame2-create-head">
-                <div className="frame2-create-title">Редактирование типа наполнения</div>
-                <div className="frame2-actions">
-                  <button type="button" className="admin-secondary" onClick={closeEditFilling}>
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" onClick={() => void submitEditFilling()}>
-                    Сохранить
-                  </button>
-                </div>
-              </div>
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-                <div className="frame2-block frame2-create-tl">
-                  <div className="frame2-block-title">Тип наполнения</div>
-                  <input
-                    className="admin-input"
-                    value={editFillingName}
-                    onChange={(e) => setEditFillingName(e.target.value)}
-                    placeholder="Название…"
-                  />
-                  <div className="frame2-file-row">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Карточка: до 4 фото</span>
-                    </div>
-                    {(
-                      [
-                        [0, editFillingCardInputRef0],
-                        [1, editFillingCardInputRef1],
-                        [2, editFillingCardInputRef2],
-                        [3, editFillingCardInputRef3],
-                      ] as const
-                    ).map(([slot, refEl]) => (
-                      <input
-                        key={slot}
-                        id={`filling-type-card-image-edit-${slot}`}
-                        ref={refEl}
-                        className="frame2-file-input frame2-file-input--sr"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          setEditCardFiles((prev) => {
-                            const next: CalcCardImageFiles = [...prev]
-                            next[slot] = e.target.files?.[0] ?? null
-                            return next
-                          })
-                          setEditCardTextures((prev) => {
-                            const next: CalcCardTextureIds = [...prev]
-                            next[slot] = null
-                            return next
-                          })
-                          setEditCardTextureUrls((prev) => {
-                            const next: CalcCardImageUrls = [...prev]
-                            next[slot] = ''
-                            return next
-                          })
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <ProfileCardImageTileRow
-                    urls={editFillingCardTileUrls}
-                    inputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]}
-                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
-                    groupAriaLabel="Фото карточки наполнения, до четырёх"
-                  />
-                </div>
-
-                <div className="frame2-block frame2-create-tr">
-                  <div className="frame2-block-title">Материалы</div>
-                  <div className="frame2-material-search-row">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-material-tree-search-btn"
-                      onClick={() => void openMaterialTreeSearch('edit')}
-                    >
-                      Поиск
-                    </button>
-                  </div>
-                  <div className="frame2-file-row frame2-colors-for-card-label">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Материалы для карточки</span>
-                    </div>
-                  </div>
-                  {editFillingMatHit.length > 0 && (
-                    <ul className="frame2-checklist">
-                      {editFillingMatHit.map((m) => (
-                        <li key={m.id}>
-                          <label
-                            className={[
-                              'frame2-checkrow',
-                              editFillingMatIds[m.id] ? 'frame2-checkrow--checked' : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            title={matLabel(m)}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={editFillingMatIds[m.id] === true}
-                              onChange={() =>
-                                setEditFillingMatIds((prev) => {
-                                  const next = { ...prev }
-                                  if (next[m.id]) delete next[m.id]
-                                  else next[m.id] = true
-                                  return next
-                                })
-                              }
-                            />
-                            <span className="frame2-check-article">{m.article || '—'}</span>
-                            <MaterialCheckSwatch
-                              name={materialTextureLabel(m)}
-                              material={m}
-                              texExtra={texByMaterialId[m.id]}
-                            />
-                            <span className="frame2-check-name-wrap">
-                              <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                            </span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {Object.keys(editFillingMatIds).length > 0 && (
-                    <div className="admin-muted">Выбрано материалов: {Object.keys(editFillingMatIds).length}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="tiles" aria-label="Типы наполнения">
             {fillingTypes.length === 0 && !loading && <p className="admin-muted">Типов наполнения пока нет.</p>}
@@ -1121,8 +852,14 @@ export function Step4FrameFilling() {
           <div className="frame2-modal frame2-modal--wide" role="document" onClick={(e) => e.stopPropagation()}>
             <div className="frame2-modal-head">
               <div className="frame2-modal-title">{modalType.name || `Тип #${modalType.id}`}</div>
-              <button type="button" className="admin-secondary" onClick={() => setModalTypeId(null)}>
-                Закрыть
+              <button
+                type="button"
+                className="admin-primary admin-modal-head-icon-close"
+                aria-label="Закрыть"
+                title="Закрыть"
+                onClick={() => setModalTypeId(null)}
+              >
+                {MODAL_CLOSE_X_SVG}
               </button>
             </div>
 
@@ -1167,7 +904,8 @@ export function Step4FrameFilling() {
                     {!readOnly && (
                       <button
                         type="button"
-                        className="tile-action-remove"
+                        className="tile-action-remove admin-primary admin-modal-head-icon-close"
+                        aria-label="Убрать материал из типа"
                         title="Убрать материал из типа"
                         disabled={modalSaving}
                         onClick={(e) => {
@@ -1177,7 +915,7 @@ export function Step4FrameFilling() {
                           void removeModalMaterial(c.material_id)
                         }}
                       >
-                        ×
+                        {MODAL_CLOSE_X_SVG}
                       </button>
                     )}
                   </div>
@@ -1194,6 +932,120 @@ export function Step4FrameFilling() {
             )}
           </div>
         </div>
+      )}
+
+      {!readOnly && createOpen && (
+        <CalculatorTypeFormModal
+          open
+          title="Создание типа наполнения"
+          titleId="filling-type-create-title"
+          onClose={closeCreateFilling}
+          onSubmit={() => void submitCreate()}
+          submitLabel="Создать"
+          error={err}
+        >
+          <MaterialTypeFormGrid
+            idPrefix="filling-type"
+            typeBlockTitle="Тип наполнения"
+            typeName={createName}
+            onTypeNameChange={setCreateName}
+            namePlaceholder="Например: Лакобель, Мателюкс…"
+            cardImageLabel="Изображения для карточки"
+            cardFiles={createCardFiles}
+            onCardFileChange={(slot, file) => {
+              setCreateCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setCreateCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setCreateCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={createCardTileUrls}
+            cardInputRefs={[fillingCardInputRef0, fillingCardInputRef1, fillingCardInputRef2, fillingCardInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
+            cardAriaLabel="Фото карточки наполнения, до четырёх"
+            materialsBlockTitle="Материалы"
+            materialsListLabel="Материалы для карточки"
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
+            materialsHit={createMatHit}
+            selectedMaterialIds={createMatIds}
+            onToggleMaterial={(id) =>
+              setCreateMatIds((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = true
+                return next
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
+      )}
+
+      {!readOnly && editFillingId != null && editingFilling && (
+        <CalculatorTypeFormModal
+          open
+          title="Редактирование типа наполнения"
+          titleId="filling-type-edit-title"
+          onClose={closeEditFilling}
+          onSubmit={() => void submitEditFilling()}
+          submitLabel="Сохранить"
+          error={err}
+        >
+          <MaterialTypeFormGrid
+            idPrefix="filling-type-edit"
+            typeBlockTitle="Тип наполнения"
+            typeName={editFillingName}
+            onTypeNameChange={setEditFillingName}
+            namePlaceholder="Название…"
+            cardImageLabel="Карточка: до 4 фото"
+            cardFiles={editCardFiles}
+            onCardFileChange={(slot, file) => {
+              setEditCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setEditCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setEditCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={editFillingCardTileUrls}
+            cardInputRefs={[editFillingCardInputRef0, editFillingCardInputRef1, editFillingCardInputRef2, editFillingCardInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
+            cardAriaLabel="Фото карточки наполнения, до четырёх"
+            materialsBlockTitle="Материалы"
+            materialsListLabel="Материалы для карточки"
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
+            materialsHit={editFillingMatHit}
+            selectedMaterialIds={editFillingMatIds}
+            onToggleMaterial={(id) =>
+              setEditFillingMatIds((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = true
+                return next
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
       )}
 
       {materialSearchOverlay && (
@@ -1252,13 +1104,13 @@ export function Step4FrameFilling() {
                 Тип наполнения «{fillingTypeDeleteModal.name || `Тип #${fillingTypeDeleteModal.id}`}» будет удалён
                 безвозвратно вместе со списком материалов, привязанных к этому типу в калькуляторе. Продолжить?
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button type="button" className="admin-secondary" onClick={cancelDeleteFillingType}>
                   Отмена
                 </button>
                 <button
                   type="button"
-                  className="admin-primary admin-modal-confirm"
+                  className="admin-primary"
                   onClick={confirmDeleteFillingType}
                 >
                   Удалить

@@ -324,7 +324,7 @@ export function AdminUomPanel() {
                       «{formName.trim() || '—'}» будет удалена. Материалы с этой единицей измерения нужно будет
                       переназначить вручную.
                     </p>
-                    <div className="admin-modal-actions">
+                    <div className="admin-row mat-form-actions">
                       <button
                         type="button"
                         className="admin-secondary"
@@ -335,7 +335,7 @@ export function AdminUomPanel() {
                       </button>
                       <button
                         type="button"
-                        className="admin-primary admin-modal-confirm"
+                        className="admin-primary"
                         disabled={deleting}
                         onClick={() => void confirmDelete()}
                       >

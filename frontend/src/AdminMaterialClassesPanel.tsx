@@ -779,6 +779,14 @@ export function AdminMaterialClassesPanel() {
                     <div className="admin-row mat-form-actions">
                       <button
                         type="button"
+                        className="admin-secondary"
+                        disabled={savingNewClass}
+                        onClick={closeNewClassModal}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
                         className="admin-primary"
                         disabled={savingNewClass}
                         onClick={() => void saveNewClass()}
@@ -915,7 +923,7 @@ export function AdminMaterialClassesPanel() {
                       пропадёт эта метка класса; при необходимости обновите формулы расчёта, где использовался этот
                       класс.
                     </p>
-                    <div className="admin-modal-actions">
+                    <div className="admin-row mat-form-actions">
                       <button
                         type="button"
                         className="admin-secondary"
@@ -926,7 +934,7 @@ export function AdminMaterialClassesPanel() {
                       </button>
                       <button
                         type="button"
-                        className="admin-primary admin-modal-confirm"
+                        className="admin-primary"
                         disabled={deletingEditClass}
                         onClick={() => void confirmDeleteEditedClass()}
                       >

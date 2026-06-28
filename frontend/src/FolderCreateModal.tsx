@@ -409,7 +409,7 @@ export function FolderCreateModal({ tree, initialParentId, onClose, onCreate }: 
               </button>
               <button
                 type="button"
-                className="admin-primary admin-modal-confirm"
+                className="admin-primary"
                 disabled={submitting || !name.trim()}
                 onClick={submit}
               >

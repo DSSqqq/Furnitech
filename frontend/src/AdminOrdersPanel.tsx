@@ -268,7 +268,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
               <p className="admin-modal-text">
                 Заказ «{orderToDelete.order_number}» будет удалён безвозвратно (включая PDF). Клиент больше не увидит его в «Мои заказы». Продолжить?
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button
                   type="button"
                   className="admin-secondary"
@@ -279,7 +279,7 @@ export function AdminOrdersPanel({ canDelete = true }: AdminOrdersPanelProps) {
                 </button>
                 <button
                   type="button"
-                  className="admin-primary admin-modal-confirm"
+                  className="admin-primary"
                   disabled={deletePending}
                   onClick={confirmDeleteOrder}
                 >

@@ -821,7 +821,7 @@ export function Step8FrameResult() {
                   Заказ сохранён. Его можно посмотреть во вкладке «Мои заказы».
                 </p>
               ) : null}
-              <div className="step8-modal__actions">
+              <div className="admin-row mat-form-actions">
                 <button type="button" className="admin-primary" onClick={closeOrderSentModal}>
                   OK
                 </button>
@@ -851,7 +851,7 @@ export function Step8FrameResult() {
                 Войдите или зарегистрируйтесь — после входа вернитесь к этому шагу и нажмите «Отправить»
                 снова.
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button type="button" className="admin-secondary" onClick={closeAuthWallModal}>
                   Отмена
                 </button>

@@ -5,6 +5,12 @@ import { fetchTextureCategoryTree, fetchTextureItemsPage } from './api'
 import type { TextureCategory, TextureItem } from './types'
 import './AdminApp.css'
 
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
+
 const DEV_MEDIA_ORIGIN = 'http://127.0.0.1:8000'
 
 export function resolveTextureImageUrl(pathOrUrl: string | null | undefined): string {
@@ -255,7 +261,7 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
       }}
     >
       <div
-        className="admin-modal admin-modal--explorer texture-picker-modal"
+        className="admin-modal admin-modal--explorer admin-calculations-modal-surface texture-picker-modal"
         role="document"
         onClick={(e) => e.stopPropagation()}
       >
@@ -263,8 +269,15 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
           <h4 id="texture-picker-title" className="admin-modal-title">
             Выбор текстуры из базы
           </h4>
-          <button ref={closeBtnRef} type="button" className="admin-secondary" onClick={onClose}>
-            Закрыть
+          <button
+            ref={closeBtnRef}
+            type="button"
+            className="admin-primary admin-modal-head-icon-close"
+            aria-label="Закрыть"
+            title="Закрыть"
+            onClick={onClose}
+          >
+            {MODAL_CLOSE_X_SVG}
           </button>
         </div>
 
@@ -435,7 +448,10 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
                 </main>
               </div>
             </div>
-            <div className="admin-modal-actions">
+            <div className="admin-row mat-form-actions">
+              <button type="button" className="admin-secondary" onClick={onClose}>
+                Отмена
+              </button>
               <button
                 type="button"
                 className="admin-primary"
@@ -443,9 +459,6 @@ export function TexturePickerModal({ onClose, onPick }: Props) {
                 onClick={runPick}
               >
                 Выбрать
-              </button>
-              <button type="button" className="admin-secondary" onClick={onClose}>
-                Отмена
               </button>
             </div>
           </>

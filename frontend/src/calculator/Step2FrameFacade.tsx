@@ -26,7 +26,7 @@ import {
   seedFrameDimsFromMaterial,
   subscribeFrameCalcSession,
 } from './frameCalcSession'
-import { MaterialCheckSwatch } from './MaterialCheckSwatch'
+import { mergeFrameColorMaterial } from './useFrameColorMaterial'
 import {
   materialTextureLabel,
   textureLabelDisplayWrap,
@@ -34,7 +34,6 @@ import {
 } from './materialTextureLabel'
 import {
   CalculatorCardTileStriped,
-  ProfileCardImageTileRow,
   appendCalcCardImagesToFormData,
   appendCalcCardTexturesToFormData,
   calcCardImageGridSlots,
@@ -47,6 +46,8 @@ import {
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
 import { TileGearMenu } from './TileGearMenu'
+import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
+import { ProfileTypeFormGrid } from './CalculatorTypeFormGrid'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
 import {
   collectCalcCardImageUrls,
@@ -54,9 +55,14 @@ import {
   useCalcMaterialTexturePreload,
 } from './calcStepAssetsLoading'
 import { facadeSketchBoxStyle, profileFrameTextureLayerStyle, resolveMediaUrl } from './sketchFrame'
-import { mergeFrameColorMaterial } from './useFrameColorMaterial'
 import './Step2FrameFacade.css'
 import './Step3FrameSizes.css'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 
 function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
@@ -483,6 +489,22 @@ export function Step2FrameFacade() {
     }
     setEditColors({})
     setEditColorsHit([])
+    setErr(null)
+  }
+
+  const closeCreateType = () => {
+    closeMaterialSearch()
+    setCreateOpen(false)
+    setCreateTypeName('')
+    setCreateCardFiles(emptyCalcCardImageFiles())
+    setCreateCardTextures(emptyCalcCardTextureIds())
+    setCreateCardTextureUrls(['', '', '', ''])
+    for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
+      if (r.current) r.current.value = ''
+    }
+    setCreateColorsHit([])
+    setCreateColors({})
+    setErr(null)
   }
 
   const submitEditType = async () => {
@@ -540,17 +562,7 @@ export function Step2FrameFacade() {
       const created = await createCalculatorProfileType(fd)
       setProfileTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
-      setCreateOpen(false)
-      setCreateTypeName('')
-      setCreateCardFiles(emptyCalcCardImageFiles())
-      setCreateCardTextures(emptyCalcCardTextureIds())
-      setCreateCardTextureUrls(['', '', '', ''])
-      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
-      setCreateColorsHit([])
-      setCreateColors({})
-      closeMaterialSearch()
+      closeCreateType()
     } catch (e) {
       setErr(String(e))
     }
@@ -787,10 +799,8 @@ export function Step2FrameFacade() {
                   className="admin-primary"
                   onClick={() => {
                     setErr(null)
-                    setCreateOpen((was) => {
-                      if (!was) closeEditType()
-                      return !was
-                    })
+                    closeEditType()
+                    setCreateOpen(true)
                   }}
                 >
                   + Добавить тип профиля
@@ -799,383 +809,9 @@ export function Step2FrameFacade() {
             ) : null}
           </div>
 
-          {err && <div className="admin-error">{err}</div>}
+          {err && !createOpen && editTypeId == null && <div className="admin-error">{err}</div>}
 
           <div className="calc-side-panel-scroll">
-          {!readOnly && createOpen && (
-            <div className="frame2-create">
-              <div className="frame2-create-head">
-                <div className="frame2-create-title">Создание типа профиля</div>
-                <div className="frame2-actions">
-                  <button
-                    type="button"
-                    className="admin-secondary"
-                    onClick={() => {
-                      closeMaterialSearch()
-                      setCreateOpen(false)
-                      setCreateTypeName('')
-                      setCreateCardFiles(emptyCalcCardImageFiles())
-                      setCreateCardTextures(emptyCalcCardTextureIds())
-                      setCreateCardTextureUrls(['', '', '', ''])
-                      for (const r of [cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]) {
-                        if (r.current) r.current.value = ''
-                      }
-                      setCreateColorsHit([])
-                      setCreateColors({})
-                    }}
-                  >
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" onClick={submitCreate}>
-                    Создать
-                  </button>
-                </div>
-              </div>
-
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-                <div className="frame2-block frame2-create-tl">
-                  <div className="frame2-block-title">Тип профиля</div>
-                  <input
-                    className="admin-input"
-                    value={createTypeName}
-                    onChange={(e) => setCreateTypeName(e.target.value)}
-                    placeholder="Название типа профиля…"
-                  />
-                  <div className="frame2-file-row">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Изображения для карточки</span>
-                    </div>
-                    {(
-                      [
-                        [0, cardImageInputRef0],
-                        [1, cardImageInputRef1],
-                        [2, cardImageInputRef2],
-                        [3, cardImageInputRef3],
-                      ] as const
-                    ).map(([slot, refEl]) => (
-                      <input
-                        key={slot}
-                        id={`profile-type-card-image-${slot}`}
-                        ref={refEl}
-                        className="frame2-file-input frame2-file-input--sr"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          setCreateCardFiles((prev) => {
-                            const next: CalcCardImageFiles = [...prev]
-                            next[slot] = e.target.files?.[0] ?? null
-                            return next
-                          })
-                          setCreateCardTextures((prev) => {
-                            const next: CalcCardTextureIds = [...prev]
-                            next[slot] = null
-                            return next
-                          })
-                          setCreateCardTextureUrls((prev) => {
-                            const next: CalcCardImageUrls = [...prev]
-                            next[slot] = ''
-                            return next
-                          })
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <ProfileCardImageTileRow
-                    urls={createCardTileUrls}
-                    inputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]}
-                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
-                  />
-                </div>
-
-                <div className="frame2-block frame2-create-tr">
-                  <div className="frame2-block-title">Цвета (материалы)</div>
-                  <div className="frame2-material-search-row">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-material-tree-search-btn"
-                      onClick={() => void openMaterialTreeSearch('create')}
-                    >
-                      Поиск
-                    </button>
-                  </div>
-                  <div className="frame2-file-row frame2-colors-for-card-label">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Цвета для карточки</span>
-                    </div>
-                  </div>
-                  {createColorsHit.length > 0 && (
-                    <ul className="frame2-checklist">
-                      {createColorsHit.map((m) => {
-                        const checked = createColors[m.id] != null
-                        const flags = createColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
-                        return (
-                          <li key={m.id}>
-                            <div
-                              className={[
-                                'frame2-checkrow',
-                                checked ? 'frame2-checkrow--checked' : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              title={matLabel(m)}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  setCreateColors((prev) => {
-                                    const next = { ...prev }
-                                    if (next[m.id]) delete next[m.id]
-                                    else next[m.id] = { is_new: false, is_hit: false, is_sale: false }
-                                    return next
-                                  })
-                                }
-                              />
-                              <span className="frame2-check-article">{m.article || '—'}</span>
-                              <MaterialCheckSwatch
-                                name={materialTextureLabel(m)}
-                                material={m}
-                                texExtra={texByMaterialId[m.id]}
-                              />
-                              <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                              </span>
-                            </div>
-                            {checked && (
-                              <div className="frame2-flags">
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_new}
-                                    onChange={() =>
-                                      setCreateColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_new: !flags.is_new },
-                                      }))
-                                    }
-                                  />{' '}
-                                  New
-                                </label>
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_hit}
-                                    onChange={() =>
-                                      setCreateColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_hit: !flags.is_hit },
-                                      }))
-                                    }
-                                  />{' '}
-                                  Hit
-                                </label>
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_sale}
-                                    onChange={() =>
-                                      setCreateColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_sale: !flags.is_sale },
-                                      }))
-                                    }
-                                  />{' '}
-                                  Sale
-                                </label>
-                              </div>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                  {Object.keys(createColors).length > 0 && (
-                    <div className="admin-muted">Выбрано цветов: {Object.keys(createColors).length}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!readOnly && editTypeId != null && editingType && (
-            <div className="frame2-create">
-              <div className="frame2-create-head">
-                <div className="frame2-create-title">Редактирование типа профиля</div>
-                <div className="frame2-actions">
-                  <button type="button" className="admin-secondary" onClick={closeEditType}>
-                    Отмена
-                  </button>
-                  <button type="button" className="admin-primary" onClick={() => void submitEditType()}>
-                    Сохранить
-                  </button>
-                </div>
-              </div>
-
-              <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-                <div className="frame2-block frame2-create-tl">
-                  <div className="frame2-block-title">Тип профиля</div>
-                  <input
-                    className="admin-input"
-                    value={editTypeName}
-                    onChange={(e) => setEditTypeName(e.target.value)}
-                    placeholder="Название типа профиля…"
-                  />
-                  <div className="frame2-file-row">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Карточка: до 4 фото</span>
-                    </div>
-                    {(
-                      [
-                        [0, editImageInputRef0],
-                        [1, editImageInputRef1],
-                        [2, editImageInputRef2],
-                        [3, editImageInputRef3],
-                      ] as const
-                    ).map(([slot, refEl]) => (
-                      <input
-                        key={slot}
-                        id={`profile-type-card-image-edit-${slot}`}
-                        ref={refEl}
-                        className="frame2-file-input frame2-file-input--sr"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          setEditCardFiles((prev) => {
-                            const next: CalcCardImageFiles = [...prev]
-                            next[slot] = e.target.files?.[0] ?? null
-                            return next
-                          })
-                          setEditCardTextures((prev) => {
-                            const next: CalcCardTextureIds = [...prev]
-                            next[slot] = null
-                            return next
-                          })
-                          setEditCardTextureUrls((prev) => {
-                            const next: CalcCardImageUrls = [...prev]
-                            next[slot] = ''
-                            return next
-                          })
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <ProfileCardImageTileRow
-                    urls={editCardTileUrls}
-                    inputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]}
-                    onPickSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
-                  />
-                </div>
-
-                <div className="frame2-block frame2-create-tr">
-                  <div className="frame2-block-title">Цвета (материалы)</div>
-                  <div className="frame2-material-search-row">
-                    <button
-                      type="button"
-                      className="admin-secondary frame2-material-tree-search-btn"
-                      onClick={() => void openMaterialTreeSearch('edit')}
-                    >
-                      Поиск
-                    </button>
-                  </div>
-                  <div className="frame2-file-row frame2-colors-for-card-label">
-                    <div className="frame2-file-label-row">
-                      <span className="frame2-file-label">Цвета для карточки</span>
-                    </div>
-                  </div>
-                  {editColorsHit.length > 0 && (
-                    <ul className="frame2-checklist">
-                      {editColorsHit.map((m) => {
-                        const checked = editColors[m.id] != null
-                        const flags = editColors[m.id] ?? { is_new: false, is_hit: false, is_sale: false }
-                        return (
-                          <li key={m.id}>
-                            <div
-                              className={[
-                                'frame2-checkrow',
-                                checked ? 'frame2-checkrow--checked' : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              title={matLabel(m)}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  setEditColors((prev) => {
-                                    const next = { ...prev }
-                                    if (next[m.id]) delete next[m.id]
-                                    else next[m.id] = { is_new: false, is_hit: false, is_sale: false }
-                                    return next
-                                  })
-                                }
-                              />
-                              <span className="frame2-check-article">{m.article || '—'}</span>
-                              <MaterialCheckSwatch
-                                name={materialTextureLabel(m)}
-                                material={m}
-                                texExtra={texByMaterialId[m.id]}
-                              />
-                              <span className="frame2-check-name-wrap">
-                                <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                              </span>
-                            </div>
-                            {checked && (
-                              <div className="frame2-flags">
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_new}
-                                    onChange={() =>
-                                      setEditColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_new: !flags.is_new },
-                                      }))
-                                    }
-                                  />{' '}
-                                  New
-                                </label>
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_hit}
-                                    onChange={() =>
-                                      setEditColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_hit: !flags.is_hit },
-                                      }))
-                                    }
-                                  />{' '}
-                                  Hit
-                                </label>
-                                <label className="frame2-flag">
-                                  <input
-                                    type="checkbox"
-                                    checked={flags.is_sale}
-                                    onChange={() =>
-                                      setEditColors((prev) => ({
-                                        ...prev,
-                                        [m.id]: { ...flags, is_sale: !flags.is_sale },
-                                      }))
-                                    }
-                                  />{' '}
-                                  Sale
-                                </label>
-                              </div>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                  {Object.keys(editColors).length > 0 && (
-                    <div className="admin-muted">Выбрано цветов: {Object.keys(editColors).length}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           <ul className="frame2-list" aria-label="Список типов профилей">
             {profileTypes.length === 0 && <li className="admin-muted">Типов профилей пока нет.</li>}
           </ul>
@@ -1307,8 +943,14 @@ export function Step2FrameFacade() {
               <div className="frame2-modal-title">
                 {modalType.name || `Тип #${modalType.id}`}
               </div>
-              <button type="button" className="admin-secondary" onClick={() => setModalTypeId(null)}>
-                Закрыть
+              <button
+                type="button"
+                className="admin-primary admin-modal-head-icon-close"
+                aria-label="Закрыть"
+                title="Закрыть"
+                onClick={() => setModalTypeId(null)}
+              >
+                {MODAL_CLOSE_X_SVG}
               </button>
             </div>
 
@@ -1357,7 +999,8 @@ export function Step2FrameFacade() {
                     {!readOnly && (
                       <button
                         type="button"
-                        className="tile-action-remove"
+                        className="tile-action-remove admin-primary admin-modal-head-icon-close"
+                        aria-label="Убрать цвет из типа"
                         title="Убрать цвет из типа"
                         disabled={modalSaving}
                         onClick={(e) => {
@@ -1369,7 +1012,7 @@ export function Step2FrameFacade() {
                           })
                         }}
                       >
-                        ×
+                        {MODAL_CLOSE_X_SVG}
                       </button>
                     )}
                   </div>
@@ -1391,6 +1034,122 @@ export function Step2FrameFacade() {
           onClose={closeMaterialSearch}
           onPick={handleMaterialPickedFromTree}
         />
+      )}
+
+      {!readOnly && createOpen && (
+        <CalculatorTypeFormModal
+          open
+          title="Создание типа профиля"
+          titleId="profile-type-create-title"
+          onClose={closeCreateType}
+          onSubmit={() => void submitCreate()}
+          submitLabel="Создать"
+          error={err}
+        >
+          <ProfileTypeFormGrid
+            idPrefix="profile-type"
+            typeName={createTypeName}
+            onTypeNameChange={setCreateTypeName}
+            namePlaceholder="Название типа профиля…"
+            cardImageLabel="Изображения для карточки"
+            onCardFileChange={(slot, file) => {
+              setCreateCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setCreateCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setCreateCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={createCardTileUrls}
+            cardInputRefs={[cardImageInputRef0, cardImageInputRef1, cardImageInputRef2, cardImageInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
+            colorsHit={createColorsHit}
+            selectedColors={createColors}
+            onToggleColor={(id) =>
+              setCreateColors((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = { is_new: false, is_hit: false, is_sale: false }
+                return next
+              })
+            }
+            onToggleColorFlag={(id, flag) =>
+              setCreateColors((prev) => {
+                const flags = prev[id] ?? { is_new: false, is_hit: false, is_sale: false }
+                return { ...prev, [id]: { ...flags, [flag]: !flags[flag] } }
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
+      )}
+
+      {!readOnly && editTypeId != null && editingType && (
+        <CalculatorTypeFormModal
+          open
+          title="Редактирование типа профиля"
+          titleId="profile-type-edit-title"
+          onClose={closeEditType}
+          onSubmit={() => void submitEditType()}
+          submitLabel="Сохранить"
+          error={err}
+        >
+          <ProfileTypeFormGrid
+            idPrefix="profile-type-edit"
+            typeName={editTypeName}
+            onTypeNameChange={setEditTypeName}
+            namePlaceholder="Название типа профиля…"
+            cardImageLabel="Карточка: до 4 фото"
+            onCardFileChange={(slot, file) => {
+              setEditCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setEditCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setEditCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={editCardTileUrls}
+            cardInputRefs={[editImageInputRef0, editImageInputRef1, editImageInputRef2, editImageInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
+            colorsHit={editColorsHit}
+            selectedColors={editColors}
+            onToggleColor={(id) =>
+              setEditColors((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = { is_new: false, is_hit: false, is_sale: false }
+                return next
+              })
+            }
+            onToggleColorFlag={(id, flag) =>
+              setEditColors((prev) => {
+                const flags = prev[id] ?? { is_new: false, is_hit: false, is_sale: false }
+                return { ...prev, [id]: { ...flags, [flag]: !flags[flag] } }
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
       )}
 
       {texturePickerTarget && (
@@ -1436,7 +1195,7 @@ export function Step2FrameFacade() {
             <p className="admin-modal-text">
               Вы уверены, что хотите убрать «{removeColorConfirm.name}» из этого типа профиля?
             </p>
-            <div className="admin-modal-actions">
+            <div className="admin-row mat-form-actions">
               <button type="button" className="admin-secondary" onClick={() => setRemoveColorConfirm(null)}>
                 Отмена
               </button>
@@ -1476,13 +1235,13 @@ export function Step2FrameFacade() {
                 Тип профиля «{profileTypeDeleteModal.name || `Тип #${profileTypeDeleteModal.id}`}» будет удалён
                 безвозвратно вместе со списком цветов, привязанных к этому типу в калькуляторе. Продолжить?
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button type="button" className="admin-secondary" onClick={cancelDeleteProfileType}>
                   Отмена
                 </button>
                 <button
                   type="button"
-                  className="admin-primary admin-modal-confirm"
+                  className="admin-primary"
                   onClick={confirmDeleteProfileType}
                 >
                   Удалить

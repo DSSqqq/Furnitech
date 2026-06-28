@@ -1451,13 +1451,13 @@ export function AdminCalculationsPanel() {
                   Формула «{draft.name.trim() || '—'}» будет удалена безвозвратно везде, где используется: в
                   калькуляторе и связанных записях. Продолжить?
                 </p>
-                <div className="admin-modal-actions">
+                <div className="admin-row mat-form-actions">
                   <button type="button" className="admin-secondary" disabled={busy} onClick={cancelFormulaDelete}>
                     Отмена
                   </button>
                   <button
                     type="button"
-                    className="admin-primary admin-modal-confirm"
+                    className="admin-primary"
                     disabled={busy}
                     onClick={() => void confirmRemoveFormula()}
                   >

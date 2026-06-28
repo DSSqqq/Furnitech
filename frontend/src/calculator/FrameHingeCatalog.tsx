@@ -18,10 +18,8 @@ import {
   CALC_LS_HINGE_TYPE_ID,
   notifyFrameCalcSession,
 } from './frameCalcSession'
-import { MaterialCheckSwatch } from './MaterialCheckSwatch'
 import {
   CalculatorCardTileStriped,
-  ProfileCardImageTileRow,
   appendCalcCardImagesToFormData,
   appendCalcCardTexturesToFormData,
   calcCardImageGridSlots,
@@ -33,9 +31,17 @@ import {
   type CalcCardImageUrls,
   type CalcCardTextureIds,
 } from './calculatorCardTiles'
+import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
+import { MaterialTypeFormGrid } from './CalculatorTypeFormGrid'
 import { materialTextureLabel, type MaterialTextureFields } from './materialTextureLabel'
 import { resolveMediaUrl } from './sketchFrame'
 import './Step2FrameFacade.css'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 
 function matLabel(m: MaterialTextureFields & { article?: string | null }) {
   const a = (m.article ?? '').trim()
@@ -347,6 +353,22 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
     }
     setEditHingeMatIds({})
     setEditHingeMatHit([])
+    setErr(null)
+  }
+
+  const closeCreateHinge = () => {
+    closeMaterialSearch()
+    setCreateOpen(false)
+    setCreateName('')
+    setCreateCardFiles(emptyCalcCardImageFiles())
+    setCreateCardTextures(emptyCalcCardTextureIds())
+    setCreateCardTextureUrls(['', '', '', ''])
+    for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]) {
+      if (r.current) r.current.value = ''
+    }
+    setCreateMatHit([])
+    setCreateMatIds({})
+    setErr(null)
   }
 
   const openEditHinge = (t: CalculatorHingeType) => {
@@ -417,17 +439,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
       const created = await createCalculatorHingeType(fd)
       setHingeTypes((prev) => [...prev, created])
       setSelectedTypeId(created.id)
-      setCreateOpen(false)
-      setCreateName('')
-      setCreateCardFiles(emptyCalcCardImageFiles())
-      setCreateCardTextures(emptyCalcCardTextureIds())
-      setCreateCardTextureUrls(['', '', '', ''])
-      for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]) {
-        if (r.current) r.current.value = ''
-      }
-      setCreateMatHit([])
-      setCreateMatIds({})
-      closeMaterialSearch()
+      closeCreateHinge()
     } catch (e) {
       setErr(String(e))
     }
@@ -541,7 +553,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
 
   return (
     <>
-      {err && <div className="admin-error">{err}</div>}
+      {err && !createOpen && editHingeId == null && <div className="admin-error">{err}</div>}
 
       <div className="frame2-card-head">
         <h4 className="frame2-h4">Тип петель</h4>
@@ -552,10 +564,8 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
               className="admin-primary"
               onClick={() => {
                 setErr(null)
-                setCreateOpen((was) => {
-                  if (!was) closeEditHinge()
-                  return !was
-                })
+                closeEditHinge()
+                setCreateOpen(true)
               }}
             >
               + Добавить тип петель
@@ -572,286 +582,6 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
           </div>
         )}
       </div>
-
-      {!readOnly && createOpen && (
-        <div className="frame2-create">
-          <div className="frame2-create-head">
-            <div className="frame2-create-title">Создание типа петель</div>
-            <div className="frame2-actions">
-              <button
-                type="button"
-                className="admin-secondary"
-                onClick={() => {
-                  closeMaterialSearch()
-                  setCreateOpen(false)
-                  setCreateName('')
-                  setCreateCardFiles(emptyCalcCardImageFiles())
-                  setCreateCardTextures(emptyCalcCardTextureIds())
-                  setCreateCardTextureUrls(['', '', '', ''])
-                  for (const r of [hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]) {
-                    if (r.current) r.current.value = ''
-                  }
-                  setCreateMatHit([])
-                  setCreateMatIds({})
-                }}
-              >
-                Отмена
-              </button>
-              <button type="button" className="admin-primary" onClick={() => void submitCreate()}>
-                Создать
-              </button>
-            </div>
-          </div>
-          <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-            <div className="frame2-block frame2-create-tl">
-              <div className="frame2-block-title">Тип петель</div>
-              <input
-                className="admin-input"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Например: Петля 110°, накладная…"
-              />
-              <div className="frame2-file-row">
-                <div className="frame2-file-label-row">
-                  <span className="frame2-file-label">Изображения для карточки</span>
-                </div>
-                {(
-                  [
-                    [0, hingeCardInputRef0],
-                    [1, hingeCardInputRef1],
-                    [2, hingeCardInputRef2],
-                    [3, hingeCardInputRef3],
-                  ] as const
-                ).map(([slot, refEl]) => (
-                  <input
-                    key={slot}
-                    id={`hinge-type-card-image-${slot}`}
-                    ref={refEl}
-                    className="frame2-file-input frame2-file-input--sr"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      setCreateCardFiles((prev) => {
-                        const next: CalcCardImageFiles = [...prev]
-                        next[slot] = e.target.files?.[0] ?? null
-                        return next
-                      })
-                      setCreateCardTextures((prev) => {
-                        const next: CalcCardTextureIds = [...prev]
-                        next[slot] = null
-                        return next
-                      })
-                      setCreateCardTextureUrls((prev) => {
-                        const next: CalcCardImageUrls = [...prev]
-                        next[slot] = ''
-                        return next
-                      })
-                    }}
-                  />
-                ))}
-              </div>
-              <ProfileCardImageTileRow
-                urls={createCardTileUrls}
-                inputRefs={[hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]}
-                onPickSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
-                groupAriaLabel="Фото карточки типа петель, до четырёх"
-              />
-            </div>
-
-            <div className="frame2-block frame2-create-tr">
-              <div className="frame2-block-title">Материалы (петли)</div>
-              <div className="frame2-material-search-row">
-                <button
-                  type="button"
-                  className="admin-secondary frame2-material-tree-search-btn"
-                  onClick={() => void openMaterialTreeSearch('create')}
-                >
-                  Поиск
-                </button>
-              </div>
-              <div className="frame2-file-row frame2-colors-for-card-label">
-                <div className="frame2-file-label-row">
-                  <span className="frame2-file-label">Материалы для карточки</span>
-                </div>
-              </div>
-              {createMatHit.length > 0 && (
-                <ul className="frame2-checklist">
-                  {createMatHit.map((m) => (
-                    <li key={m.id}>
-                      <label
-                        className={[
-                          'frame2-checkrow',
-                          createMatIds[m.id] ? 'frame2-checkrow--checked' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        title={matLabel(m)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={createMatIds[m.id] === true}
-                          onChange={() =>
-                            setCreateMatIds((prev) => {
-                              const next = { ...prev }
-                              if (next[m.id]) delete next[m.id]
-                              else next[m.id] = true
-                              return next
-                            })
-                          }
-                        />
-                        <span className="frame2-check-article">{m.article || '—'}</span>
-                        <MaterialCheckSwatch
-                          name={materialTextureLabel(m)}
-                          material={m}
-                          texExtra={texByMaterialId[m.id]}
-                        />
-                        <span className="frame2-check-name-wrap">
-                          <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {Object.keys(createMatIds).length > 0 && (
-                <div className="admin-muted">Выбрано материалов: {Object.keys(createMatIds).length}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!readOnly && editHingeId != null && editingHinge && (
-        <div className="frame2-create">
-          <div className="frame2-create-head">
-            <div className="frame2-create-title">Редактирование типа петель</div>
-            <div className="frame2-actions">
-              <button type="button" className="admin-secondary" onClick={closeEditHinge}>
-                Отмена
-              </button>
-              <button type="button" className="admin-primary" onClick={() => void submitEditHinge()}>
-                Сохранить
-              </button>
-            </div>
-          </div>
-          <div className="frame2-create-grid frame2-create-grid--file-status-pair frame2-create-grid--profile-type-slim">
-            <div className="frame2-block frame2-create-tl">
-              <div className="frame2-block-title">Тип петель</div>
-              <input
-                className="admin-input"
-                value={editHingeName}
-                onChange={(e) => setEditHingeName(e.target.value)}
-                placeholder="Название…"
-              />
-              <div className="frame2-file-row">
-                <div className="frame2-file-label-row">
-                  <span className="frame2-file-label">Карточка: до 4 фото</span>
-                </div>
-                {(
-                  [
-                    [0, editHingeCardInputRef0],
-                    [1, editHingeCardInputRef1],
-                    [2, editHingeCardInputRef2],
-                    [3, editHingeCardInputRef3],
-                  ] as const
-                ).map(([slot, refEl]) => (
-                  <input
-                    key={slot}
-                    id={`hinge-type-card-image-edit-${slot}`}
-                    ref={refEl}
-                    className="frame2-file-input frame2-file-input--sr"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      setEditCardFiles((prev) => {
-                        const next: CalcCardImageFiles = [...prev]
-                        next[slot] = e.target.files?.[0] ?? null
-                        return next
-                      })
-                      setEditCardTextures((prev) => {
-                        const next: CalcCardTextureIds = [...prev]
-                        next[slot] = null
-                        return next
-                      })
-                      setEditCardTextureUrls((prev) => {
-                        const next: CalcCardImageUrls = [...prev]
-                        next[slot] = ''
-                        return next
-                      })
-                    }}
-                  />
-                ))}
-              </div>
-              <ProfileCardImageTileRow
-                urls={editHingeCardTileUrls}
-                inputRefs={[editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]}
-                onPickSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
-                groupAriaLabel="Фото карточки типа петель, до четырёх"
-              />
-            </div>
-
-            <div className="frame2-block frame2-create-tr">
-              <div className="frame2-block-title">Материалы</div>
-              <div className="frame2-material-search-row">
-                <button
-                  type="button"
-                  className="admin-secondary frame2-material-tree-search-btn"
-                  onClick={() => void openMaterialTreeSearch('edit')}
-                >
-                  Поиск
-                </button>
-              </div>
-              <div className="frame2-file-row frame2-colors-for-card-label">
-                <div className="frame2-file-label-row">
-                  <span className="frame2-file-label">Материалы для карточки</span>
-                </div>
-              </div>
-              {editHingeMatHit.length > 0 && (
-                <ul className="frame2-checklist">
-                  {editHingeMatHit.map((m) => (
-                    <li key={m.id}>
-                      <label
-                        className={[
-                          'frame2-checkrow',
-                          editHingeMatIds[m.id] ? 'frame2-checkrow--checked' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        title={matLabel(m)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={editHingeMatIds[m.id] === true}
-                          onChange={() =>
-                            setEditHingeMatIds((prev) => {
-                              const next = { ...prev }
-                              if (next[m.id]) delete next[m.id]
-                              else next[m.id] = true
-                              return next
-                            })
-                          }
-                        />
-                        <span className="frame2-check-article">{m.article || '—'}</span>
-                        <MaterialCheckSwatch
-                          name={materialTextureLabel(m)}
-                          material={m}
-                          texExtra={texByMaterialId[m.id]}
-                        />
-                        <span className="frame2-check-name-wrap">
-                          <span className="frame2-check-name">{materialTextureLabel(m)}</span>
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {Object.keys(editHingeMatIds).length > 0 && (
-                <div className="admin-muted">Выбрано материалов: {Object.keys(editHingeMatIds).length}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="tiles" aria-label="Тип петель">
         {hingeTypes.length === 0 && !loading && <p className="admin-muted">Типов петель пока нет.</p>}
@@ -912,8 +642,14 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
           <div className="frame2-modal frame2-modal--wide" role="document" onClick={(e) => e.stopPropagation()}>
             <div className="frame2-modal-head">
               <div className="frame2-modal-title">{modalType.name || `Тип #${modalType.id}`}</div>
-              <button type="button" className="admin-secondary" onClick={() => setModalTypeId(null)}>
-                Закрыть
+              <button
+                type="button"
+                className="admin-primary admin-modal-head-icon-close"
+                aria-label="Закрыть"
+                title="Закрыть"
+                onClick={() => setModalTypeId(null)}
+              >
+                {MODAL_CLOSE_X_SVG}
               </button>
             </div>
 
@@ -955,7 +691,8 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                     {!readOnly && (
                       <button
                         type="button"
-                        className="tile-action-remove"
+                        className="tile-action-remove admin-primary admin-modal-head-icon-close"
+                        aria-label="Убрать материал из типа"
                         title="Убрать материал из типа"
                         disabled={modalSaving}
                         onClick={(e) => {
@@ -965,7 +702,7 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
                           void removeModalMaterial(c.material_id)
                         }}
                       >
-                        ×
+                        {MODAL_CLOSE_X_SVG}
                       </button>
                     )}
                   </div>
@@ -982,6 +719,120 @@ export function FrameHingeCatalog({ readOnly }: FrameHingeCatalogProps) {
             )}
           </div>
         </div>
+      )}
+
+      {!readOnly && createOpen && (
+        <CalculatorTypeFormModal
+          open
+          title="Создание типа петель"
+          titleId="hinge-type-create-title"
+          onClose={closeCreateHinge}
+          onSubmit={() => void submitCreate()}
+          submitLabel="Создать"
+          error={err}
+        >
+          <MaterialTypeFormGrid
+            idPrefix="hinge-type"
+            typeBlockTitle="Тип петель"
+            typeName={createName}
+            onTypeNameChange={setCreateName}
+            namePlaceholder="Например: Петля 110°, накладная…"
+            cardImageLabel="Изображения для карточки"
+            cardFiles={createCardFiles}
+            onCardFileChange={(slot, file) => {
+              setCreateCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setCreateCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setCreateCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={createCardTileUrls}
+            cardInputRefs={[hingeCardInputRef0, hingeCardInputRef1, hingeCardInputRef2, hingeCardInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'create', slot })}
+            cardAriaLabel="Фото карточки типа петель, до четырёх"
+            materialsBlockTitle="Материалы (петли)"
+            materialsListLabel="Материалы для карточки"
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
+            materialsHit={createMatHit}
+            selectedMaterialIds={createMatIds}
+            onToggleMaterial={(id) =>
+              setCreateMatIds((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = true
+                return next
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
+      )}
+
+      {!readOnly && editHingeId != null && editingHinge && (
+        <CalculatorTypeFormModal
+          open
+          title="Редактирование типа петель"
+          titleId="hinge-type-edit-title"
+          onClose={closeEditHinge}
+          onSubmit={() => void submitEditHinge()}
+          submitLabel="Сохранить"
+          error={err}
+        >
+          <MaterialTypeFormGrid
+            idPrefix="hinge-type-edit"
+            typeBlockTitle="Тип петель"
+            typeName={editHingeName}
+            onTypeNameChange={setEditHingeName}
+            namePlaceholder="Название…"
+            cardImageLabel="Карточка: до 4 фото"
+            cardFiles={editCardFiles}
+            onCardFileChange={(slot, file) => {
+              setEditCardFiles((prev) => {
+                const next: CalcCardImageFiles = [...prev]
+                next[slot] = file
+                return next
+              })
+              setEditCardTextures((prev) => {
+                const next: CalcCardTextureIds = [...prev]
+                next[slot] = null
+                return next
+              })
+              setEditCardTextureUrls((prev) => {
+                const next: CalcCardImageUrls = [...prev]
+                next[slot] = ''
+                return next
+              })
+            }}
+            cardTileUrls={editHingeCardTileUrls}
+            cardInputRefs={[editHingeCardInputRef0, editHingeCardInputRef1, editHingeCardInputRef2, editHingeCardInputRef3]}
+            onPickTextureSlot={(slot) => setTexturePickerTarget({ mode: 'edit', slot })}
+            cardAriaLabel="Фото карточки типа петель, до четырёх"
+            materialsBlockTitle="Материалы"
+            materialsListLabel="Материалы для карточки"
+            onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
+            materialsHit={editHingeMatHit}
+            selectedMaterialIds={editHingeMatIds}
+            onToggleMaterial={(id) =>
+              setEditHingeMatIds((prev) => {
+                const next = { ...prev }
+                if (next[id]) delete next[id]
+                else next[id] = true
+                return next
+              })
+            }
+            texByMaterialId={texByMaterialId}
+          />
+        </CalculatorTypeFormModal>
       )}
 
       {materialSearchOverlay && (

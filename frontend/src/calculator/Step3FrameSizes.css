@@ -41,6 +41,16 @@
   gap: 0.35rem;
 }
 
+/* Checkbox in step form fields — match MaterialForm (16×16px) */
+.frame3-field input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ft-accent-2, #cbb079);
+}
+
 .frame3-field--wide {
   margin-top: 0.85rem;
 }

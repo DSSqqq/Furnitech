@@ -509,6 +509,11 @@
   text-align: right;
 }
 
+/* Скругление кнопок в пользователях — как у .admin-logout (10px). */
+.admin-users-actions-cell .admin-secondary {
+  border-radius: 10px;
+}
+
 /* Стили калькулятора в оболочке — calculator/CalculatorPanelShell.css */
 
 .admin-error {
@@ -579,6 +584,20 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.55rem 0.85rem 0.7rem;
+}
+
+/* Калькулятор: создание/редактирование типов (профиль, наполнение, петли) */
+.calculator-type-form-modal.admin-material-card-dialog.admin-panel--in-material-modal {
+  max-width: min(960px, 96vw);
+}
+
+.calculator-type-form-modal-body .frame2-create-grid {
+  margin-top: 0.15rem;
+}
+
+.calculator-type-form-modal-body .frame2-checklist {
+  max-height: min(38vh, 300px);
+  overflow-y: auto;
 }
 
 /* Создать папку (explorer): та же карточка, что у текстуры — флекс-колонка и скролл внутри дерева */
@@ -1239,6 +1258,18 @@
   gap: 0.5rem;
 }
 
+.admin-modal .admin-row.mat-form-actions,
+.admin-modal--explorer .admin-row.mat-form-actions,
+.step8-modal .admin-row.mat-form-actions {
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.frame2-modal .admin-row.mat-form-actions {
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
 /* Большое окно «Создать папку» — explorer-style */
 .admin-modal--explorer {
   max-width: min(960px, 96vw);
@@ -1485,6 +1516,27 @@
 #texture-picker-modal .mat-list-row--active::before {
   border-radius: calc(3px * var(--admin-refs-scale)) 0 0 calc(3px * var(--admin-refs-scale));
   width: calc(3px * var(--admin-refs-scale));
+}
+
+.texture-picker-modal.admin-calculations-modal-surface .mat-form-actions.admin-row {
+  gap: 0.28rem;
+  margin-top: 0.35rem;
+  justify-content: flex-end;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.texture-picker-modal.admin-calculations-modal-surface .admin-main-scroll > button.admin-secondary {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.1rem 0.45rem;
+  font-size: var(--mat-scroll-fs);
+  line-height: var(--mat-scroll-lh);
+  letter-spacing: var(--mat-scroll-ls);
+  font-weight: 600;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+  box-shadow: none;
 }
 
 #material-search-modal.admin-body {
@@ -2763,6 +2815,9 @@ button.admin-primary.admin-modal-confirm:hover {
 
 /* Модалки справочников (portal → body): дублируем vars и скругление полей/кнопок */
 .admin-calculations-modal-surface,
+.admin-modal-backdrop,
+.step8-modal-backdrop,
+.frame2-modal-backdrop,
 .material-related-pick-mat-list,
 .material-class-pick-mat-list {
   --admin-refs-scale: 1.3;
@@ -2783,6 +2838,14 @@ button.admin-primary.admin-modal-confirm:hover {
 .admin-calculations-modal-surface .mat-form-title-line .mat-form-title-input,
 .admin-calculations-modal-surface .admin-calculations-output,
 .admin-calculations-modal-surface .admin-calculations-number.admin-input,
+.admin-modal-backdrop .mat-form-actions .admin-primary,
+.admin-modal-backdrop .mat-form-actions .admin-secondary,
+.step8-modal-backdrop .mat-form-actions .admin-primary,
+.step8-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal-backdrop .mat-form-actions .admin-primary,
+.frame2-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal .mat-form-actions .admin-primary,
+.frame2-modal .mat-form-actions .admin-secondary,
 .admin-calculations-modal-surface .mat-form-actions .admin-primary,
 .admin-calculations-modal-surface .mat-form-actions .admin-secondary,
 .admin-calculations-modal-surface .tex-layout .admin-secondary,
@@ -2792,6 +2855,8 @@ button.admin-primary.admin-modal-confirm:hover {
 .admin-calculations-modal-surface .admin-calculations-keypad-key,
 .admin-calculations-modal-surface .admin-calculations-section-classes > button.admin-primary,
 .admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary,
+.admin-calculations-modal-surface .admin-modal-head-row .admin-modal-head-icon-close.admin-primary,
+.admin-calculations-modal-surface .frame2-modal-head .admin-modal-head-icon-close.admin-primary,
 .admin-calculations-modal-surface .mat-form-rounding-mult-input,
 .admin-calculations-modal-surface .admin-calculations-formula-class-remove,
 .admin-calculations-modal-surface .mat-list-row,
@@ -3379,6 +3444,29 @@ button.admin-primary.admin-modal-confirm:hover {
 .mat-form-head .admin-modal-head-icon-close.admin-primary svg {
   width: 1.05rem;
   height: 1.05rem;
+}
+
+/* Explorer / picker modals and calculator step modals: compact 24×24 close control */
+.admin-modal-head-row .admin-modal-head-icon-close.admin-primary,
+.frame2-modal-head .admin-modal-head-icon-close.admin-primary {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
+  box-shadow: none;
+}
+
+.admin-modal-head-row .admin-modal-head-icon-close.admin-primary svg,
+.frame2-modal-head .admin-modal-head-icon-close.admin-primary svg {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .field-label-row {
@@ -5147,14 +5235,18 @@ select.admin-input optgroup {
   opacity: 0.85;
 }
 
-.admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary {
+.admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary,
+.admin-calculations-modal-surface .admin-modal-head-row .admin-modal-head-icon-close.admin-primary,
+.admin-calculations-modal-surface .frame2-modal-head .admin-modal-head-icon-close.admin-primary {
   width: 1.5rem;
   height: 1.5rem;
   border-radius: var(--admin-refs-control-radius, calc(3px * 1.3));
   box-shadow: none;
 }
 
-.admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary svg {
+.admin-calculations-modal-surface .mat-form-head .admin-modal-head-icon-close.admin-primary svg,
+.admin-calculations-modal-surface .admin-modal-head-row .admin-modal-head-icon-close.admin-primary svg,
+.admin-calculations-modal-surface .frame2-modal-head .admin-modal-head-icon-close.admin-primary svg {
   width: 0.85rem;
   height: 0.85rem;
 }
@@ -5211,6 +5303,10 @@ select.admin-input optgroup {
   height: 0.75rem;
 }
 
+.admin-modal-backdrop .mat-form-actions.admin-row,
+.step8-modal-backdrop .mat-form-actions.admin-row,
+.frame2-modal-backdrop .mat-form-actions.admin-row,
+.frame2-modal .mat-form-actions.admin-row,
 .admin-calculations-modal-surface.admin-panel--in-material-modal .mat-form-actions.admin-row {
   gap: 0.28rem;
   margin-top: 0.35rem;
@@ -5218,6 +5314,14 @@ select.admin-input optgroup {
   width: 100%;
 }
 
+.admin-modal-backdrop .mat-form-actions .admin-primary,
+.admin-modal-backdrop .mat-form-actions .admin-secondary,
+.step8-modal-backdrop .mat-form-actions .admin-primary,
+.step8-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal-backdrop .mat-form-actions .admin-primary,
+.frame2-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal .mat-form-actions .admin-primary,
+.frame2-modal .mat-form-actions .admin-secondary,
 .admin-calculations-modal-surface .mat-form-actions .admin-primary,
 .admin-calculations-modal-surface .mat-form-actions .admin-secondary {
   width: auto;
@@ -5232,6 +5336,10 @@ select.admin-input optgroup {
   box-shadow: none;
 }
 
+.admin-modal-backdrop .mat-form-actions .admin-secondary,
+.step8-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal-backdrop .mat-form-actions .admin-secondary,
+.frame2-modal .mat-form-actions .admin-secondary,
 .admin-calculations-modal-surface .mat-form-actions .admin-secondary {
   padding: 0.1rem 0.45rem;
 }

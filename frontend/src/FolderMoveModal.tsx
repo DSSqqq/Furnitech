@@ -1,7 +1,14 @@
 /** Модалка переноса папок/материалов; на вкладке «Материалы» не используется (inline DnD). */
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { createPortal } from 'react-dom'
+import './AdminApp.css'
 import { fetchMaterials } from './api'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 import { DND_FOLDER, DND_MATERIAL, isFolderDrag, isMaterialDrag } from './folderMoveDnD'
 import type { MaterialCategory, TextureCategory } from './types'
 
@@ -476,9 +483,21 @@ export function FolderMoveModal({
       }}
     >
       <div className="admin-modal admin-modal--explorer" role="document" onClick={(e) => e.stopPropagation()}>
-        <h4 id="folder-move-title" className="admin-modal-title">
-          Перемещение папок
-        </h4>
+        <div className="admin-modal-head-row">
+          <h4 id="folder-move-title" className="admin-modal-title">
+            Перемещение папок
+          </h4>
+          <button
+            type="button"
+            className="admin-primary admin-modal-head-icon-close"
+            aria-label="Закрыть"
+            title="Закрыть"
+            disabled={submitting || draggingFolder || draggingMaterial}
+            onClick={onClose}
+          >
+            {MODAL_CLOSE_X_SVG}
+          </button>
+        </div>
 
         <p className="folder-move-hint">
           Перетащите <strong>любую</strong> строку папки в дереве на цель или на «Все папки». Справа можно бросить на
@@ -658,14 +677,14 @@ export function FolderMoveModal({
 
         {localErr ? <div className="admin-error admin-error--compact">{localErr}</div> : null}
 
-        <div className="admin-modal-actions">
+        <div className="admin-row mat-form-actions">
           <button
             type="button"
-            className="admin-primary admin-modal-confirm"
+            className="admin-secondary"
             disabled={submitting || draggingFolder || draggingMaterial}
             onClick={onClose}
           >
-            Закрыть
+            Отмена
           </button>
         </div>
       </div>

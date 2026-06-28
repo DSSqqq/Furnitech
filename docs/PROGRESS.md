@@ -2,7 +2,49 @@
 
 Журнал сессий и чеклист; архитектура — [ARCHITECTURE.md](ARCHITECTURE.md).
 
-**Последнее обновление:** 2026-06-28 — кнопка **«Дублировать»** в карточке материала (админка).
+**Последнее обновление:** 2026-06-28 — унификация UI модалок и элементов калькулятора/админки.
+
+### Изменения 2026-06-28 (frontend — унификация UI модалок и контролов)
+
+#### Задача
+
+Привести кнопки, шапки и футеры **всех модальных окон** (админка, проводник папок, выбор материалов/текстур, шаги калькулятора) к эталону **CalculatorTypeFormModal**: одинаковые классы, размеры крестика и компактные действия в футере; выровнять чекбоксы шага 7, кнопку удаления в таблице пользователей и «×» на плитках типов.
+
+#### Исправление
+
+- **Кнопки модалок:** закрытие — dmin-primary admin-modal-head-icon-close; **Отмена** — dmin-secondary; основное действие — dmin-primary; футер — dmin-row mat-form-actions. Удалены устаревшие dmin-modal-confirm, dmin-modal-actions.
+- **Файлы модалок:** TexturePickerModal, FolderCreateModal, FolderMoveModal, MaterialClassPickModal, MaterialRelatedPickModal, MaterialSearchModal, панели админки (AdminCalculationsPanel, AdminMaterialClassesPanel, AdminOrdersPanel, AdminTexturesPanel, AdminUomPanel).
+- **Крестик 24×24:** dmin-modal-head-row (проводник), rame2-modal-head (шаги калькулятора), TexturePickerModal.
+- **Компактный футер (~18px):** глобально для .admin-modal-backdrop в **AdminApp.css**.
+- **Чекбокс шага 7 (16×16):** как в **MaterialForm** — rame2-checkrow, rame2-flag (+ правки в **Step3FrameSizes.css**, **Step8FrameResult**).
+- **Таблица пользователей:** кнопка удаления — order-radius: 10px как у **dmin-logout** (AdminApp.tsx / **AdminApp.css**).
+- **Плитки типов:** 	ile-action-remove — те же классы/SVG, что у admin close; непрозрачный фон на плитках — **Step2FrameFacade**, **Step4FrameFilling**, **FrameHingeCatalog**, стили в **Step2FrameFacade.css**.
+
+См. также блок ниже про модалки создания/редактирования типов калькулятора (CalculatorTypeFormModal, CalculatorTypeFormGrid).
+
+#### Проверка
+
+- 
+pm run build — OK.
+
+### Изменения 2026-06-28 (frontend — модалки типов калькулятора)
+
+#### Задача
+
+Формы **«+ Добавить тип …»** и **редактирование типа** (⚙) на шагах калькулятора — не inline в боковой панели, а в **отдельных модальных окнах** в стиле карточки материала (`admin-modal-backdrop`, `admin-material-card-dialog`).
+
+#### Исправление
+
+- **`CalculatorTypeFormModal.tsx`** — общая оболочка (портал, шапка с крестиком, **Escape**, футер **Отмена** / **Создать|Сохранить**).
+- **`calculator/CalculatorTypeFormGrid.tsx`** — сетка полей **`ProfileTypeFormGrid`** (шаг 2, цвета + флаги New/Hit/Sale) и **`MaterialTypeFormGrid`** (шаги 4 и каталог петель).
+- **`Step2FrameFacade`**, **`Step4FrameFilling`**, **`FrameHingeCatalog`**: inline **`frame2-create`** убран; кнопка «+ Добавить…» открывает модалку; редактирование — та же модалка с предзаполнением.
+- **`AdminApp.css`**: **`calculator-type-form-modal`** — скролл чеклиста материалов в модалке.
+
+Доступ: только при **`readOnly === false`** (калькулятор в админке `/calculator`, staff и manager). На публичном калькуляторе кнопки скрыты.
+
+#### Проверка
+
+- `npm run build` — OK.
 
 ### Изменения 2026-06-28 (frontend — дублирование материала)
 

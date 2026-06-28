@@ -7,7 +7,14 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
+import './AdminApp.css'
 import { fetchMaterials, fetchMaterialsFiltered } from './api'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 import { BASE_CURRENCY } from './currencies'
 import { DECIMAL_FRACTION_DIGITS, formatDecimalStringForUi } from './floatInput'
 import type { Material, MaterialCategory, MaterialClass } from './types'
@@ -332,9 +339,21 @@ export function MaterialSearchModal(props: MaterialSearchModalProps) {
         role="document"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 id="material-search-title" className="admin-modal-title">
-          Поиск материалов
-        </h4>
+        <div className="admin-modal-head-row">
+          <h4 id="material-search-title" className="admin-modal-title">
+            Поиск материалов
+          </h4>
+          <button
+            type="button"
+            className="admin-primary admin-modal-head-icon-close"
+            aria-label="Закрыть"
+            title="Закрыть"
+            disabled={loading}
+            onClick={onClose}
+          >
+            {MODAL_CLOSE_X_SVG}
+          </button>
+        </div>
 
         <div className="admin-body material-search-modal-body" id="material-search-modal">
           <aside className="admin-aside">
@@ -553,7 +572,10 @@ export function MaterialSearchModal(props: MaterialSearchModalProps) {
           </div>
         </div>
 
-        <div className="admin-modal-actions">
+        <div className="admin-row mat-form-actions">
+          <button type="button" className="admin-secondary" disabled={loading} onClick={onClose}>
+            Отмена
+          </button>
           {isNavigate ? (
             <button
               type="button"
@@ -574,9 +596,6 @@ export function MaterialSearchModal(props: MaterialSearchModalProps) {
               {pickedMaterials.size > 0 ? ` (${pickedMaterials.size})` : ''}
             </button>
           )}
-          <button type="button" className="admin-secondary" disabled={loading} onClick={onClose}>
-            Закрыть
-          </button>
         </div>
       </div>
     </div>,

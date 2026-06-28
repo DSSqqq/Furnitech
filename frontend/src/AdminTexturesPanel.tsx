@@ -534,7 +534,7 @@ function TextureCardForm({
                 Запись будет удалена. У материалов, где была выбрана эта текстура, привязка
                 сбросится.
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button
                   type="button"
                   className="admin-secondary"
@@ -544,7 +544,7 @@ function TextureCardForm({
                 </button>
                 <button
                   type="button"
-                  className="admin-primary admin-modal-confirm"
+                  className="admin-primary"
                   onClick={confirmDelete}
                 >
                   Удалить
@@ -1331,7 +1331,7 @@ export function AdminTexturesPanel() {
                 папками и текстурами. Материалы с привязкой к этим текстурам потеряют ссылку.
                 Продолжить?
               </p>
-              <div className="admin-modal-actions">
+              <div className="admin-row mat-form-actions">
                 <button
                   type="button"
                   className="admin-secondary"
@@ -1341,7 +1341,7 @@ export function AdminTexturesPanel() {
                 </button>
                 <button
                   type="button"
-                  className="admin-primary admin-modal-confirm"
+                  className="admin-primary"
                   onClick={confirmDeleteFolder}
                 >
                   Удалить

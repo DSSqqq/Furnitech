@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import './AdminApp.css'
 import { fetchMaterialClassCategoryTree, fetchMaterialClasses } from './api'
+
+const MODAL_CLOSE_X_SVG = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+)
 import type { MaterialClass, MaterialClassCategory } from './types'
 
 const ROOT_LABEL = 'База классов'
@@ -534,9 +541,20 @@ export function MaterialClassPickModal({
       }}
     >
       <div className="admin-modal admin-modal--explorer" role="document" onClick={(e) => e.stopPropagation()}>
-        <h4 id="material-class-pick-title" className="admin-modal-title">
-          {title}
-        </h4>
+        <div className="admin-modal-head-row">
+          <h4 id="material-class-pick-title" className="admin-modal-title">
+            {title}
+          </h4>
+          <button
+            type="button"
+            className="admin-primary admin-modal-head-icon-close"
+            aria-label="Закрыть"
+            title="Закрыть"
+            onClick={onClose}
+          >
+            {MODAL_CLOSE_X_SVG}
+          </button>
+        </div>
 
         {!closeOnPick ? (
           <p className="admin-muted" style={{ margin: '0 0 0.5rem' }}>
@@ -546,9 +564,9 @@ export function MaterialClassPickModal({
 
         <MaterialClassPickerBody onPick={pick} selectedClassIds={selectedClassIds} autoFocusSearch />
 
-        <div className="admin-modal-actions">
+        <div className="admin-row mat-form-actions">
           <button type="button" className="admin-secondary" onClick={onClose}>
-            Закрыть
+            Отмена
           </button>
         </div>
       </div>
