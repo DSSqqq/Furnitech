@@ -779,13 +779,6 @@ export function Step8FrameResult() {
     setSelectedFacadeIndex(tabIndex)
   }
 
-  function onEditSelectedFacade() {
-    if (!isViewingCurrentFacade) {
-      onSelectFacadeTab(selectedFacadeIndex)
-    }
-    nav(step('frame'))
-  }
-
   function onAddFacade() {
     if (!dataApisReady) return
     if (!currentFacadeReady) {
@@ -1018,25 +1011,6 @@ export function Step8FrameResult() {
             })}
           </div>
 
-          <div className="step8-facade-toolbar">
-            <button
-              type="button"
-              className="admin-secondary step8-facade-edit"
-              disabled={!dataApisReady}
-              onClick={onEditSelectedFacade}
-            >
-              Изменить
-            </button>
-            <button
-              type="button"
-              className="admin-secondary admin-danger step8-facade-delete"
-              disabled={!dataApisReady || facadeVariantCount <= 1}
-              onClick={onDeleteSelectedFacade}
-            >
-              Удалить
-            </button>
-          </div>
-
           <div id="step8-facade-panels" role="tabpanel" aria-labelledby={`step8-facade-tab-${selectedFacadeIndex + 1}`}>
             {!isViewingCurrentFacade && savedFacadeAtTab(selectedFacadeIndex) ? (
               <Step8FacadePanels {...savedFacadeToPanelsProps(savedFacadeAtTab(selectedFacadeIndex)!, selectedFacadeIndex + 1)} />
@@ -1085,6 +1059,14 @@ export function Step8FrameResult() {
           </button>
           <button type="button" className="admin-primary" onClick={onNewCalc}>
             Новый расчёт
+          </button>
+          <button
+            type="button"
+            className="admin-primary step8-facade-delete"
+            disabled={!dataApisReady || facadeVariantCount <= 1}
+            onClick={onDeleteSelectedFacade}
+          >
+            Удалить текущий
           </button>
           </div>
         </div>

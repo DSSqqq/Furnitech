@@ -58,18 +58,6 @@
   opacity: 0.85;
 }
 
-.step8-facade-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.step8-facade-edit,
-.step8-facade-delete {
-  min-width: 0;
-}
-
 .step8-price-breakdown-wrap {
   margin-bottom: 0.75rem;
 }
@@ -423,8 +411,7 @@
   .step8-result__nav,
   .step8-form,
   .step8-result__footer-actions,
-  .step8-facade-switcher,
-  .step8-facade-toolbar {
+  .step8-facade-switcher {
     display: none !important;
   }
 
