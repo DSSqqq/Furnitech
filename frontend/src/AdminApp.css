@@ -200,14 +200,7 @@
   box-sizing: border-box;
 }
 
-@media (min-width: 1025px) {
-  #admin-panel-orders.admin-body,
-  #admin-panel-users.admin-body,
-  #admin-panel-orders.admin-body.admin-body--panel-loading-host,
-  #admin-panel-users.admin-body.admin-body--panel-loading-host {
-    min-height: calc(100dvh - 108px);
-  }
-}
+/* min-height панелей под оверлей — AdminPanelLoadingOverlay.css (@media min-width: 1025px) */
 
 .admin-orders-placeholder--filled {
   display: flex;

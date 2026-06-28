@@ -15,7 +15,7 @@
   isolation: isolate;
 }
 
-/* Заказы / пользователи: одна колонка на всю высоту панели — оверлей inset:0 по #admin-panel-orders */
+/* Заказы / пользователи: одна колонка на всю высоту панели */
 #admin-panel-orders.admin-body,
 #admin-panel-users.admin-body {
   display: flex;
@@ -31,9 +31,57 @@
   flex-direction: column;
 }
 
+/* Калькулятор (админ + публичный): та же колонка на всю высоту панели */
+#admin-panel-calculator.admin-body.calc-panel-shell,
+#public-panel-calculator.calc-panel-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#admin-panel-calculator.calc-panel-shell > .admin-orders-placeholder,
+#public-panel-calculator.calc-panel-shell > .admin-orders-placeholder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Оверлей inset:0 — панель не ниже контента при загрузке */
+#admin-panel-materials.admin-body--panel-loading-host,
+#admin-panel-textures.admin-body--panel-loading-host,
+#admin-panel-classes.admin-body--panel-loading-host,
+#admin-panel-uom.admin-body--panel-loading-host,
+#admin-panel-calculations.admin-body--panel-loading-host,
+#admin-panel-calculator.admin-body--panel-loading-host,
 #admin-panel-orders.admin-body--panel-loading-host,
-#admin-panel-users.admin-body--panel-loading-host {
+#admin-panel-users.admin-body--panel-loading-host,
+#public-panel-calculator.admin-body--panel-loading-host {
   min-height: 12rem;
+}
+
+/* Высота окна минус admin-header-top + admin-section-tabs (или public-shell аналог) */
+@media (min-width: 1025px) {
+  #admin-panel-materials.admin-body,
+  #admin-panel-textures.admin-body,
+  #admin-panel-classes.admin-body,
+  #admin-panel-uom.admin-body,
+  #admin-panel-calculations.admin-body,
+  #admin-panel-calculator.admin-body,
+  #admin-panel-orders.admin-body,
+  #admin-panel-users.admin-body,
+  #public-panel-calculator.calc-panel-shell,
+  #admin-panel-materials.admin-body.admin-body--panel-loading-host,
+  #admin-panel-textures.admin-body.admin-body--panel-loading-host,
+  #admin-panel-classes.admin-body.admin-body--panel-loading-host,
+  #admin-panel-uom.admin-body.admin-body--panel-loading-host,
+  #admin-panel-calculations.admin-body.admin-body--panel-loading-host,
+  #admin-panel-calculator.admin-body.admin-body--panel-loading-host,
+  #admin-panel-orders.admin-body.admin-body--panel-loading-host,
+  #admin-panel-users.admin-body.admin-body--panel-loading-host,
+  #public-panel-calculator.calc-panel-shell.admin-body--panel-loading-host {
+    min-height: calc(100dvh - 108px);
+  }
 }
 
 #admin-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading,
@@ -44,7 +92,8 @@
 #admin-panel-calculations.admin-body--panel-loading-host > .admin-panel-loading,
 #admin-panel-orders.admin-body--panel-loading-host > .admin-panel-loading,
 #admin-panel-users.admin-body--panel-loading-host > .admin-panel-loading,
-#public-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading {
+#public-panel-calculator.admin-body--panel-loading-host > .admin-panel-loading,
+#public-panel-calculator.calc-panel-shell.admin-body--panel-loading-host > .admin-panel-loading {
   z-index: 50;
 }
 
