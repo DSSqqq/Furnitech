@@ -73,6 +73,18 @@ export type FrameClientPdfInput = {
   orderNumber?: string
 }
 
+export type FrameClientPdfFacade = Omit<FrameClientPdfInput, 'contact' | 'orderNumber'>
+
+export type FrameClientPdfBundle = {
+  contact: FrameClientPdfInput['contact']
+  facades: FrameClientPdfFacade[]
+  orderNumber?: string
+}
+
+function isPdfBundle(data: FrameClientPdfInput | FrameClientPdfBundle): data is FrameClientPdfBundle {
+  return Array.isArray((data as FrameClientPdfBundle).facades)
+}
+
 function clampPdf(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n))
 }
@@ -1024,12 +1036,21 @@ export async function preloadFramePdfFont(): Promise<void> {
 }
 
 /** Собирает PDF в память. Для показа во вкладке: синхронно открыть `about:blank`, затем после await назначить `win.location.href` на `URL.createObjectURL(blob)` — см. шаг 8 калькулятора. */
-export async function buildFrameClientPdfBlob(data: FrameClientPdfInput): Promise<{ blob: Blob; filename: string }> {
+export async function buildFrameClientPdfBlob(
+  data: FrameClientPdfInput | FrameClientPdfBundle,
+): Promise<{ blob: Blob; filename: string }> {
   const orderLabel = data.orderNumber?.trim()
   const calcNo = orderLabel || String(1000 + Math.floor(Math.random() * 9000))
   const doc = new jsPDF({ ...PDF_DOC_OPTS, compress: true })
 
-  await buildBlankPage(doc, calcNo, data)
+  const facades: FrameClientPdfInput[] = isPdfBundle(data)
+    ? data.facades.map((f) => ({ contact: data.contact, ...f }))
+    : [data]
+
+  for (let i = 0; i < facades.length; i++) {
+    if (i > 0) doc.addPage()
+    await buildBlankPage(doc, calcNo, facades[i]!)
+  }
 
   const safeName = orderLabel
     ? `furnitech-${orderLabel.replace(/[^\w-]+/g, '_')}.pdf`

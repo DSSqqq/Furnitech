@@ -1,7 +1,7 @@
 import { fetchMaterial } from '../api'
 import type { FacadeOrder } from '../api'
 import type { Material } from '../types'
-import type { FrameClientPdfBreakdown, FrameClientPdfInput } from './frameClientPdf'
+import type { FrameClientPdfBreakdown, FrameClientPdfBundle, FrameClientPdfInput } from './frameClientPdf'
 import type { HandleHolesPersisted, HingeLayoutPersisted } from './frameCalcSession'
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -78,12 +78,61 @@ async function materialFromSnapshotPart(part: unknown): Promise<Material | null>
   }
 }
 
-/** Собрать вход PDF из snapshot заказа (как на шаге 8). */
+/** Собрать вход PDF из snapshot заказа (как на шаге 8). Поддерживает несколько конфигураций фасадов. */
 export async function buildPdfInputFromOrderSnapshot(
   snapshot: Record<string, unknown>,
   orderNumber?: string,
-): Promise<FrameClientPdfInput> {
+): Promise<FrameClientPdfInput | FrameClientPdfBundle> {
   const contactRec = asRecord(snapshot.contact) ?? {}
+  const contact = {
+    name: asString(contactRec.name) || asString(snapshot.contact_name),
+    phone: asString(contactRec.phone) || asString(snapshot.contact_phone),
+    email: asString(contactRec.email) || asString(snapshot.contact_email),
+    comment: asString(contactRec.comment) || asString(snapshot.contact_comment),
+  }
+
+  const variantsRaw = snapshot.facadeVariants
+  if (Array.isArray(variantsRaw) && variantsRaw.length > 0) {
+    const facades = await Promise.all(
+      variantsRaw.map(async (variant) => {
+        const v = asRecord(variant) ?? {}
+        const breakdown = parseBreakdown(v.breakdown)
+        const formulaName = asString(v.formulaName)
+        const [colorMaterial, fillingMaterial] = await Promise.all([
+          materialFromSnapshotPart(v.colorMaterial),
+          materialFromSnapshotPart(v.fillingMaterial),
+        ])
+        const hingeLayout = parseHingeLayout(v.hingeLayout)
+        const includeHingeLayoutRow =
+          v.includeHingeLayoutRow === true ||
+          (hingeLayout != null && v.includeHingeLayoutRow !== false)
+
+        return {
+          frameTypeName: asString(v.frameTypeName) || '—',
+          fillingTypeName: asString(v.fillingTypeName) || undefined,
+          colorMaterial,
+          fillingMaterial,
+          heightMm: asNumber(v.heightMm, 500),
+          widthMm: asNumber(v.widthMm, 200),
+          facadeCount: Math.max(1, Math.floor(asNumber(v.facadeCount, 1))),
+          mortiseLine: asString(v.mortiseLine) || '—',
+          hingeLayoutLine: asString(v.hingeLayoutLine) || '—',
+          handleLine: asString(v.handleLine) || '—',
+          breakdown,
+          priceBreakdownDetail:
+            asRecord(v.priceBreakdown) ?? asRecord(v.priceBreakdownDetail) ?? undefined,
+          formulaName: formulaName || undefined,
+          currency: asString(v.currency) || asString(snapshot.currency) || 'KZT',
+          currencyMismatch: v.currencyMismatch === true || snapshot.currencyMismatch === true,
+          hingeLayout,
+          includeHingeLayoutRow,
+          handleHoles: parseHandleHoles(v.handleHoles),
+        }
+      }),
+    )
+    return { contact, facades, orderNumber: orderNumber?.trim() || undefined }
+  }
+
   const breakdown = parseBreakdown(snapshot.breakdown)
   const formulaName = asString(snapshot.formulaName)
 
@@ -98,12 +147,7 @@ export async function buildPdfInputFromOrderSnapshot(
     (hingeLayout != null && snapshot.includeHingeLayoutRow !== false)
 
   return {
-    contact: {
-      name: asString(contactRec.name) || asString(snapshot.contact_name),
-      phone: asString(contactRec.phone) || asString(snapshot.contact_phone),
-      email: asString(contactRec.email) || asString(snapshot.contact_email),
-      comment: asString(contactRec.comment) || asString(snapshot.contact_comment),
-    },
+    contact,
     frameTypeName: asString(snapshot.frameTypeName) || '—',
     fillingTypeName: asString(snapshot.fillingTypeName) || undefined,
     colorMaterial,

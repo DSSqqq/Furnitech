@@ -458,8 +458,164 @@ export function notifyFrameCalcSession() {
   window.dispatchEvent(new Event(FRAME_CALC_SESSION_EVENT))
 }
 
-/** Сброс выбора рамочного калькулятора (новый расчёт с шага 1). */
-export function clearFrameCalculatorStorage() {
+/** Слот сохранённого фасада, который редактируют (индекс в `calc_frame_saved_facades`). */
+export const CALC_LS_EDITING_FACADE_SLOT = 'calc_frame_editing_facade_slot'
+/** Индекс вкладки «текущего» фасада на шаге 8 (0…savedCount). */
+export const CALC_LS_CURRENT_FACADE_INDEX = 'calc_frame_current_facade_index'
+
+export function readCurrentFacadeIndex(savedCount: number): number {
+  try {
+    const raw = localStorage.getItem(CALC_LS_CURRENT_FACADE_INDEX)?.trim() ?? ''
+    if (!raw) return savedCount
+    const n = Math.floor(Number(raw))
+    if (!Number.isFinite(n) || n < 0 || n > savedCount) return savedCount
+    return n
+  } catch {
+    return savedCount
+  }
+}
+
+export function writeCurrentFacadeIndex(index: number): void {
+  try {
+    localStorage.setItem(CALC_LS_CURRENT_FACADE_INDEX, String(Math.max(0, Math.floor(index))))
+    notifyFrameCalcSession()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Вкладка шага 8 → индекс в `calc_frame_saved_facades` (null = текущий в сессии). */
+export function tabIndexToSavedIndex(tabIndex: number, currentTabIndex: number): number | null {
+  if (tabIndex === currentTabIndex) return null
+  return tabIndex < currentTabIndex ? tabIndex : tabIndex - 1
+}
+
+/** Индекс в сохранённых → индекс вкладки при известном текущем. */
+export function savedIndexToTabIndex(savedIndex: number, currentTabIndex: number): number {
+  return savedIndex < currentTabIndex ? savedIndex : savedIndex + 1
+}
+
+/** Применить снимок фасада к ключам localStorage калькулятора (шаги 2–7). */
+export function applyFacadeSnapshotToSession(snapshot: {
+  frameTypeId?: number | null
+  colorMaterial: { id: number } | null
+  fillingTypeId?: number | null
+  fillingMaterial: { id: number } | null
+  heightMm: number
+  widthMm: number
+  facadeCount: number
+  mortiseMode: 'none' | 'hinge'
+  hingeSource?: FrameHingeSource
+  hingeTypeId?: number | null
+  hingeMaterial: { id: number } | null
+  hingeLayout: HingeLayoutPersisted | null
+  handleHoles: HandleHolesPersisted | null
+}): void {
+  try {
+    if (snapshot.frameTypeId != null && snapshot.frameTypeId > 0) {
+      localStorage.setItem('calc_frame_type_id', String(snapshot.frameTypeId))
+    } else {
+      localStorage.removeItem('calc_frame_type_id')
+    }
+    if (snapshot.colorMaterial?.id) {
+      localStorage.setItem('calc_frame_color_id', String(snapshot.colorMaterial.id))
+    } else {
+      localStorage.removeItem('calc_frame_color_id')
+    }
+    localStorage.setItem('calc_frame_height_mm', String(snapshot.heightMm))
+    localStorage.setItem('calc_frame_width_mm', String(snapshot.widthMm))
+    localStorage.setItem('calc_frame_qty', String(snapshot.facadeCount))
+    if (snapshot.fillingTypeId != null && snapshot.fillingTypeId > 0) {
+      localStorage.setItem('calc_filling_type_id', String(snapshot.fillingTypeId))
+    } else {
+      localStorage.removeItem('calc_filling_type_id')
+    }
+    if (snapshot.fillingMaterial?.id) {
+      localStorage.setItem('calc_filling_material_id', String(snapshot.fillingMaterial.id))
+    } else {
+      localStorage.removeItem('calc_filling_material_id')
+    }
+    if (snapshot.mortiseMode === 'hinge') {
+      localStorage.setItem(CALC_LS_FRAME_MORTISE, 'hinge')
+    } else {
+      localStorage.removeItem(CALC_LS_FRAME_MORTISE)
+    }
+    if (snapshot.hingeSource === 'customer' || snapshot.hingeSource === 'production') {
+      localStorage.setItem(CALC_LS_HINGE_SOURCE, snapshot.hingeSource)
+    } else {
+      localStorage.removeItem(CALC_LS_HINGE_SOURCE)
+    }
+    if (snapshot.hingeTypeId != null && snapshot.hingeTypeId > 0) {
+      localStorage.setItem(CALC_LS_HINGE_TYPE_ID, String(snapshot.hingeTypeId))
+    } else {
+      localStorage.removeItem(CALC_LS_HINGE_TYPE_ID)
+    }
+    if (snapshot.hingeMaterial?.id) {
+      localStorage.setItem(CALC_LS_HINGE_MATERIAL_ID, String(snapshot.hingeMaterial.id))
+    } else {
+      localStorage.removeItem(CALC_LS_HINGE_MATERIAL_ID)
+    }
+    if (snapshot.hingeLayout) {
+      localStorage.setItem(CALC_LS_HINGE_LAYOUT, JSON.stringify({
+        ...snapshot.hingeLayout,
+        positionsMm: snapshot.hingeLayout.positionsMm.map((x) => Math.round(x * 1000) / 1000),
+      }))
+    } else {
+      localStorage.removeItem(CALC_LS_HINGE_LAYOUT)
+    }
+    if (snapshot.handleHoles) {
+      localStorage.setItem(CALC_LS_HANDLE_HOLES, JSON.stringify({
+        ...snapshot.handleHoles,
+        offsetStartMm: Math.round(snapshot.handleHoles.offsetStartMm * 1000) / 1000,
+        spanMm: snapshot.handleHoles.spanMm.map((x) => Math.round(x * 1000) / 1000),
+        diameterMm: Math.round(snapshot.handleHoles.diameterMm * 1000) / 1000,
+      }))
+    } else {
+      localStorage.removeItem(CALC_LS_HANDLE_HOLES)
+    }
+  } catch {
+    /* ignore */
+  }
+  notifyFrameCalcSession()
+}
+
+export function readEditingFacadeSlot(): number | null {
+  try {
+    const raw = localStorage.getItem(CALC_LS_EDITING_FACADE_SLOT)?.trim() ?? ''
+    if (!raw) return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeEditingFacadeSlot(index: number | null): void {
+  try {
+    if (index == null) {
+      localStorage.removeItem(CALC_LS_EDITING_FACADE_SLOT)
+    } else {
+      localStorage.setItem(CALC_LS_EDITING_FACADE_SLOT, String(index))
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearEditingFacadeSlot(): void {
+  writeEditingFacadeSlot(null)
+}
+
+/** Сдвигает или сбрасывает слот редактирования после удаления сохранённого фасада. */
+export function adjustEditingFacadeSlotAfterRemove(removedIndex: number): void {
+  const slot = readEditingFacadeSlot()
+  if (slot == null) return
+  if (slot === removedIndex) clearEditingFacadeSlot()
+  else if (slot > removedIndex) writeEditingFacadeSlot(slot - 1)
+}
+
+/** Сброс текущей конфигурации фасада (сохранённые варианты на шаге 8 не трогаем). */
+export function resetFrameCalculatorForNewFacade() {
   try {
     localStorage.removeItem('calc_frame_type_id')
     localStorage.removeItem('calc_frame_color_id')
@@ -474,6 +630,18 @@ export function clearFrameCalculatorStorage() {
     localStorage.removeItem(CALC_LS_HINGE_MATERIAL_ID)
     localStorage.removeItem(CALC_LS_HINGE_LAYOUT)
     localStorage.removeItem(CALC_LS_HANDLE_HOLES)
+    clearEditingFacadeSlot()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Сброс выбора рамочного калькулятора (новый расчёт с шага 1). */
+export function clearFrameCalculatorStorage() {
+  resetFrameCalculatorForNewFacade()
+  try {
+    localStorage.removeItem('calc_frame_saved_facades')
+    localStorage.removeItem(CALC_LS_CURRENT_FACADE_INDEX)
   } catch {
     /* ignore */
   }

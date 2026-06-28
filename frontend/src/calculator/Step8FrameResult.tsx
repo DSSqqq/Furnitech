@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -24,25 +24,48 @@ import {
   type HingeMountSide,
   FRAME_DEFAULT_HEIGHT_MM,
   FRAME_DEFAULT_WIDTH_MM,
+  adjustEditingFacadeSlotAfterRemove,
+  clearEditingFacadeSlot,
   isFrameStep2Ready,
   isFrameStep4Ready,
   hingesPerFacadeForPrice,
   parseFramePriceSessionFromConfigKey,
   readCalculatorPriceConfigKey,
+  readEditingFacadeSlot,
+  readCurrentFacadeIndex,
+  CALC_LS_CURRENT_FACADE_INDEX,
+  savedIndexToTabIndex,
+  tabIndexToSavedIndex,
+  writeCurrentFacadeIndex,
   readHandleHoles,
   readHingeLayout,
   shouldBillProductionHinges,
   subscribeFrameCalcSession,
   clearFrameCalculatorStorage,
   notifyFrameCalcSession,
+  resetFrameCalculatorForNewFacade,
 } from './frameCalcSession'
 import './Step2FrameFacade.css'
 import './Step8FrameResult.css'
 import { materialTextureLabel, sketchFillingLine } from './materialTextureLabel'
 import { useFillingTypeName } from './useFillingTypeName'
-import { CalcPriceBreakdownView } from './CalcPriceBreakdownView'
 import { matchFormulaTotalForFrame } from './calculationFormula'
 import { serializePriceBreakdownForSnapshot } from './priceBreakdown'
+import {
+  appendSavedFacade,
+  facadeSnapshotToOrderJson,
+  facadeSnapshotToPdfPartial,
+  readSavedFacades,
+  readSavedFacadesRaw,
+  removeSavedFacadeAt,
+  replaceSavedFacadeAt,
+  swapFacadeTabIntoSession,
+  promoteSavedFacadeToSession,
+  totalFacadeVariantCount,
+  type FrameFacadeSnapshot,
+} from './frameSavedFacades'
+import { savedFacadeToPanelsProps, Step8FacadePanels } from './Step8FacadePanels'
+import type { FrameClientPdfBundle } from './frameClientPdf'
 
 function asPositiveInt(s: string | null, fallback: number): number {
   if (s == null || s === '') return fallback
@@ -58,6 +81,14 @@ function asPositiveMm(s: string | null, fallback: number): number {
 
 function formatSum(n: number): string {
   return formatNumberForUi(n, 3)
+}
+
+function readCurrentFacadeIndexRaw(): string {
+  try {
+    return localStorage.getItem(CALC_LS_CURRENT_FACADE_INDEX) ?? ''
+  } catch {
+    return ''
+  }
 }
 
 function sideLabel(s: HingeMountSide): string {
@@ -81,16 +112,21 @@ export function Step8FrameResult() {
   const loc = useLocation()
   const { step, home, readOnly } = useCalcPaths()
 
-  useEffect(() => {
-    if (!isFrameStep2Ready()) nav(step('frame'), { replace: true })
-  }, [nav, step])
-
-  useEffect(() => {
-    if (!isFrameStep4Ready()) nav(step('frame/filling'), { replace: true })
-  }, [nav, step])
-
   const cfgKey = useSyncExternalStore(subscribeFrameCalcSession, readCalculatorPriceConfigKey, () => '')
+  const savedFacadesRaw = useSyncExternalStore(subscribeFrameCalcSession, readSavedFacadesRaw, () => '[]')
+  const currentFacadeIndexRaw = useSyncExternalStore(subscribeFrameCalcSession, readCurrentFacadeIndexRaw, () => '')
+  const savedFacades = useMemo(() => readSavedFacades(), [savedFacadesRaw])
   const fillingTypeName = useFillingTypeName(cfgKey)
+  const currentFacadeReady = isFrameStep2Ready() && isFrameStep4Ready()
+  const facadeVariantCount = totalFacadeVariantCount(savedFacades.length, currentFacadeReady)
+
+  useEffect(() => {
+    if (!isFrameStep2Ready() && savedFacades.length === 0) nav(step('frame'), { replace: true })
+  }, [nav, step, savedFacades.length])
+
+  useEffect(() => {
+    if (!isFrameStep4Ready() && savedFacades.length === 0) nav(step('frame/filling'), { replace: true })
+  }, [nav, step, savedFacades.length])
 
   const parsed = useMemo(() => {
     const session = parseFramePriceSessionFromConfigKey(cfgKey)
@@ -136,8 +172,24 @@ export function Step8FrameResult() {
   const [orderSentModalOpen, setOrderSentModalOpen] = useState(false)
   const [submitBusy, setSubmitBusy] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [selectedFacadeIndex, setSelectedFacadeIndex] = useState(() => {
+    const savedLen = readSavedFacades().length
+    const ready = isFrameStep2Ready() && isFrameStep4Ready()
+    return ready ? readCurrentFacadeIndex(savedLen) : Math.max(0, savedLen - 1)
+  })
+  const editingSlotCommittedRef = useRef(false)
   /** На публичном сайте сотрудник может отправить почту без обязательных полей клиента. */
   const [staffOnSession, setStaffOnSession] = useState(false)
+
+  const currentFacadeIndex = useMemo(() => {
+    if (!currentFacadeReady) return -1
+    return readCurrentFacadeIndex(savedFacades.length)
+  }, [currentFacadeReady, savedFacades.length, currentFacadeIndexRaw])
+  const isViewingCurrentFacade = currentFacadeReady && selectedFacadeIndex === currentFacadeIndex
+
+  useEffect(() => {
+    setSelectedFacadeIndex((prev) => Math.min(prev, Math.max(0, facadeVariantCount - 1)))
+  }, [facadeVariantCount])
 
   const returnAfterAuthPath = `${loc.pathname}${loc.search}`
 
@@ -403,26 +455,125 @@ export function Step8FrameResult() {
     return `${ori}, ${sideLabel(handleHoles.side)}, ${handleHoles.count}×Ø${handleHoles.diameterMm} мм${bus}`
   }, [handleHoles])
 
-  function buildPlainSummary(): string {
+  function readSessionFrameTypeId(): number | null {
+    try {
+      const raw = localStorage.getItem('calc_frame_type_id')?.trim() ?? ''
+      if (!raw) return null
+      const n = Number(raw)
+      return Number.isFinite(n) && n > 0 ? n : null
+    } catch {
+      return null
+    }
+  }
+
+  function readSessionFillingTypeId(): number | null {
+    try {
+      const raw = localStorage.getItem('calc_filling_type_id')?.trim() ?? ''
+      if (!raw) return null
+      const n = Number(raw)
+      return Number.isFinite(n) && n > 0 ? n : null
+    } catch {
+      return null
+    }
+  }
+
+  function buildCurrentFacadeSnapshot(): Omit<FrameFacadeSnapshot, 'id'> {
+    return {
+      frameTypeId: readSessionFrameTypeId(),
+      fillingTypeId: readSessionFillingTypeId(),
+      hingeTypeId: parsed.hingeTypeId,
+      hingeSource: parsed.hingeSource,
+      frameTypeName,
+      fillingTypeName,
+      colorMaterial,
+      fillingMaterial,
+      hingeMaterial,
+      heightMm: parsed.heightMm,
+      widthMm: parsed.widthMm,
+      facadeCount: parsed.facadeCount,
+      mortiseLine,
+      hingeLayoutLine,
+      handleLine,
+      breakdown,
+      priceBreakdown: serializePriceBreakdownForSnapshot(priceState.matched, priceState.base),
+      formulaName: breakdown.formulaName,
+      formulaExpression: breakdown.formulaExpression,
+      formulaMatch: priceState.matched
+        ? {
+            formulaName: priceState.matched.formula.name,
+            formulaExpression: priceState.matched.formula.expression,
+            evaluation: priceState.matched.evaluation,
+          }
+        : null,
+      currency,
+      currencyMismatch,
+      hingeLayout,
+      includeHingeLayoutRow: parsed.mortiseMode === 'hinge',
+      handleHoles,
+      hingesPerFacade,
+      mortiseMode: parsed.mortiseMode,
+    }
+  }
+
+  function buildPlainSummaryForFacade(
+    snap: Pick<
+      FrameFacadeSnapshot,
+      | 'frameTypeName'
+      | 'colorMaterial'
+      | 'heightMm'
+      | 'widthMm'
+      | 'facadeCount'
+      | 'fillingTypeName'
+      | 'fillingMaterial'
+      | 'mortiseLine'
+      | 'hingeLayoutLine'
+      | 'handleLine'
+      | 'includeHingeLayoutRow'
+      | 'breakdown'
+      | 'formulaName'
+      | 'currency'
+    >,
+    index: number,
+  ): string {
     const lines: string[] = [
-      'Расчёт фасада (Furnitech)',
-      `Профиль: ${frameTypeName}`,
-      `Цвет: ${materialTextureLabel(colorMaterial)}`,
-      `Габариты: ${parsed.heightMm} × ${parsed.widthMm} мм, ${parsed.facadeCount} шт.`,
-      `Наполнение: ${sketchFillingLine(fillingTypeName, fillingMaterial)}`,
-      `Присадка / петли: ${mortiseLine}`,
-      ...(parsed.mortiseMode === 'hinge' ? [`Раскладка петель: ${hingeLayoutLine}`] : []),
-      `Ручка: ${handleLine}`,
+      `Фасад №${index}`,
+      `Профиль: ${snap.frameTypeName}`,
+      `Цвет: ${materialTextureLabel(snap.colorMaterial)}`,
+      `Габариты: ${snap.heightMm} × ${snap.widthMm} мм, ${snap.facadeCount} шт.`,
+      `Наполнение: ${sketchFillingLine(snap.fillingTypeName, snap.fillingMaterial)}`,
+      `Присадка / петли: ${snap.mortiseLine}`,
+      ...(snap.includeHingeLayoutRow ? [`Раскладка петель: ${snap.hingeLayoutLine}`] : []),
+      `Ручка: ${snap.handleLine}`,
       '',
-      ...(breakdown.formulaName ? [`Формула: ${breakdown.formulaName}`] : []),
-      `Итого: ${formatSum(breakdown.total)} ${currency}`,
+      ...(snap.formulaName ?? snap.breakdown.formulaName ? [`Формула: ${snap.formulaName ?? snap.breakdown.formulaName}`] : []),
+      `Итого: ${formatSum(snap.breakdown.total)} ${snap.currency}`,
     ]
     return lines.join('\n')
   }
 
+  function savedFacadeAtTab(tabIndex: number): FrameFacadeSnapshot | null {
+    if (!currentFacadeReady) return savedFacades[tabIndex] ?? null
+    const savedIdx = tabIndexToSavedIndex(tabIndex, currentFacadeIndex)
+    if (savedIdx == null) return null
+    return savedFacades[savedIdx] ?? null
+  }
+
+  function buildPlainSummary(): string {
+    const parts: string[] = ['Расчёт фасадов (Furnitech)', `Разных конфигураций: ${facadeVariantCount}`]
+    for (let i = 0; i < facadeVariantCount; i++) {
+      if (currentFacadeReady && i === currentFacadeIndex) {
+        parts.push('', buildPlainSummaryForFacade(buildCurrentFacadeSnapshot(), i + 1))
+      } else {
+        const snap = savedFacadeAtTab(i)
+        if (snap) parts.push('', buildPlainSummaryForFacade(snap, i + 1))
+      }
+    }
+    return parts.join('\n')
+  }
+
   async function submitFacadeOrder(): Promise<void> {
     const { buildFrameClientPdfBlob } = await import('./frameClientPdf')
-    const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
+    const { blob } = await buildFrameClientPdfBlob(pdfInputBundle())
     const fd = new FormData()
     fd.append(
       'pdf_file',
@@ -468,7 +619,36 @@ export function Step8FrameResult() {
     }
   }
 
-  function pdfInputPayload() {
+  function pdfInputBundle(): FrameClientPdfBundle {
+    const contact = {
+      name: contactName,
+      phone: contactPhone,
+      email: contactEmail,
+      comment: contactComment,
+    }
+    const facades = []
+    for (let i = 0; i < facadeVariantCount; i++) {
+      if (currentFacadeReady && i === currentFacadeIndex) {
+        facades.push(facadeSnapshotToPdfPartial(buildCurrentFacadeSnapshot()))
+      } else {
+        const snap = savedFacadeAtTab(i)
+        if (snap) facades.push(facadeSnapshotToPdfPartial(snap))
+      }
+    }
+    return { contact, facades }
+  }
+
+  function buildOrderSnapshot(): Record<string, unknown> {
+    const variants: FrameFacadeSnapshot[] = []
+    for (let i = 0; i < facadeVariantCount; i++) {
+      if (currentFacadeReady && i === currentFacadeIndex) {
+        variants.push({ ...buildCurrentFacadeSnapshot(), id: 'current' })
+      } else {
+        const snap = savedFacadeAtTab(i)
+        if (snap) variants.push(snap)
+      }
+    }
+    const legacy = variants[variants.length - 1]!
     return {
       contact: {
         name: contactName,
@@ -476,71 +656,66 @@ export function Step8FrameResult() {
         email: contactEmail,
         comment: contactComment,
       },
-      frameTypeName,
-      fillingTypeName,
-      colorMaterial,
-      fillingMaterial,
-      heightMm: parsed.heightMm,
-      widthMm: parsed.widthMm,
-      facadeCount: parsed.facadeCount,
-      mortiseLine,
-      hingeLayoutLine,
-      handleLine,
+      facadeVariantCount: facadeVariantCount,
+      facadeVariants: variants.map((snap) => ({
+        ...facadeSnapshotToOrderJson(snap),
+        colorMaterial: snap.colorMaterial
+          ? {
+              id: snap.colorMaterial.id,
+              name: snap.colorMaterial.name,
+              texture_label: materialTextureLabel(snap.colorMaterial),
+              article: snap.colorMaterial.article,
+            }
+          : null,
+        fillingMaterial: snap.fillingMaterial
+          ? {
+              id: snap.fillingMaterial.id,
+              name: snap.fillingMaterial.name,
+              texture_label: materialTextureLabel(snap.fillingMaterial),
+              article: snap.fillingMaterial.article,
+            }
+          : null,
+      })),
+      frameTypeName: legacy.frameTypeName,
+      colorMaterial: legacy.colorMaterial
+        ? {
+            id: legacy.colorMaterial.id,
+            name: legacy.colorMaterial.name,
+            texture_label: materialTextureLabel(legacy.colorMaterial),
+            article: legacy.colorMaterial.article,
+          }
+        : null,
+      fillingTypeName: legacy.fillingTypeName,
+      fillingMaterial: legacy.fillingMaterial
+        ? {
+            id: legacy.fillingMaterial.id,
+            name: legacy.fillingMaterial.name,
+            texture_label: materialTextureLabel(legacy.fillingMaterial),
+            article: legacy.fillingMaterial.article,
+          }
+        : null,
+      heightMm: legacy.heightMm,
+      widthMm: legacy.widthMm,
+      facadeCount: legacy.facadeCount,
+      mortiseLine: legacy.mortiseLine,
+      hingeLayoutLine: legacy.hingeLayoutLine,
+      handleLine: legacy.handleLine,
       breakdown: {
-        profile: breakdown.profile,
-        filling: breakdown.filling,
-        related: breakdown.related,
-        hinges: breakdown.hinges,
-        total: breakdown.total,
-        formulaName: breakdown.formulaName,
+        profile: legacy.breakdown.profile,
+        filling: legacy.breakdown.filling,
+        related: legacy.breakdown.related,
+        hinges: legacy.breakdown.hinges,
+        total: legacy.breakdown.total,
+        formulaName: legacy.breakdown.formulaName,
       },
-      priceBreakdownDetail: serializePriceBreakdownForSnapshot(priceState.matched, priceState.base),
-      formulaName: breakdown.formulaName,
-      currency,
-      currencyMismatch,
-      hingeLayout,
-      includeHingeLayoutRow: parsed.mortiseMode === 'hinge',
-      handleHoles,
-    }
-  }
-
-  function buildOrderSnapshot(): Record<string, unknown> {
-    const p = pdfInputPayload()
-    return {
-      contact: p.contact,
-      frameTypeName: p.frameTypeName,
-      colorMaterial: p.colorMaterial
-        ? {
-            id: p.colorMaterial.id,
-            name: p.colorMaterial.name,
-            texture_label: materialTextureLabel(p.colorMaterial),
-            article: p.colorMaterial.article,
-          }
-        : null,
-      fillingTypeName: p.fillingTypeName,
-      fillingMaterial: p.fillingMaterial
-        ? {
-            id: p.fillingMaterial.id,
-            name: p.fillingMaterial.name,
-            texture_label: materialTextureLabel(p.fillingMaterial),
-            article: p.fillingMaterial.article,
-          }
-        : null,
-      heightMm: p.heightMm,
-      widthMm: p.widthMm,
-      facadeCount: p.facadeCount,
-      mortiseLine: p.mortiseLine,
-      hingeLayoutLine: p.hingeLayoutLine,
-      handleLine: p.handleLine,
-      breakdown: p.breakdown,
-      formulaName: breakdown.formulaName,
-      formulaExpression: breakdown.formulaExpression,
-      priceBreakdown: serializePriceBreakdownForSnapshot(priceState.matched, priceState.base),
-      currency: p.currency,
-      currencyMismatch: p.currencyMismatch,
-      hingeLayout: p.hingeLayout,
-      includeHingeLayoutRow: p.includeHingeLayoutRow,
-      handleHoles: p.handleHoles,
+      formulaName: legacy.formulaName,
+      formulaExpression: legacy.formulaExpression,
+      priceBreakdown: legacy.priceBreakdown,
+      currency: legacy.currency,
+      currencyMismatch: legacy.currencyMismatch,
+      hingeLayout: legacy.hingeLayout,
+      includeHingeLayoutRow: legacy.includeHingeLayoutRow,
+      handleHoles: legacy.handleHoles,
       plainSummary: buildPlainSummary(),
     }
   }
@@ -565,7 +740,7 @@ export function Step8FrameResult() {
     setPdfBusy(true)
     try {
       const { buildFrameClientPdfBlob } = await import('./frameClientPdf')
-      const { blob } = await buildFrameClientPdfBlob(pdfInputPayload())
+      const { blob } = await buildFrameClientPdfBlob(pdfInputBundle())
       const url = URL.createObjectURL(blob)
       preview.location.href = url
       window.setTimeout(() => URL.revokeObjectURL(url), 180_000)
@@ -578,6 +753,82 @@ export function Step8FrameResult() {
     } finally {
       setPdfBusy(false)
     }
+  }
+
+  function onSelectFacadeTab(tabIndex: number) {
+    if (tabIndex === selectedFacadeIndex && tabIndex === currentFacadeIndex) return
+    if (!dataApisReady) {
+      setSelectedFacadeIndex(tabIndex)
+      return
+    }
+    clearEditingFacadeSlot()
+    editingSlotCommittedRef.current = false
+
+    if (!currentFacadeReady) {
+      promoteSavedFacadeToSession(tabIndex, tabIndex)
+      setSelectedFacadeIndex(tabIndex)
+      return
+    }
+
+    if (tabIndex === currentFacadeIndex) {
+      setSelectedFacadeIndex(tabIndex)
+      return
+    }
+
+    swapFacadeTabIntoSession(tabIndex, currentFacadeIndex, buildCurrentFacadeSnapshot())
+    setSelectedFacadeIndex(tabIndex)
+  }
+
+  function onEditSelectedFacade() {
+    if (!isViewingCurrentFacade) {
+      onSelectFacadeTab(selectedFacadeIndex)
+    }
+    nav(step('frame'))
+  }
+
+  function onAddFacade() {
+    if (!dataApisReady) return
+    if (!currentFacadeReady) {
+      clearEditingFacadeSlot()
+      nav(step('frame'))
+      return
+    }
+    clearEditingFacadeSlot()
+    editingSlotCommittedRef.current = false
+    appendSavedFacade(buildCurrentFacadeSnapshot())
+    writeCurrentFacadeIndex(readSavedFacades().length)
+    resetFrameCalculatorForNewFacade()
+    notifyFrameCalcSession()
+    nav(step('frame'))
+  }
+
+  function onDeleteSelectedFacade() {
+    if (facadeVariantCount <= 1) return
+    const label = isViewingCurrentFacade
+      ? 'текущий фасад'
+      : `фасад ${selectedFacadeIndex + 1}`
+    if (!window.confirm(`Удалить ${label} из расчёта? Это действие нельзя отменить.`)) return
+
+    const nextIndex = Math.min(selectedFacadeIndex, facadeVariantCount - 2)
+
+    if (isViewingCurrentFacade) {
+      resetFrameCalculatorForNewFacade()
+      notifyFrameCalcSession()
+      const newSavedLen = readSavedFacades().length
+      const nextCurrent = Math.max(0, newSavedLen - 1)
+      writeCurrentFacadeIndex(nextCurrent)
+      setSelectedFacadeIndex(Math.max(0, nextIndex))
+      return
+    }
+
+    const savedIdx = tabIndexToSavedIndex(selectedFacadeIndex, currentFacadeIndex)
+    if (savedIdx == null) return
+    adjustEditingFacadeSlotAfterRemove(savedIdx)
+    removeSavedFacadeAt(savedIdx)
+    let nextCurrent = currentFacadeIndex
+    if (selectedFacadeIndex < currentFacadeIndex) nextCurrent -= 1
+    writeCurrentFacadeIndex(nextCurrent)
+    setSelectedFacadeIndex(Math.max(0, nextIndex))
   }
 
   function onNewCalc() {
@@ -595,6 +846,41 @@ export function Step8FrameResult() {
   }
 
   const dataApisReady = !profileLoading && !metaLoading && !fillMatLoading && !hingeMatLoading
+
+  useEffect(() => {
+    if (!dataApisReady || editingSlotCommittedRef.current) return
+    const slot = readEditingFacadeSlot()
+    if (slot == null) return
+    if (slot < 0 || slot >= savedFacades.length) {
+      clearEditingFacadeSlot()
+      return
+    }
+    editingSlotCommittedRef.current = true
+    replaceSavedFacadeAt(slot, buildCurrentFacadeSnapshot())
+    clearEditingFacadeSlot()
+    setSelectedFacadeIndex(savedIndexToTabIndex(slot, readCurrentFacadeIndex(savedFacades.length)))
+  }, [
+    dataApisReady,
+    savedFacades.length,
+    cfgKey,
+    frameTypeName,
+    fillingTypeName,
+    colorMaterial,
+    fillingMaterial,
+    hingeMaterial,
+    mortiseLine,
+    hingeLayoutLine,
+    handleLine,
+    breakdown,
+    priceState,
+    currency,
+    currencyMismatch,
+    hingeLayout,
+    handleHoles,
+    hingesPerFacade,
+    parsed,
+  ])
+
   const summaryTextureUrls = useMemo(
     () =>
       collectMaterialTextureImageUrls(
@@ -703,95 +989,98 @@ export function Step8FrameResult() {
 
       <section className="step8-result__details" aria-label="Детали заказа">
         <div className="step8-result__scroll-pack">
-          <div className="step8-panel">
-          <h4 className="step8-panel__title">Детализация заказа (фасады)</h4>
-          <div className="step8-kv">
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Тип профиля</span>
-              <span className="step8-kv__v">{frameTypeName}</span>
-            </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Цвет профиля</span>
-              <span className="step8-kv__v">{materialTextureLabel(colorMaterial)}</span>
-            </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Габариты (В × Ш)</span>
-              <span className="step8-kv__v">
-                {parsed.heightMm} × {parsed.widthMm} мм
-              </span>
-            </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Количество</span>
-              <span className="step8-kv__v">{parsed.facadeCount} шт.</span>
-            </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Наполнение</span>
-              <span className="step8-kv__v">{sketchFillingLine(fillingTypeName, fillingMaterial)}</span>
-            </div>
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Присадка / петли</span>
-              <span className="step8-kv__v">{mortiseLine}</span>
-            </div>
-            {parsed.mortiseMode === 'hinge' ? (
-              <div className="step8-kv__row">
-                <span className="step8-kv__k">Петли (сторона, число отверстий)</span>
-                <span className="step8-kv__v">{hingeLayoutLine}</span>
-              </div>
-            ) : null}
-            <div className="step8-kv__row">
-              <span className="step8-kv__k">Ручка</span>
-              <span className="step8-kv__v">{handleLine}</span>
-            </div>
-          </div>
+          <div className="step8-facade-switcher" role="tablist" aria-label="Фасады в расчёте">
+            {Array.from({ length: facadeVariantCount }, (_, i) => {
+              const isCurrent = currentFacadeReady && i === currentFacadeIndex
+              const isActive = i === selectedFacadeIndex
+              const tabKey = isCurrent ? `current-${i}` : savedFacadeAtTab(i)?.id ?? `tab-${i}`
+              return (
+                <button
+                  key={tabKey}
+                  type="button"
+                  role="tab"
+                  id={`step8-facade-tab-${i + 1}`}
+                  aria-selected={isActive}
+                  aria-controls="step8-facade-panels"
+                  className={[
+                    'step8-facade-tab',
+                    isActive ? 'step8-facade-tab--active' : '',
+                    isCurrent ? 'step8-facade-tab--current' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => onSelectFacadeTab(i)}
+                >
+                  Фасад {i + 1}
+                  {isCurrent ? <span className="step8-facade-tab__badge">текущий</span> : null}
+                </button>
+              )
+            })}
           </div>
 
-          <div className="step8-panel">
-          <h4 className="step8-panel__title">Стоимость изготовления (фасады)*</h4>
-          {currencyMismatch ? (
-            <p className="step8-panel__warn">В конфигурации разные валюты — сумма ориентировочная.</p>
-          ) : null}
-          <div className="step8-price-breakdown-wrap">
-            <CalcPriceBreakdownView
-              currency={currency}
-              base={priceState.base}
-              formulaMatch={
-                priceState.matched
-                  ? {
-                      formulaName: priceState.matched.formula.name,
-                      formulaExpression: priceState.matched.formula.expression,
-                      evaluation: priceState.matched.evaluation,
-                      formula: priceState.matched.formula,
-                    }
-                  : null
-              }
-              colorMaterial={colorMaterial}
-              fillingMaterial={fillingMaterial}
-              hingeMaterial={hingeMaterial}
-              hingesPerFacade={hingesPerFacade}
-              heightMm={parsed.heightMm}
-              widthMm={parsed.widthMm}
-              facadeCount={parsed.facadeCount}
-            />
+          <div className="step8-facade-toolbar">
+            <button
+              type="button"
+              className="admin-secondary step8-facade-edit"
+              disabled={!dataApisReady}
+              onClick={onEditSelectedFacade}
+            >
+              Изменить
+            </button>
+            <button
+              type="button"
+              className="admin-secondary admin-danger step8-facade-delete"
+              disabled={!dataApisReady || facadeVariantCount <= 1}
+              onClick={onDeleteSelectedFacade}
+            >
+              Удалить
+            </button>
           </div>
-          <div className="step8-table-wrap step8-table-wrap--grand">
-            <table className="step8-table">
-              <tbody>
-                <tr>
-                  <td className="step8-table__grand-label">Итого</td>
-                  <td className="step8-table__total">
-                    {formatSum(breakdown.total)} {currency}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="step8-panel__note">
-            * Цена ориентировочная, без учёта доставки и монтажа. Уточняйте детали у менеджера.
-          </p>
+
+          <div id="step8-facade-panels" role="tabpanel" aria-labelledby={`step8-facade-tab-${selectedFacadeIndex + 1}`}>
+            {!isViewingCurrentFacade && savedFacadeAtTab(selectedFacadeIndex) ? (
+              <Step8FacadePanels {...savedFacadeToPanelsProps(savedFacadeAtTab(selectedFacadeIndex)!, selectedFacadeIndex + 1)} />
+            ) : (
+              <Step8FacadePanels
+                index={currentFacadeIndex + 1}
+                isCurrent
+                frameTypeName={frameTypeName}
+                fillingTypeName={fillingTypeName}
+                colorMaterial={colorMaterial}
+                fillingMaterial={fillingMaterial}
+                hingeMaterial={hingeMaterial}
+                heightMm={parsed.heightMm}
+                widthMm={parsed.widthMm}
+                facadeCount={parsed.facadeCount}
+                mortiseLine={mortiseLine}
+                hingeLayoutLine={hingeLayoutLine}
+                handleLine={handleLine}
+                showHingeLayout={parsed.mortiseMode === 'hinge'}
+                currency={currency}
+                currencyMismatch={currencyMismatch}
+                breakdown={breakdown}
+                base={priceState.base}
+                formulaMatch={
+                  priceState.matched
+                    ? {
+                        formulaName: priceState.matched.formula.name,
+                        formulaExpression: priceState.matched.formula.expression,
+                        evaluation: priceState.matched.evaluation,
+                      }
+                    : null
+                }
+                hingesPerFacade={hingesPerFacade}
+              />
+            )}
           </div>
 
           <div className="step8-result__footer-actions">
-          <button type="button" className="admin-primary" onClick={() => nav(step('frame'))}>
+          <button
+            type="button"
+            className="admin-primary"
+            disabled={!dataApisReady}
+            onClick={onAddFacade}
+          >
             Добавить фасад
           </button>
           <button type="button" className="admin-primary" onClick={onNewCalc}>
