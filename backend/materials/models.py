@@ -751,6 +751,7 @@ class CalculatorProfileTypeColor(models.Model):
         verbose_name="Материал (цвет)",
     )
     sort_order = models.PositiveIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активен в калькуляторе", default=True)
     is_new = models.BooleanField("New", default=False)
     is_hit = models.BooleanField("Hit", default=False)
     is_sale = models.BooleanField("Sale", default=False)
@@ -871,6 +872,7 @@ class CalculatorFillingTypeMaterial(models.Model):
         verbose_name="Материал",
     )
     sort_order = models.PositiveIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активен в калькуляторе", default=True)
 
     class Meta:
         verbose_name = "Материал типа наполнения"
@@ -988,6 +990,7 @@ class CalculatorHingeTypeMaterial(models.Model):
         verbose_name="Материал",
     )
     sort_order = models.PositiveIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активен в калькуляторе", default=True)
 
     class Meta:
         verbose_name = "Материал типа петель"

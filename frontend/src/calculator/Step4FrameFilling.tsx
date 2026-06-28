@@ -41,7 +41,13 @@ import {
 } from './cardImageFormHelpers'
 import { TileGearMenu } from './TileGearMenu'
 import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
-import { MaterialTypeFormGrid } from './CalculatorTypeFormGrid'
+import {
+  MaterialTypeFormGrid,
+  activeAttachedRows,
+  defaultAttachedMaterialEntry,
+  isAttachedEntryActive,
+  type AttachedMaterialEntry,
+} from './CalculatorTypeFormGrid'
 import { resolveMediaUrl, profileFrameTextureLayerStyle, materialFillingTextureLayerStyle, facadeSketchScaleY } from './sketchFrame'
 import { useFrameColorMaterial } from './useFrameColorMaterial'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
@@ -137,7 +143,7 @@ export function Step4FrameFilling() {
   const [createCardTextures, setCreateCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
   const [createCardTextureUrls, setCreateCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [createMatHit, setCreateMatHit] = useState<Material[]>([])
-  const [createMatIds, setCreateMatIds] = useState<Record<number, true>>({})
+  const [createMatIds, setCreateMatIds] = useState<Record<number, AttachedMaterialEntry>>({})
 
   const [editFillingId, setEditFillingId] = useState<number | null>(null)
   const [editFillingName, setEditFillingName] = useState('')
@@ -145,7 +151,7 @@ export function Step4FrameFilling() {
   const [editCardTextures, setEditCardTextures] = useState<(number | null)[]>(emptyCalcCardTextureIds())
   const [editCardTextureUrls, setEditCardTextureUrls] = useState<string[]>(emptyCardImageUrls(CALC_CARD_IMAGE_SLOT_COUNT))
   const [editFillingMatHit, setEditFillingMatHit] = useState<Material[]>([])
-  const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, true>>({})
+  const [editFillingMatIds, setEditFillingMatIds] = useState<Record<number, AttachedMaterialEntry>>({})
 
   const [folderTreeCache, setFolderTreeCache] = useState<MaterialCategory[]>([])
   const [materialClassesCache, setMaterialClassesCache] = useState<MaterialClass[]>([])
@@ -202,7 +208,10 @@ export function Step4FrameFilling() {
       })
       setCreateMatIds((prev) => {
         const next = { ...prev }
-        for (const m of materials) next[m.id] = true
+        for (const m of materials) {
+          if (next[m.id] == null) next[m.id] = defaultAttachedMaterialEntry()
+          else next[m.id] = { is_active: true }
+        }
         return next
       })
     } else if (target === 'edit') {
@@ -216,7 +225,10 @@ export function Step4FrameFilling() {
       })
       setEditFillingMatIds((prev) => {
         const next = { ...prev }
-        for (const m of materials) next[m.id] = true
+        for (const m of materials) {
+          if (next[m.id] == null) next[m.id] = defaultAttachedMaterialEntry()
+          else next[m.id] = { is_active: true }
+        }
         return next
       })
     }
@@ -307,7 +319,7 @@ export function Step4FrameFilling() {
       setSelectedMaterialId(null)
       return
     }
-    const mats = t.materials ?? []
+    const mats = activeAttachedRows(t.materials)
     if (selectedMaterialId != null && mats.some((c) => c.material_id === selectedMaterialId)) return
     setSelectedMaterialId(mats[0]?.material_id ?? null)
   }, [hydrated, loading, selectedTypeId, fillingTypes, selectedMaterialId])
@@ -416,8 +428,10 @@ export function Step4FrameFilling() {
       emptyCalcCardTextureIds,
     )
     editCardImageHandlers.resetCardFileInput()
-    const ids: Record<number, true> = {}
-    for (const m of t.materials ?? []) ids[m.material_id] = true
+    const ids: Record<number, AttachedMaterialEntry> = {}
+    for (const m of t.materials ?? []) {
+      ids[m.material_id] = { is_active: m.is_active !== false }
+    }
     setEditFillingMatIds(ids)
     setEditFillingMatHit([])
     void Promise.all(
@@ -437,7 +451,10 @@ export function Step4FrameFilling() {
     }
     setErr(null)
     try {
-      const materials = Object.keys(editFillingMatIds).map((id) => ({ material_id: Number(id) }))
+      const materials = Object.entries(editFillingMatIds).map(([id, entry]) => ({
+        material_id: Number(id),
+        is_active: entry.is_active !== false,
+      }))
       const fd = new FormData()
       fd.append('name', name)
       fd.append('is_active', String(t.is_active))
@@ -461,7 +478,10 @@ export function Step4FrameFilling() {
     }
     setErr(null)
     try {
-      const materials = Object.keys(createMatIds).map((id) => ({ material_id: Number(id) }))
+      const materials = Object.entries(createMatIds).map(([id, entry]) => ({
+        material_id: Number(id),
+        is_active: entry.is_active !== false,
+      }))
       const fd = new FormData()
       fd.append('name', name)
       fd.append('is_active', 'true')
@@ -597,7 +617,7 @@ export function Step4FrameFilling() {
     })
   }, [modalType, createMatHit, editFillingMatHit, texByMaterialId])
 
-  const patchModalMaterials = async (rows: { material_id: number }[]) => {
+  const patchModalMaterials = async (rows: { material_id: number; is_active?: boolean }[]) => {
     if (!modalType) return
     setModalSaving(true)
     setErr(null)
@@ -615,10 +635,13 @@ export function Step4FrameFilling() {
     if (!modalType) return
     const rows = (modalType.materials ?? [])
       .filter((m) => m.material_id !== materialId)
-      .map((m) => ({ material_id: m.material_id }))
+      .map((m) => ({
+        material_id: m.material_id,
+        is_active: m.is_active !== false,
+      }))
     await patchModalMaterials(rows)
     if (selectedMaterialId === materialId) {
-      setSelectedMaterialId(rows[0]?.material_id ?? null)
+      setSelectedMaterialId(rows.find((m) => m.is_active !== false)?.material_id ?? null)
     }
   }
 
@@ -681,7 +704,7 @@ export function Step4FrameFilling() {
                       {...calcCardImageGridSlots(t)}
                     />
                     <div className="tile-title">{title}</div>
-                    <div className="tile-sub">Материалов: {(t.materials ?? []).length}</div>
+                    <div className="tile-sub">Материалов: {activeAttachedRows(t.materials).length}</div>
                   </button>
                   {!readOnly && (
                     <TileGearMenu
@@ -849,7 +872,7 @@ export function Step4FrameFilling() {
             </p>
 
             <div className="tiles tiles--colors">
-              {(modalType.materials ?? []).map((c) => {
+              {activeAttachedRows(modalType.materials).map((c) => {
                 const active = c.material_id === selectedMaterialId
                 const ex = texByMaterialId[c.material_id]
                 const mat = c.material
@@ -902,7 +925,7 @@ export function Step4FrameFilling() {
               })}
             </div>
 
-            {(modalType.materials ?? []).length === 0 && (
+            {activeAttachedRows(modalType.materials).length === 0 && (
               <div className="admin-muted">
                 {readOnly
                   ? 'Для этого типа наполнения материалы ещё не настроены.'
@@ -940,15 +963,21 @@ export function Step4FrameFilling() {
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
             materialsHit={createMatHit}
-            selectedMaterialIds={createMatIds}
-            onToggleMaterial={(id) =>
+            selectedMaterials={createMatIds}
+            onToggleMaterialActive={(id) =>
               setCreateMatIds((prev) => {
-                const next = { ...prev }
-                if (next[id]) delete next[id]
-                else next[id] = true
-                return next
+                const cur = prev[id] ?? defaultAttachedMaterialEntry()
+                return { ...prev, [id]: { is_active: !isAttachedEntryActive(cur) } }
               })
             }
+            onRemoveMaterial={(id) => {
+              setCreateMatHit((prev) => prev.filter((m) => m.id !== id))
+              setCreateMatIds((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }}
             texByMaterialId={texByMaterialId}
           />
         </CalculatorTypeFormModal>
@@ -981,15 +1010,21 @@ export function Step4FrameFilling() {
             materialsListLabel="Материалы для карточки"
             onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
             materialsHit={editFillingMatHit}
-            selectedMaterialIds={editFillingMatIds}
-            onToggleMaterial={(id) =>
+            selectedMaterials={editFillingMatIds}
+            onToggleMaterialActive={(id) =>
               setEditFillingMatIds((prev) => {
-                const next = { ...prev }
-                if (next[id]) delete next[id]
-                else next[id] = true
-                return next
+                const cur = prev[id] ?? defaultAttachedMaterialEntry()
+                return { ...prev, [id]: { is_active: !isAttachedEntryActive(cur) } }
               })
             }
+            onRemoveMaterial={(id) => {
+              setEditFillingMatHit((prev) => prev.filter((m) => m.id !== id))
+              setEditFillingMatIds((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }}
             texByMaterialId={texByMaterialId}
           />
         </CalculatorTypeFormModal>

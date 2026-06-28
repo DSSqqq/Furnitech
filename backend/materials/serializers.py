@@ -788,6 +788,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
                     "id": x.id,
                     "color_material_id": x.color_material_id,
                     "color_material": MaterialSummarySerializer(x.color_material, context=self.context).data,
+                    "is_active": bool(x.is_active),
                     "is_new": bool(x.is_new),
                     "is_hit": bool(x.is_hit),
                     "is_sale": bool(x.is_sale),
@@ -808,6 +809,7 @@ class CalculatorProfileTypeSerializer(serializers.ModelSerializer):
                 profile_type=profile_type,
                 color_material_id=int(mid),
                 sort_order=i,
+                is_active=bool(row.get("is_active", True)),
                 is_new=bool(row.get("is_new", False)),
                 is_hit=bool(row.get("is_hit", False)),
                 is_sale=bool(row.get("is_sale", False)),
@@ -890,6 +892,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
                     "id": x.id,
                     "material_id": x.material_id,
                     "material": MaterialSummarySerializer(x.material, context=self.context).data,
+                    "is_active": bool(x.is_active),
                 }
             )
         return out
@@ -907,6 +910,7 @@ class CalculatorFillingTypeSerializer(serializers.ModelSerializer):
                 filling_type=filling_type,
                 material_id=int(mid),
                 sort_order=i,
+                is_active=bool(row.get("is_active", True)),
             )
 
     def create(self, validated_data):
@@ -986,6 +990,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
                     "id": x.id,
                     "material_id": x.material_id,
                     "material": MaterialSummarySerializer(x.material, context=self.context).data,
+                    "is_active": bool(x.is_active),
                 }
             )
         return out
@@ -1003,6 +1008,7 @@ class CalculatorHingeTypeSerializer(serializers.ModelSerializer):
                 hinge_type=hinge_type,
                 material_id=int(mid),
                 sort_order=i,
+                is_active=bool(row.get("is_active", True)),
             )
 
     def create(self, validated_data):

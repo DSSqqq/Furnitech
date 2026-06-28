@@ -1127,6 +1127,17 @@ button.admin-secondary.frame2-file-btn:active {
   background: var(--ft-accent-bg-hover);
 }
 
+.frame2-checkrow--inactive {
+  opacity: 0.65;
+  border-color: var(--ft-border, rgba(255, 255, 255, 0.12));
+  background: var(--ft-hover-surface-4, rgba(255, 255, 255, 0.03));
+}
+
+.frame2-checkrow--inactive:hover {
+  border-color: var(--ft-accent-glow);
+  background: var(--ft-hover-surface-6);
+}
+
 .frame2-checkrow input[type='checkbox'] {
   width: 1rem;
   height: 1rem;

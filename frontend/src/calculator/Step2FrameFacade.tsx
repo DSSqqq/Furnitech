@@ -51,7 +51,7 @@ import {
 } from './cardImageFormHelpers'
 import { TileGearMenu } from './TileGearMenu'
 import { CalculatorTypeFormModal } from '../CalculatorTypeFormModal'
-import { ProfileTypeFormGrid } from './CalculatorTypeFormGrid'
+import { ProfileTypeFormGrid, defaultProfileColorEntry, isAttachedEntryActive, type ProfileColorEntry } from './CalculatorTypeFormGrid'
 import { usePanelLoading } from '../AdminPanelLoadingHost'
 import {
   collectCalcCardImageUrls,
@@ -88,7 +88,9 @@ function textureThumb(m: MaterialTextureFields & { name: string }) {
   return <div className="tile-thumb" style={color ? { backgroundColor: color } : undefined} />
 }
 
-type ColorFlags = { is_new: boolean; is_hit: boolean; is_sale: boolean }
+function activeProfileTypeColors(colors: CalculatorProfileType['colors']) {
+  return (colors ?? []).filter((c) => c.is_active !== false)
+}
 
 export function Step2FrameFacade() {
   const nav = useNavigate()
@@ -124,7 +126,7 @@ export function Step2FrameFacade() {
   )
 
   const [createColorsHit, setCreateColorsHit] = useState<Material[]>([])
-  const [createColors, setCreateColors] = useState<Record<number, ColorFlags>>({})
+  const [createColors, setCreateColors] = useState<Record<number, ProfileColorEntry>>({})
   const [calcSessionHydrated, setCalcSessionHydrated] = useState(false)
 
   const [editTypeId, setEditTypeId] = useState<number | null>(null)
@@ -135,7 +137,7 @@ export function Step2FrameFacade() {
     emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT),
   )
   const [editColorsHit, setEditColorsHit] = useState<Material[]>([])
-  const [editColors, setEditColors] = useState<Record<number, ColorFlags>>({})
+  const [editColors, setEditColors] = useState<Record<number, ProfileColorEntry>>({})
 
   const [gearMenuTypeId, setGearMenuTypeId] = useState<number | null>(null)
   const [profileTypeDeleteModal, setProfileTypeDeleteModal] = useState<CalculatorProfileType | null>(null)
@@ -181,7 +183,7 @@ export function Step2FrameFacade() {
     const target = materialSearchTargetRef.current
     materialSearchTargetRef.current = null
     setMaterialSearchOverlay(null)
-    const flags: ColorFlags = { is_new: false, is_hit: false, is_sale: false }
+    const flags = defaultProfileColorEntry()
     if (target === 'create') {
       setCreateColorsHit((prev) => {
         let next = prev
@@ -194,7 +196,8 @@ export function Step2FrameFacade() {
       setCreateColors((prev) => {
         const next = { ...prev }
         for (const m of materials) {
-          if (next[m.id] == null) next[m.id] = flags
+          if (next[m.id] == null) next[m.id] = { ...flags }
+          else next[m.id] = { ...next[m.id], is_active: true }
         }
         return next
       })
@@ -210,7 +213,8 @@ export function Step2FrameFacade() {
       setEditColors((prev) => {
         const next = { ...prev }
         for (const m of materials) {
-          if (next[m.id] == null) next[m.id] = flags
+          if (next[m.id] == null) next[m.id] = { ...flags }
+          else next[m.id] = { ...next[m.id], is_active: true }
         }
         return next
       })
@@ -263,7 +267,7 @@ export function Step2FrameFacade() {
     try {
       if (typeId == null || colorId == null) return false
       const t = profileTypes.find((x) => x.id === typeId)
-      if (!t || !(t.colors ?? []).some((c) => c.color_material_id === colorId)) return false
+      if (!t || !activeProfileTypeColors(t.colors).some((c) => c.color_material_id === colorId)) return false
       const prevColorRaw = localStorage.getItem('calc_frame_color_id')
       const prevColor = prevColorRaw ? Number(prevColorRaw) : null
       localStorage.setItem('calc_frame_type_id', String(typeId))
@@ -327,8 +331,9 @@ export function Step2FrameFacade() {
       setSelectedColorId(null)
       return
     }
-    if (selectedColorId != null && (t.colors ?? []).some((c) => c.color_material_id === selectedColorId)) return
-    setSelectedColorId((t.colors ?? [])[0]?.color_material_id ?? null)
+    const activeColors = activeProfileTypeColors(t.colors)
+    if (selectedColorId != null && activeColors.some((c) => c.color_material_id === selectedColorId)) return
+    setSelectedColorId(activeColors[0]?.color_material_id ?? null)
   }, [calcSessionHydrated, loading, selectedTypeId, profileTypes, selectedColorId])
 
   useEffect(() => {
@@ -429,9 +434,10 @@ export function Step2FrameFacade() {
     setEditCardTextures(emptyProfileCardTextureIds())
     setEditCardTextureUrls(emptyCardImageUrls(PROFILE_CARD_IMAGE_SLOT_COUNT))
     editCardImageHandlers.resetCardFileInput()
-    const m: Record<number, ColorFlags> = {}
+    const m: Record<number, ProfileColorEntry> = {}
     for (const c of t.colors ?? []) {
       m[c.color_material_id] = {
+        is_active: c.is_active !== false,
         is_new: !!c.is_new,
         is_hit: !!c.is_hit,
         is_sale: !!c.is_sale,
@@ -489,6 +495,7 @@ export function Step2FrameFacade() {
     try {
       const colors = Object.entries(editColors).map(([id, f]) => ({
         color_material_id: Number(id),
+        is_active: f.is_active !== false,
         is_new: !!f.is_new,
         is_hit: !!f.is_hit,
         is_sale: !!f.is_sale,
@@ -518,6 +525,7 @@ export function Step2FrameFacade() {
     try {
       const colors = Object.entries(createColors).map(([id, f]) => ({
         color_material_id: Number(id),
+        is_active: f.is_active !== false,
         is_new: !!f.is_new,
         is_hit: !!f.is_hit,
         is_sale: !!f.is_sale,
@@ -598,7 +606,7 @@ export function Step2FrameFacade() {
     [profileTypes, modalTypeId]
   )
 
-  const patchModalColors = useCallback(async (typeId: number, rows: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]) => {
+  const patchModalColors = useCallback(async (typeId: number, rows: { color_material_id: number; is_active?: boolean; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]) => {
     setModalSaving(true)
     setErr(null)
     try {
@@ -617,6 +625,7 @@ export function Step2FrameFacade() {
       .filter((c) => c.color_material_id !== colorMaterialId)
       .map((c) => ({
         color_material_id: c.color_material_id,
+        is_active: c.is_active !== false,
         is_new: Boolean(c.is_new),
         is_hit: Boolean(c.is_hit),
         is_sale: Boolean(c.is_sale),
@@ -625,7 +634,7 @@ export function Step2FrameFacade() {
     await patchModalColors(modalType.id, nextColors)
 
     if (selectedColorId === colorMaterialId) {
-      const nextSel = nextColors[0]?.color_material_id ?? null
+      const nextSel = nextColors.find((c) => c.is_active !== false)?.color_material_id ?? null
       setSelectedColorId(nextSel)
     }
   }, [modalType, patchModalColors, selectedColorId])
@@ -810,7 +819,7 @@ export function Step2FrameFacade() {
                       {...calcCardImageGridSlots(t, PROFILE_CARD_IMAGE_SLOT_COUNT)}
                     />
                     <div className="tile-title">{title}</div>
-                    <div className="tile-sub">Цветов: {(t.colors ?? []).length}</div>
+                    <div className="tile-sub">Цветов: {activeProfileTypeColors(t.colors).length}</div>
                   </button>
                   {!readOnly && (
                     <TileGearMenu
@@ -928,7 +937,7 @@ export function Step2FrameFacade() {
             </div>
 
             <div className="tiles tiles--colors">
-              {(modalType.colors ?? []).map((c) => {
+              {activeProfileTypeColors(modalType.colors).map((c) => {
                 const active = c.color_material_id === selectedColorId
                 const ex = texByMaterialId[c.color_material_id]
                 const cm = c.color_material
@@ -993,7 +1002,7 @@ export function Step2FrameFacade() {
               })}
             </div>
 
-            {(modalType.colors ?? []).length === 0 && (
+            {activeProfileTypeColors(modalType.colors).length === 0 && (
               <div className="admin-muted">Цвета для типа профиля не заданы.</div>
             )}
           </div>
@@ -1034,17 +1043,23 @@ export function Step2FrameFacade() {
             onOpenMaterialSearch={() => void openMaterialTreeSearch('create')}
             colorsHit={createColorsHit}
             selectedColors={createColors}
-            onToggleColor={(id) =>
+            onToggleColorActive={(id) =>
               setCreateColors((prev) => {
-                const next = { ...prev }
-                if (next[id]) delete next[id]
-                else next[id] = { is_new: false, is_hit: false, is_sale: false }
-                return next
+                const cur = prev[id] ?? defaultProfileColorEntry()
+                return { ...prev, [id]: { ...cur, is_active: !isAttachedEntryActive(cur) } }
               })
             }
+            onRemoveColor={(id) => {
+              setCreateColorsHit((prev) => prev.filter((m) => m.id !== id))
+              setCreateColors((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }}
             onToggleColorFlag={(id, flag) =>
               setCreateColors((prev) => {
-                const flags = prev[id] ?? { is_new: false, is_hit: false, is_sale: false }
+                const flags = prev[id] ?? defaultProfileColorEntry()
                 return { ...prev, [id]: { ...flags, [flag]: !flags[flag] } }
               })
             }
@@ -1078,17 +1093,23 @@ export function Step2FrameFacade() {
             onOpenMaterialSearch={() => void openMaterialTreeSearch('edit')}
             colorsHit={editColorsHit}
             selectedColors={editColors}
-            onToggleColor={(id) =>
+            onToggleColorActive={(id) =>
               setEditColors((prev) => {
-                const next = { ...prev }
-                if (next[id]) delete next[id]
-                else next[id] = { is_new: false, is_hit: false, is_sale: false }
-                return next
+                const cur = prev[id] ?? defaultProfileColorEntry()
+                return { ...prev, [id]: { ...cur, is_active: !isAttachedEntryActive(cur) } }
               })
             }
+            onRemoveColor={(id) => {
+              setEditColorsHit((prev) => prev.filter((m) => m.id !== id))
+              setEditColors((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }}
             onToggleColorFlag={(id, flag) =>
               setEditColors((prev) => {
-                const flags = prev[id] ?? { is_new: false, is_hit: false, is_sale: false }
+                const flags = prev[id] ?? defaultProfileColorEntry()
                 return { ...prev, [id]: { ...flags, [flag]: !flags[flag] } }
               })
             }

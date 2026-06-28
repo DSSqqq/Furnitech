@@ -206,6 +206,7 @@ export type CalculatorProfileTypeColorDto = {
   is_new: boolean
   is_hit: boolean
   is_sale: boolean
+  is_active: boolean
 }
 
 export type CalculatorProfileType = {
@@ -254,6 +255,7 @@ export type CalculatorFillingTypeMaterialDto = {
     texture_library_item?: number | null
     texture_library_item_name?: string | null
   }
+  is_active: boolean
 }
 
 export type CalculatorFillingType = {

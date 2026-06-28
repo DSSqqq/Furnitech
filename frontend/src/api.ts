@@ -780,7 +780,7 @@ export function createCalculatorProfileType(
         card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
-        colors?: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
+        colors?: { color_material_id: number; is_active?: boolean; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
       }
 ) {
   return apiFetch('/api/calculator-profile-types/', {
@@ -800,7 +800,7 @@ export function updateCalculatorProfileType(
     card_texture_4: number | null
     is_active: boolean
     sort_order: number
-    colors: { color_material_id: number; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
+    colors: { color_material_id: number; is_active?: boolean; is_new?: boolean; is_hit?: boolean; is_sale?: boolean }[]
   }> | FormData
 ) {
   return apiFetch(`/api/calculator-profile-types/${id}/`, {
@@ -836,7 +836,7 @@ export function createCalculatorFillingType(
         card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
-        materials?: { material_id: number }[]
+        materials?: { material_id: number; is_active?: boolean }[]
       }
 ) {
   return apiFetch('/api/calculator-filling-types/', {
@@ -856,7 +856,7 @@ export function updateCalculatorFillingType(
     card_texture_4: number | null
     is_active: boolean
     sort_order: number
-    materials: { material_id: number }[]
+    materials: { material_id: number; is_active?: boolean }[]
   }> | FormData
 ) {
   return apiFetch(`/api/calculator-filling-types/${id}/`, {
@@ -931,7 +931,7 @@ export function createCalculatorHingeType(
         card_texture_4?: number | null
         is_active?: boolean
         sort_order?: number
-        materials?: { material_id: number }[]
+        materials?: { material_id: number; is_active?: boolean }[]
       }
 ) {
   return apiFetch('/api/calculator-hinge-types/', {
@@ -951,7 +951,7 @@ export function updateCalculatorHingeType(
     card_texture_4: number | null
     is_active: boolean
     sort_order: number
-    materials: { material_id: number }[]
+    materials: { material_id: number; is_active?: boolean }[]
   }> | FormData
 ) {
   return apiFetch(`/api/calculator-hinge-types/${id}/`, {
